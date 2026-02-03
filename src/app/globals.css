@@ -1,0 +1,237 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   PALETTE — Light & Dark
+   Base swatches: #fdfbfa (cream) · #ebdbd8 (warm gray) · #171414 (dark)
+                 #20465f (teal) · #f0473e (coral) · #fcd149 (gold)
+   ============================================================================= */
+
+/* --- Light mode (default) --- */
+:root,
+[data-theme="light"] {
+  /* Swatches */
+  --palette-cream: #fdfbfa;
+  --palette-warm-gray: #ebdbd8;
+  --palette-dark: #171414;
+  --palette-teal: #20465f;
+  --palette-teal-dark: #1a3949;
+  --palette-coral: #f0473e;
+  --palette-coral-dark: #e03a32;
+  --palette-gold: #fcd149;
+
+  /* Semantic (light) */
+  --color-surface: #fdfbfa;
+  --color-surface-variant: #ebdbd8;
+  --color-on-surface: #171414;
+  --color-on-surface-variant: #4a4544;
+  --color-outline: #c9b8b4;
+
+  --color-primary: #20465f;
+  --color-primary-hover: #1a3949;
+  --color-on-primary: #fdfbfa;
+
+  --color-error: #f0473e;
+  --color-error-bg: #fdeceb;
+
+  --color-card-bg: #ebdbd8;
+  --color-card-text: #171414;
+
+  /* Buttons (light) */
+  --color-btn-primary-bg: #20465f;
+  --color-btn-primary-bg-hover: #1a3949;
+  --color-btn-primary-text: #fdfbfa;
+  --color-btn-secondary-bg: #ebdbd8;
+  --color-btn-secondary-bg-hover: #dfcdc9;
+  --color-btn-secondary-text: #171414;
+  --color-btn-danger-bg: #f0473e;
+  --color-btn-danger-bg-hover: #e03a32;
+  --color-btn-danger-text: #fdfbfa;
+  --color-badge-success-bg: #fcd149;
+  --color-badge-success-text: #171414;
+
+  --header-height: 56px;
+  --radius: 8px;
+  --shadow-sm: 0 1px 2px 0 rgb(23 20 20 / 8%), 0 1px 3px 1px rgb(23 20 20 / 6%);
+  --shadow-md: 0 1px 3px 0 rgb(23 20 20 / 10%), 0 4px 8px 3px rgb(23 20 20 / 8%);
+}
+
+/* --- Dark mode (system or data-theme) --- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-surface: #171414;
+    --color-surface-variant: #2a2221;
+    --color-on-surface: #fdfbfa;
+    --color-on-surface-variant: #c4b5b2;
+    --color-outline: #4a4544;
+
+    --color-primary: #6e9dbb;
+    --color-primary-hover: #8ab4d0;
+    --color-on-primary: #171414;
+
+    --color-error: #f0473e;
+    --color-error-bg: rgba(240, 71, 62, 0.18);
+
+    --color-card-bg: #2a2221;
+    --color-card-text: #fdfbfa;
+
+    --color-btn-primary-bg: #6e9dbb;
+    --color-btn-primary-bg-hover: #8ab4d0;
+    --color-btn-primary-text: #171414;
+    --color-btn-secondary-bg: #3d3534;
+    --color-btn-secondary-bg-hover: #4a4241;
+    --color-btn-secondary-text: #fdfbfa;
+    --color-btn-danger-bg: #f0473e;
+    --color-btn-danger-bg-hover: #f25c54;
+    --color-btn-danger-text: #fdfbfa;
+    --color-badge-success-bg: #fcd149;
+    --color-badge-success-text: #171414;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 24%), 0 1px 3px 1px rgb(0 0 0 / 18%);
+    --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 24%), 0 4px 8px 3px rgb(0 0 0 / 18%);
+  }
+}
+
+/* Manual dark theme (when data-theme="dark" is set on html) */
+[data-theme="dark"] {
+  --color-surface: #171414;
+  --color-surface-variant: #2a2221;
+  --color-on-surface: #fdfbfa;
+  --color-on-surface-variant: #c4b5b2;
+  --color-outline: #4a4544;
+
+  --color-primary: #6e9dbb;
+  --color-primary-hover: #8ab4d0;
+  --color-on-primary: #171414;
+
+  --color-error: #f0473e;
+  --color-error-bg: rgba(240, 71, 62, 0.18);
+
+  --color-card-bg: #2a2221;
+  --color-card-text: #fdfbfa;
+
+  --color-btn-primary-bg: #6e9dbb;
+  --color-btn-primary-bg-hover: #8ab4d0;
+  --color-btn-primary-text: #171414;
+  --color-btn-secondary-bg: #3d3534;
+  --color-btn-secondary-bg-hover: #4a4241;
+  --color-btn-secondary-text: #fdfbfa;
+  --color-btn-danger-bg: #f0473e;
+  --color-btn-danger-bg-hover: #f25c54;
+  --color-btn-danger-text: #fdfbfa;
+  --color-badge-success-bg: #fcd149;
+  --color-badge-success-text: #171414;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 24%), 0 1px 3px 1px rgb(0 0 0 / 18%);
+  --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 24%), 0 4px 8px 3px rgb(0 0 0 / 18%);
+}
+
+/* Manual light theme override (force light even in dark system preference) */
+[data-theme="light"] {
+  --color-surface: #fdfbfa;
+  --color-surface-variant: #ebdbd8;
+  --color-on-surface: #171414;
+  --color-on-surface-variant: #4a4544;
+  --color-outline: #c9b8b4;
+  --color-primary: #20465f;
+  --color-primary-hover: #1a3949;
+  --color-on-primary: #fdfbfa;
+  --color-error: #f0473e;
+  --color-error-bg: #fdeceb;
+  --color-card-bg: #ebdbd8;
+  --color-card-text: #171414;
+  --color-btn-primary-bg: #20465f;
+  --color-btn-primary-bg-hover: #1a3949;
+  --color-btn-primary-text: #fdfbfa;
+  --color-btn-secondary-bg: #ebdbd8;
+  --color-btn-secondary-bg-hover: #dfcdc9;
+  --color-btn-secondary-text: #171414;
+  --color-btn-danger-bg: #f0473e;
+  --color-btn-danger-bg-hover: #e03a32;
+  --color-btn-danger-text: #fdfbfa;
+  --color-badge-success-bg: #fcd149;
+  --color-badge-success-text: #171414;
+  --shadow-sm: 0 1px 2px 0 rgb(23 20 20 / 8%), 0 1px 3px 1px rgb(23 20 20 / 6%);
+  --shadow-md: 0 1px 3px 0 rgb(23 20 20 / 10%), 0 4px 8px 3px rgb(23 20 20 / 8%);
+}
+
+/* =============================================================================
+   ELEMENT TOKENS (use palette variables so they respect light/dark)
+   ============================================================================= */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center font-medium rounded-lg transition-colors disabled:opacity-50;
+  }
+  .btn-md {
+    @apply px-4 py-2.5 text-sm;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  .btn-primary {
+    background-color: var(--color-btn-primary-bg);
+    color: var(--color-btn-primary-text);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-btn-primary-bg-hover);
+  }
+
+  .btn-secondary {
+    background-color: var(--color-btn-secondary-bg);
+    color: var(--color-btn-secondary-text);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-btn-secondary-bg-hover);
+  }
+
+  .btn-danger {
+    background-color: var(--color-btn-danger-bg);
+    color: var(--color-btn-danger-text);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: var(--color-btn-danger-bg-hover);
+  }
+
+  .badge-success {
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-sm font-medium;
+    background-color: var(--color-badge-success-bg);
+    color: var(--color-badge-success-text);
+  }
+
+  .card {
+    @apply rounded-lg border border-[var(--color-outline)] shadow-card;
+    background-color: var(--color-card-bg);
+    color: var(--color-card-text);
+  }
+}
+
+@layer base {
+  body {
+    font-family: var(--font-roboto), "Roboto", system-ui, sans-serif;
+    color: var(--color-on-surface);
+    background: var(--color-surface-variant);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1 {
+    @apply text-2xl font-medium tracking-tight text-[var(--color-on-surface)];
+  }
+  h2 {
+    @apply text-xl font-medium tracking-tight text-[var(--color-on-surface)];
+  }
+  h3 {
+    @apply text-lg font-medium text-[var(--color-on-surface)];
+  }
+  p {
+    @apply text-[var(--color-on-surface-variant)];
+  }
+}
+
+/* Focus ring */
+input:focus,
+button:focus-visible,
+a:focus-visible {
+  @apply outline-none ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-surface)];
+}
