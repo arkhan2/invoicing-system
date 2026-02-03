@@ -3,6 +3,7 @@ import { createClient, getUserSafe } from "@/lib/supabase/server";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DashboardGate } from "@/components/DashboardGate";
+import { DashboardNav, SignOutButton, type NavItem } from "@/components/DashboardNav";
 
 export default async function DashboardLayout({
   children,
@@ -25,27 +26,28 @@ export default async function DashboardLayout({
     .maybeSingle();
   const hasCompany = !!company;
 
-  const allNavLinks = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/dashboard/company", label: "Company" },
-    { href: "/dashboard/customers", label: "Customers" },
-    { href: "/dashboard/vendors", label: "Vendors" },
-    { href: "/dashboard/items", label: "Items" },
-    { href: "/dashboard/sales", label: "Sales Invoices" },
-    { href: "/dashboard/purchases", label: "Purchase Invoices" },
+  const allNavItems: NavItem[] = [
+    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+    { href: "/dashboard/company", label: "Company", icon: "company" },
+    { href: "/dashboard/customers", label: "Customers", icon: "customers" },
+    { href: "/dashboard/vendors", label: "Vendors", icon: "vendors" },
+    { href: "/dashboard/items", label: "Items", icon: "items" },
+    { href: "/dashboard/sales", label: "Sales Invoices", icon: "sales" },
+    { href: "/dashboard/purchases", label: "Purchase Invoices", icon: "purchases" },
   ];
-  const navLinks = hasCompany
-    ? allNavLinks
-    : [{ href: "/dashboard/company", label: "Company" }];
+  const navItems = hasCompany ? allNavItems : [{ href: "/dashboard/company", label: "Company", icon: "company" as const }];
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-variant">
-      {/* Header: reserved area, no critical content hidden (Google guideline) */}
+      {/* Header: reserved area 56dp, no critical content hidden (Google design) */}
       <header
-        className="h-14 flex-shrink-0 flex items-center px-4 bg-surface border-b border-[var(--color-outline)]"
+        className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-[var(--color-outline)] bg-[var(--color-surface)] px-4"
         style={{ minHeight: "var(--header-height, 56px)" }}
       >
-        <Link href="/dashboard" className="flex items-center gap-2 text-lg font-medium text-[var(--color-on-surface)]">
+        <Link
+          href="/dashboard"
+          className="flex min-w-0 items-center gap-2 text-lg font-semibold tracking-tight text-[var(--color-on-surface)]"
+        >
           {company?.logo_url && (
             <img
               src={company.logo_url}
@@ -54,37 +56,23 @@ export default async function DashboardLayout({
               aria-hidden
             />
           )}
-          <span>{company?.name || "Invoicing System"}</span>
+          <span className="truncate">{company?.name || "Invoicing System"}</span>
         </Link>
-        <span className="ml-4 text-sm text-[var(--color-on-surface-variant)] truncate max-w-[200px]" title={user.email ?? ""}>
+        <span
+          className="hidden truncate text-sm text-[var(--color-on-surface-variant)] sm:inline sm:max-w-[200px]"
+          title={user.email ?? ""}
+        >
           {user.email}
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0">
-        <aside className="w-56 flex-shrink-0 flex flex-col border-r border-[var(--color-outline)] bg-surface p-3">
-          <nav className="flex flex-col gap-0.5" aria-label="Main">
-            {navLinks.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="px-3 py-2 rounded-lg text-sm font-medium text-[var(--color-on-surface)] hover:bg-surface-variant"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-          <form action="/api/auth/signout" method="post" className="mt-auto pt-3">
-            <button
-              type="submit"
-              className="w-full text-left px-3 py-2 rounded-lg text-sm text-[var(--color-on-surface-variant)] hover:bg-surface-variant"
-            >
-              Sign out
-            </button>
-          </form>
+      <div className="flex min-h-0 flex-1">
+        <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)] p-3">
+          <DashboardNav items={navItems} />
+          <SignOutButton />
         </aside>
 
         {/* Main: one primary content area; gate redirects to company if profile incomplete */}

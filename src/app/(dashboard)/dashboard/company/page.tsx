@@ -19,15 +19,18 @@ export default async function CompanyPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-medium text-[var(--color-on-surface)]">
-        {company ? "Company profile" : "Create your company"}
-      </h1>
-      <p className="text-sm text-[var(--color-on-surface-variant)]">
-        {company
-          ? "Update your company details. Other pages use this profile."
-          : "Complete your company profile to access customers, vendors, and invoices."}
-      </p>
-      <div className="card p-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-on-surface)]">
+          {company ? "Company profile" : "Create your company"}
+        </h1>
+        <p className="max-w-xl text-sm text-[var(--color-on-surface-variant)]">
+          {company
+            ? "Update your company details. This profile is used on invoices and across the app."
+            : "Complete your company profile to access customers, vendors, and invoices."}
+        </p>
+      </header>
+
+      <div className="card w-fit max-w-full overflow-hidden p-0 shadow-card">
         <CompanyForm company={company} />
       </div>
     </div>

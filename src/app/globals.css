@@ -3,9 +3,11 @@
 @tailwind utilities;
 
 /* =============================================================================
-   PALETTE — Light & Dark
-   Base swatches: #fbfbf9 (ivory) · #e2e4e1 (stone) · #1c1f24 (charcoal)
-                 #3b4c8a (indigo) · #e5533d (rose) · #4ecdc4 (mint)
+   PALETTE — Light & Dark (Google-style: clear hierarchy, highlight, accessibility)
+   Base: #fbfbf9 (surface) · #e8eae6 (surface-variant) · #1c1f24 (on-surface)
+   Primary: #2563eb · Secondary: #0d9488 · Tertiary: #7c3aed
+   All backgrounds use these semantic variables (--color-surface, --color-surface-variant,
+   --color-card-bg, --color-primary-container, etc.) so theme stays consistent.
    ============================================================================= */
 
 /* --- Light mode (default) --- */
@@ -13,43 +15,59 @@
 [data-theme="light"] {
   /* Swatches */
   --palette-cream: #fbfbf9;
-  --palette-warm-gray: #e2e4e1;
+  --palette-warm-gray: #e8eae6;
   --palette-dark: #1c1f24;
-  --palette-teal: #3b4c8a;
-  --palette-teal-dark: #2f3e73;
+  --palette-primary: #2563eb;
+  --palette-primary-dark: #1d4ed8;
+  --palette-secondary: #0d9488;
+  --palette-tertiary: #7c3aed;
   --palette-coral: #e5533d;
   --palette-coral-dark: #cf4632;
-  --palette-gold: #4ecdc4;
+  --palette-mint: #2dd4bf;
 
   /* Semantic (light) */
   --color-surface: #fbfbf9;
-  --color-surface-variant: #e2e4e1;
+  --color-surface-variant: #e8eae6;
   --color-on-surface: #1c1f24;
   --color-on-surface-variant: #4a4d52;
   --color-outline: #c4c6c3;
 
-  --color-primary: #3b4c8a;
-  --color-primary-hover: #2f3e73;
-  --color-on-primary: #fbfbf9;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-on-primary: #ffffff;
 
-  --color-error: #e5533d;
-  --color-error-bg: #fdeceb;
+  /* Nav / highlight container (primary tint) */
+  --color-primary-container: #dbeafe;
+  --color-on-primary-container: #1e40af;
 
-  --color-card-bg: #e2e4e1;
+  /* Secondary accent (links, badges, highlights) */
+  --color-secondary: #0d9488;
+  --color-secondary-container: #ccfbf1;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #134e4a;
+
+  /* Tertiary (optional emphasis) */
+  --color-tertiary: #7c3aed;
+  --color-tertiary-container: #ede9fe;
+
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+
+  --color-card-bg: #ffffff;
   --color-card-text: #1c1f24;
 
   /* Buttons (light) */
-  --color-btn-primary-bg: #3b4c8a;
-  --color-btn-primary-bg-hover: #2f3e73;
-  --color-btn-primary-text: #fbfbf9;
-  --color-btn-secondary-bg: #e2e4e1;
+  --color-btn-primary-bg: #2563eb;
+  --color-btn-primary-bg-hover: #1d4ed8;
+  --color-btn-primary-text: #ffffff;
+  --color-btn-secondary-bg: #e8eae6;
   --color-btn-secondary-bg-hover: #d4d6d3;
   --color-btn-secondary-text: #1c1f24;
-  --color-btn-danger-bg: #e5533d;
-  --color-btn-danger-bg-hover: #cf4632;
-  --color-btn-danger-text: #fbfbf9;
-  --color-badge-success-bg: #4ecdc4;
-  --color-badge-success-text: #1c1f24;
+  --color-btn-danger-bg: #dc2626;
+  --color-btn-danger-bg-hover: #b91c1c;
+  --color-btn-danger-text: #ffffff;
+  --color-badge-success-bg: #2dd4bf;
+  --color-badge-success-text: #134e4a;
 
   --header-height: 56px;
   --radius: 8px;
@@ -62,31 +80,42 @@
   :root:not([data-theme="light"]) {
     --color-surface: #1c1f24;
     --color-surface-variant: #262a31;
-    --color-on-surface: #fbfbf9;
-    --color-on-surface-variant: #b8bcc4;
-    --color-outline: #4a4d52;
+    --color-on-surface: #f4f4f5;
+    --color-on-surface-variant: #a1a1aa;
+    --color-outline: #3f3f46;
 
-    --color-primary: #7f8fdc;
-    --color-primary-hover: #9aa7e8;
-    --color-on-primary: #1c1f24;
+    --color-primary: #60a5fa;
+    --color-primary-hover: #93c5fd;
+    --color-on-primary: #1e3a8a;
 
-    --color-error: #e5533d;
-    --color-error-bg: rgba(229, 83, 61, 0.18);
+    --color-primary-container: #1e3a8a;
+    --color-on-primary-container: #bfdbfe;
 
-    --color-card-bg: #262a31;
-    --color-card-text: #fbfbf9;
+    --color-secondary: #2dd4bf;
+    --color-secondary-container: #134e4a;
+    --color-on-secondary: #134e4a;
+    --color-on-secondary-container: #99f6e4;
 
-    --color-btn-primary-bg: #7f8fdc;
-    --color-btn-primary-bg-hover: #9aa7e8;
-    --color-btn-primary-text: #1c1f24;
-    --color-btn-secondary-bg: #3d4048;
-    --color-btn-secondary-bg-hover: #4a4d56;
-    --color-btn-secondary-text: #fbfbf9;
-    --color-btn-danger-bg: #e5533d;
-    --color-btn-danger-bg-hover: #ea6b58;
-    --color-btn-danger-text: #fbfbf9;
-    --color-badge-success-bg: #4ecdc4;
-    --color-badge-success-text: #1c1f24;
+    --color-tertiary: #a78bfa;
+    --color-tertiary-container: #4c1d95;
+
+    --color-error: #f87171;
+    --color-error-bg: rgba(248, 113, 113, 0.18);
+
+    --color-card-bg: #2d3036;
+    --color-card-text: #f4f4f5;
+
+    --color-btn-primary-bg: #3b82f6;
+    --color-btn-primary-bg-hover: #60a5fa;
+    --color-btn-primary-text: #ffffff;
+    --color-btn-secondary-bg: #3f3f46;
+    --color-btn-secondary-bg-hover: #52525b;
+    --color-btn-secondary-text: #f4f4f5;
+    --color-btn-danger-bg: #dc2626;
+    --color-btn-danger-bg-hover: #ef4444;
+    --color-btn-danger-text: #ffffff;
+    --color-badge-success-bg: #2dd4bf;
+    --color-badge-success-text: #134e4a;
 
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 24%), 0 1px 3px 1px rgb(0 0 0 / 18%);
     --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 24%), 0 4px 8px 3px rgb(0 0 0 / 18%);
@@ -97,31 +126,41 @@
 [data-theme="dark"] {
   --color-surface: #1c1f24;
   --color-surface-variant: #262a31;
-  --color-on-surface: #fbfbf9;
-  --color-on-surface-variant: #b8bcc4;
-  --color-outline: #4a4d52;
+  --color-on-surface: #f4f4f5;
+  --color-on-surface-variant: #a1a1aa;
+  --color-outline: #3f3f46;
 
-  --color-primary: #7f8fdc;
-  --color-primary-hover: #9aa7e8;
-  --color-on-primary: #1c1f24;
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-on-primary: #1e3a8a;
 
-  --color-error: #e5533d;
-  --color-error-bg: rgba(229, 83, 61, 0.18);
+  --color-primary-container: #1e3a8a;
+  --color-on-primary-container: #bfdbfe;
 
-  --color-card-bg: #262a31;
-  --color-card-text: #fbfbf9;
+  --color-secondary: #2dd4bf;
+  --color-secondary-container: #134e4a;
+  --color-on-secondary-container: #99f6e4;
 
-  --color-btn-primary-bg: #7f8fdc;
-  --color-btn-primary-bg-hover: #9aa7e8;
-  --color-btn-primary-text: #1c1f24;
-  --color-btn-secondary-bg: #3d4048;
-  --color-btn-secondary-bg-hover: #4a4d56;
-  --color-btn-secondary-text: #fbfbf9;
-  --color-btn-danger-bg: #e5533d;
-  --color-btn-danger-bg-hover: #ea6b58;
-  --color-btn-danger-text: #fbfbf9;
-  --color-badge-success-bg: #4ecdc4;
-  --color-badge-success-text: #1c1f24;
+  --color-tertiary: #a78bfa;
+  --color-tertiary-container: #4c1d95;
+
+  --color-error: #f87171;
+  --color-error-bg: rgba(248, 113, 113, 0.18);
+
+  --color-card-bg: #27272a;
+  --color-card-text: #f4f4f5;
+
+  --color-btn-primary-bg: #3b82f6;
+  --color-btn-primary-bg-hover: #60a5fa;
+  --color-btn-primary-text: #ffffff;
+  --color-btn-secondary-bg: #3f3f46;
+  --color-btn-secondary-bg-hover: #52525b;
+  --color-btn-secondary-text: #f4f4f5;
+  --color-btn-danger-bg: #dc2626;
+  --color-btn-danger-bg-hover: #ef4444;
+  --color-btn-danger-text: #ffffff;
+  --color-badge-success-bg: #2dd4bf;
+  --color-badge-success-text: #134e4a;
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 24%), 0 1px 3px 1px rgb(0 0 0 / 18%);
   --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 24%), 0 4px 8px 3px rgb(0 0 0 / 18%);
@@ -130,28 +169,34 @@
 /* Manual light theme override (force light even in dark system preference) */
 [data-theme="light"] {
   --color-surface: #fbfbf9;
-  --color-surface-variant: #e2e4e1;
+  --color-surface-variant: #e8eae6;
   --color-on-surface: #1c1f24;
   --color-on-surface-variant: #4a4d52;
   --color-outline: #c4c6c3;
-  --color-primary: #3b4c8a;
-  --color-primary-hover: #2f3e73;
-  --color-on-primary: #fbfbf9;
-  --color-error: #e5533d;
-  --color-error-bg: #fdeceb;
-  --color-card-bg: #e2e4e1;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #dbeafe;
+  --color-on-primary-container: #1e40af;
+  --color-secondary: #0d9488;
+  --color-secondary-container: #ccfbf1;
+  --color-tertiary: #7c3aed;
+  --color-tertiary-container: #ede9fe;
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-card-bg: #ffffff;
   --color-card-text: #1c1f24;
-  --color-btn-primary-bg: #3b4c8a;
-  --color-btn-primary-bg-hover: #2f3e73;
-  --color-btn-primary-text: #fbfbf9;
-  --color-btn-secondary-bg: #e2e4e1;
+  --color-btn-primary-bg: #2563eb;
+  --color-btn-primary-bg-hover: #1d4ed8;
+  --color-btn-primary-text: #ffffff;
+  --color-btn-secondary-bg: #e8eae6;
   --color-btn-secondary-bg-hover: #d4d6d3;
   --color-btn-secondary-text: #1c1f24;
-  --color-btn-danger-bg: #e5533d;
-  --color-btn-danger-bg-hover: #cf4632;
-  --color-btn-danger-text: #fbfbf9;
-  --color-badge-success-bg: #4ecdc4;
-  --color-badge-success-text: #1c1f24;
+  --color-btn-danger-bg: #dc2626;
+  --color-btn-danger-bg-hover: #b91c1c;
+  --color-btn-danger-text: #ffffff;
+  --color-badge-success-bg: #2dd4bf;
+  --color-badge-success-text: #134e4a;
   --shadow-sm: 0 1px 2px 0 rgb(28 31 36 / 8%), 0 1px 3px 1px rgb(28 31 36 / 6%);
   --shadow-md: 0 1px 3px 0 rgb(28 31 36 / 10%), 0 4px 8px 3px rgb(28 31 36 / 8%);
 }
