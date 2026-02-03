@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { supabaseEnv } from "./env";
+import { supabaseEnv, SUPABASE_AUTH_COOKIE_NAME } from "./env";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -24,6 +24,7 @@ export async function createClient() {
           }
         },
       },
+      cookieOptions: { name: SUPABASE_AUTH_COOKIE_NAME },
     }
   );
 }

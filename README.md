@@ -46,6 +46,7 @@ invoicing-system/
    - Create a project at [supabase.com](https://supabase.com/dashboard).
    - In **SQL Editor**, run the contents of `supabase/schema.sql`.
    - In **Authentication → Providers**, enable Email (and confirm email if you want).
+   - In **Authentication → URL Configuration**, add to **Redirect URLs**: `http://localhost:3000/auth/confirm` (dev) and `http://localhost:3000/auth/callback` (dev), plus your production URLs when deployed. Required for email confirmation.
    - In **Project Settings → API**, copy **Project URL** and **anon** key.
 
 2. **App**

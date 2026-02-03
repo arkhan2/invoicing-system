@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClientImplicit } from "@/lib/supabase/client-implicit";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
@@ -29,11 +29,12 @@ export default function SignupPage() {
     }
 
     setLoading(true);
-    const supabase = createClient();
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const supabase = createClientImplicit();
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/dashboard` },
+      options: { emailRedirectTo: `${origin}/auth/confirm` },
     });
     setLoading(false);
 

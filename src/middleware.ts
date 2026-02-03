@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { supabaseEnv } from "@/lib/supabase/env";
+import { supabaseEnv, SUPABASE_AUTH_COOKIE_NAME } from "@/lib/supabase/env";
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
@@ -22,6 +22,7 @@ export async function middleware(request: NextRequest) {
           );
         },
       },
+      cookieOptions: { name: SUPABASE_AUTH_COOKIE_NAME },
     }
   );
 

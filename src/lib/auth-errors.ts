@@ -14,6 +14,8 @@ export function getAuthErrorMessage(error: { message: string } | null): string {
     return "This email is already registered. Sign in instead, or use a different email to sign up.";
   if (m.includes("password should be at least"))
     return "Password must be at least 6 characters.";
+  if (m.includes("code verifier") || m.includes("code_verifier"))
+    return "Open the confirmation link in the same browser where you signed up (copy the link and paste it in that tab). Already confirmed? Sign in below with your email and password.";
 
   return error.message;
 }

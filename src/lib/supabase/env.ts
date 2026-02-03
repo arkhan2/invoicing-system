@@ -31,3 +31,6 @@ function getSupabaseEnv() {
 }
 
 export const supabaseEnv = getSupabaseEnv();
+
+/** Shared cookie name so PKCE code verifier is stored/read consistently on client and server. */
+export const SUPABASE_AUTH_COOKIE_NAME = "sb-auth-token";
