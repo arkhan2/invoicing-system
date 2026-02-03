@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserSafe } from "@/lib/supabase/server";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { DashboardGate } from "@/components/DashboardGate";
 
 export default async function DashboardLayout({
   children,
@@ -11,13 +12,20 @@ export default async function DashboardLayout({
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getUserSafe(supabase);
 
   if (!user) {
     redirect("/login");
   }
 
-  const navLinks = [
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const hasCompany = !!company;
+
+  const allNavLinks = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/dashboard/company", label: "Company" },
     { href: "/dashboard/customers", label: "Customers" },
@@ -26,6 +34,9 @@ export default async function DashboardLayout({
     { href: "/dashboard/sales", label: "Sales Invoices" },
     { href: "/dashboard/purchases", label: "Purchase Invoices" },
   ];
+  const navLinks = hasCompany
+    ? allNavLinks
+    : [{ href: "/dashboard/company", label: "Company" }];
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-variant">
@@ -68,12 +79,14 @@ export default async function DashboardLayout({
           </form>
         </aside>
 
-        {/* Main: one primary content area; avoid critical info only at bottom */}
-        <main className="flex-1 p-6 overflow-auto bg-surface-variant">
-          <div className="max-w-4xl mx-auto">
-            {children}
-          </div>
-        </main>
+        {/* Main: one primary content area; gate redirects to company if profile incomplete */}
+        <DashboardGate hasCompany={hasCompany}>
+          <main className="flex-1 p-6 overflow-auto bg-surface-variant">
+            <div className="max-w-4xl mx-auto">
+              {children}
+            </div>
+          </main>
+        </DashboardGate>
       </div>
     </div>
   );

@@ -26,7 +26,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch (e) {
+    const code = e && typeof e === "object" && "code" in e ? (e as { code: string }).code : undefined;
+    if (code === "refresh_token_not_found") {
+      response.cookies.set(SUPABASE_AUTH_COOKIE_NAME, "", { maxAge: 0, path: "/" });
+    }
+    // Continue: layout/page will treat as no user or use getUserSafe
+  }
 
   return response;
 }

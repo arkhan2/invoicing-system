@@ -34,11 +34,34 @@ export async function GET(request: Request) {
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
   if (exchangeError) {
+    const isCodeVerifier =
+      exchangeError.message.includes("code verifier") || exchangeError.message.includes("code_verifier");
+    if (isCodeVerifier) {
+      // Couldn't set the session in this browser (e.g. link opened elsewhere).
+      const isResetPassword = next.includes("reset-password");
+      if (isResetPassword) {
+        return NextResponse.redirect(
+          new URL(
+            "/forgot-password?message=" +
+              encodeURIComponent(
+                "Use the reset link in the same browser you used to request it, or get a new link below."
+              ),
+            request.url
+          )
+        );
+      }
+      // Signup confirmation: send to login with "Email confirmed" and "Set or reset your password" link.
+      return NextResponse.redirect(
+        new URL(
+          "/login?message=" +
+            encodeURIComponent("Email confirmed. Sign in with your email and password.") +
+            "&email_confirmed=1",
+          request.url
+        )
+      );
+    }
     let message = exchangeError.message;
-    if (exchangeError.message.includes("code verifier") || exchangeError.message.includes("code_verifier")) {
-      message =
-        "Open this link in the same browser where you signed up (e.g. copy the link and paste it in that tab). Already confirmed? Sign in below with your email and password.";
-    } else if (exchangeError.message === "Email link is invalid or has expired") {
+    if (exchangeError.message === "Email link is invalid or has expired") {
       message =
         "Confirmation link expired. Please sign up again or use the latest link from your email.";
     }

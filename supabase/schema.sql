@@ -14,7 +14,9 @@ create table if not exists public.companies (
   ntn text,
   cnic text,
   address text,
+  city text,
   province text,
+  gst_number text,
   registration_type text check (registration_type in ('Registered', 'Unregistered')),
   phone text,
   email text,
@@ -25,6 +27,8 @@ create table if not exists public.companies (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+-- If companies table already existed before city/gst_number: run supabase/migrations/20250203_add_company_city_gst.sql in SQL Editor.
 
 create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),
