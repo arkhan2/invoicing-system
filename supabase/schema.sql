@@ -24,6 +24,7 @@ create table if not exists public.companies (
   sales_invoice_next_number int default 1,
   purchase_invoice_prefix text default 'PUR',
   purchase_invoice_next_number int default 1,
+  logo_url text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

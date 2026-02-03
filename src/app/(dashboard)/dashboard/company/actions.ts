@@ -25,6 +25,8 @@ export async function createCompany(
     return { error: "You must be signed in to create a company." };
   }
 
+  const logoUrl = (formData.get("logo_url") as string)?.trim() || null;
+
   const { error } = await supabase.from("companies").insert({
     user_id: user.id,
     name,
@@ -45,6 +47,7 @@ export async function createCompany(
       (formData.get("sales_invoice_prefix") as string)?.trim() || "INV",
     purchase_invoice_prefix:
       (formData.get("purchase_invoice_prefix") as string)?.trim() || "PUR",
+    logo_url: logoUrl,
   });
 
   if (error) {
@@ -74,6 +77,33 @@ export async function updateCompany(
     return { error: "You must be signed in to update the company." };
   }
 
+  let logoUrl: string | null = (formData.get("logo_url") as string)?.trim() || null;
+  const removeLogo = formData.get("remove_logo") === "1";
+  const logoFile = formData.get("logo") as File | null;
+
+  if (removeLogo) {
+    logoUrl = null;
+  } else if (logoFile?.size && logoFile.size > 0) {
+    const ext = logoFile.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `${companyId}/logo.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from("company-logos")
+      .upload(path, logoFile, { upsert: true, contentType: logoFile.type });
+    if (uploadError) {
+      return { error: uploadError.message };
+    }
+    const { data: urlData } = supabase.storage.from("company-logos").getPublicUrl(path);
+    logoUrl = urlData.publicUrl;
+  } else if (logoUrl === null) {
+    const { data: existing } = await supabase
+      .from("companies")
+      .select("logo_url")
+      .eq("id", companyId)
+      .eq("user_id", user.id)
+      .single();
+    logoUrl = existing?.logo_url ?? null;
+  }
+
   const { error } = await supabase
     .from("companies")
     .update({
@@ -95,6 +125,7 @@ export async function updateCompany(
         (formData.get("sales_invoice_prefix") as string)?.trim() || "INV",
       purchase_invoice_prefix:
         (formData.get("purchase_invoice_prefix") as string)?.trim() || "PUR",
+      logo_url: logoUrl,
       updated_at: new Date().toISOString(),
     })
     .eq("id", companyId)

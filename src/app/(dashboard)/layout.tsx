@@ -20,7 +20,7 @@ export default async function DashboardLayout({
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id")
+    .select("id, name, logo_url")
     .eq("user_id", user.id)
     .maybeSingle();
   const hasCompany = !!company;
@@ -45,8 +45,16 @@ export default async function DashboardLayout({
         className="h-14 flex-shrink-0 flex items-center px-4 bg-surface border-b border-[var(--color-outline)]"
         style={{ minHeight: "var(--header-height, 56px)" }}
       >
-        <Link href="/dashboard" className="text-lg font-medium text-[var(--color-on-surface)]">
-          Invoicing System
+        <Link href="/dashboard" className="flex items-center gap-2 text-lg font-medium text-[var(--color-on-surface)]">
+          {company?.logo_url && (
+            <img
+              src={company.logo_url}
+              alt=""
+              className="h-8 w-auto max-w-[120px] object-contain"
+              aria-hidden
+            />
+          )}
+          <span>{company?.name || "Invoicing System"}</span>
         </Link>
         <span className="ml-4 text-sm text-[var(--color-on-surface-variant)] truncate max-w-[200px]" title={user.email ?? ""}>
           {user.email}

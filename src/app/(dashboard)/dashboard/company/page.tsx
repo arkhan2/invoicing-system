@@ -12,7 +12,7 @@ export default async function CompanyPage() {
   const { data: company } = await supabase
     .from("companies")
     .select(
-      "id, name, ntn, cnic, address, city, province, gst_number, registration_type, phone, email, sales_invoice_prefix, purchase_invoice_prefix"
+      "id, name, ntn, cnic, address, city, province, gst_number, registration_type, phone, email, sales_invoice_prefix, purchase_invoice_prefix, logo_url"
     )
     .eq("user_id", user.id)
     .maybeSingle();

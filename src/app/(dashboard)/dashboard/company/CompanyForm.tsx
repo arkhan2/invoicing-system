@@ -17,6 +17,7 @@ type Company = {
   email: string | null;
   sales_invoice_prefix: string | null;
   purchase_invoice_prefix: string | null;
+  logo_url: string | null;
 };
 
 export function CompanyForm({ company }: { company: Company | null }) {
@@ -51,6 +52,47 @@ export function CompanyForm({ company }: { company: Company | null }) {
           {state.error}
         </div>
       )}
+
+      {/* Company logo */}
+      <div>
+        <label className="block text-sm font-medium text-[var(--color-on-surface)] mb-1.5">
+          Company logo
+        </label>
+        {company?.logo_url && (
+          <div className="flex items-center gap-4 mb-3">
+            <img
+              src={company.logo_url}
+              alt="Company logo"
+              className="h-16 w-16 object-contain rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface-variant)]"
+            />
+            <label className="flex items-center gap-2 text-sm text-[var(--color-on-surface-variant)]">
+              <input type="checkbox" name="remove_logo" value="1" className="rounded" />
+              Remove logo
+            </label>
+          </div>
+        )}
+        {company ? (
+          <div className="space-y-2">
+            <input
+              type="file"
+              name="logo"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="w-full text-sm text-[var(--color-on-surface)] file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary)] file:text-[var(--color-on-primary)]"
+            />
+            <p className="text-xs text-[var(--color-on-surface-variant)]">
+              Or paste a logo URL below. Max 1MB; JPEG, PNG, GIF, WebP.
+            </p>
+          </div>
+        ) : null}
+        <input
+          id="logo_url"
+          name="logo_url"
+          type="url"
+          defaultValue={company?.logo_url ?? ""}
+          className="mt-2 w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-surface)] placeholder:text-[var(--color-on-surface-variant)]"
+          placeholder="https://… (optional)"
+        />
+      </div>
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-[var(--color-on-surface)] mb-1.5">
