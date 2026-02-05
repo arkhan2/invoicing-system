@@ -196,37 +196,6 @@ export function CompanyForm({ company }: { company: Company | null }) {
             </div>
           </section>
 
-          {/* Tax identifiers */}
-          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-              Tax identifiers
-            </h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="ntn" className={labelClass}>NTN</label>
-                <input
-                  id="ntn"
-                  name="ntn"
-                  type="text"
-                  defaultValue={company?.ntn ?? ""}
-                  className={inputClass}
-                  placeholder="e.g. 6708002-5"
-                />
-              </div>
-              <div>
-                <label htmlFor="cnic" className={labelClass}>CNIC</label>
-                <input
-                  id="cnic"
-                  name="cnic"
-                  type="text"
-                  defaultValue={company?.cnic ?? ""}
-                  className={inputClass}
-                  placeholder="e.g. 42501-4002671-9"
-                />
-              </div>
-            </div>
-          </section>
-
           {/* Address */}
           <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
@@ -287,14 +256,36 @@ export function CompanyForm({ company }: { company: Company | null }) {
             </div>
           </section>
 
-          {/* Tax & registration + Contact: two cards side by side on md+ */}
+          {/* Tax identifiers & registration + Contact: two cards side by side on md+ */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {/* Tax & registration */}
+            {/* Tax identifiers & registration */}
             <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-                Tax & registration
+                Tax identifiers & registration
               </h3>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="ntn" className={labelClass}>NTN</label>
+                  <input
+                    id="ntn"
+                    name="ntn"
+                    type="text"
+                    defaultValue={company?.ntn ?? ""}
+                    className={inputClass}
+                    placeholder="e.g. 6708002-5"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="cnic" className={labelClass}>CNIC</label>
+                  <input
+                    id="cnic"
+                    name="cnic"
+                    type="text"
+                    defaultValue={company?.cnic ?? ""}
+                    className={inputClass}
+                    placeholder="e.g. 42501-4002671-9"
+                  />
+                </div>
                 <div>
                   <label htmlFor="gst_number" className={labelClass}>
                     GST number <span className="font-normal text-[var(--color-on-surface-variant)]">(optional)</span>
