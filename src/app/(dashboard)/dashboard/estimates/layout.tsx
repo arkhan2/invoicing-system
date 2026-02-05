@@ -46,7 +46,7 @@ export default async function EstimatesLayout({
   }));
 
   return (
-    <div className="-m-6 flex min-h-0 min-w-0 flex-1 flex-shrink-0 overflow-hidden border border-[var(--color-outline)] bg-[var(--color-card-bg)] shadow-card">
+    <div className="-m-6 flex min-h-0 min-w-0 flex-1 flex-shrink-0 overflow-hidden border-r border-b border-[var(--color-outline)] bg-[var(--color-card-bg)]">
       <aside className="w-80 flex-shrink-0 overflow-hidden">
         <EstimateSidebar estimates={list} companyId={company.id} />
       </aside>

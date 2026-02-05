@@ -45,7 +45,7 @@ export default function TestSmtpPage() {
             <br />
             Then restart the dev server and open this page again.
           </p>
-          <Link href="/login" className="btn btn-secondary btn-md w-full inline-block text-center">
+          <Link href="/login" className="btn btn-secondary btn-sm w-full inline-block text-center">
             Back to Sign in
           </Link>
         </div>
@@ -65,7 +65,7 @@ export default function TestSmtpPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div
-              className="text-sm p-3 rounded-lg border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
+              className="text-sm p-3 rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
               role="alert"
             >
               {error}
@@ -73,7 +73,7 @@ export default function TestSmtpPage() {
           )}
           {sent && (
             <div
-              className="text-sm p-3 rounded-lg border border-[var(--color-outline)] bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]"
+              className="text-sm p-3 rounded-xl border border-[var(--color-outline)] bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]"
               role="status"
             >
               Request sent. Check <strong>{email}</strong> for the reset email (and spam folder).
@@ -90,11 +90,11 @@ export default function TestSmtpPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="you@example.com"
             />
           </div>
-          <button type="submit" disabled={loading} className="btn btn-primary btn-md w-full">
+          <button type="submit" disabled={loading} className="btn btn-primary btn-sm w-full">
             {loading ? "Sending…" : "Send test recovery email"}
           </button>
         </form>

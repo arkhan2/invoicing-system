@@ -72,15 +72,17 @@ export default async function DashboardLayout({
         </div>
       </header>
 
-      {/* Fixed nav + scrollable main */}
+      {/* Fixed nav + single scroll container (main) */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)] p-3 overflow-y-auto">
-          <DashboardNav items={navItems} />
-          <SignOutButton />
+        <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)] overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
+            <DashboardNav items={navItems} />
+            <SignOutButton />
+          </div>
         </aside>
 
         <DashboardGate hasCompany={hasCompany}>
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-6 bg-[var(--color-surface-variant)]">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-[var(--color-surface-variant)] p-6">
             {children}
           </main>
         </DashboardGate>

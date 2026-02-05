@@ -2,8 +2,10 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { IconButton } from "@/components/IconButton";
 import { CustomerForm, type Customer } from "./CustomerForm";
 import { deleteCustomer, deleteCustomers } from "./actions";
 import { showMessage } from "@/components/MessageBar";
@@ -111,150 +113,128 @@ export function CustomerList({
   }
 
   const inputClass =
-    "w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors focus:border-[var(--color-primary)]";
+    "w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
   return (
     <>
-      <div className="p-4 sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col">
+        {/* Card header: filter left, primary action right */}
+        <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-5 py-4">
           <input
             type="search"
-            placeholder="Search by name, email, or phone…"
+            placeholder="Search customers…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={inputClass + " max-w-xs"}
+            className={inputClass + " max-w-[240px] min-w-0"}
             aria-label="Search customers"
           />
-          <button
-            type="button"
-            onClick={openAdd}
-            className="btn btn-primary btn-sm shrink-0"
-          >
-            Add customer
-          </button>
+          <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="Add customer" onClick={openAdd} />
         </div>
 
-        {selectedIds.size > 0 && (
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface-variant)]/50 px-4 py-2">
-            <span className="text-sm text-[var(--color-on-surface-variant)]">
-              {selectedIds.size} selected
-            </span>
-            <button
-              type="button"
-              onClick={openDeleteSelected}
-              className="btn btn-danger btn-sm"
-            >
-              Delete selected
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedIds(new Set())}
-              className="btn btn-secondary btn-sm"
-            >
-              Clear selection
-            </button>
-          </div>
-        )}
-
-        {filtered.length === 0 ? (
-          <div className="rounded-lg border border-[var(--color-outline)] border-dashed p-8 text-center">
-            <p className="text-sm text-[var(--color-on-surface-variant)]">
-              {initialCustomers.length === 0
-                ? "No customers yet. Add your first customer."
-                : "No customers match your search."}
-            </p>
-            {initialCustomers.length === 0 && (
+        {/* Card body */}
+        <div className="flex flex-col gap-4 p-5">
+          {selectedIds.size > 0 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/50 px-4 py-2">
+              <span className="text-sm text-[var(--color-on-surface-variant)]">
+                {selectedIds.size} selected
+              </span>
               <button
                 type="button"
-                onClick={openAdd}
-                className="btn btn-primary btn-sm mt-3"
+                onClick={openDeleteSelected}
+                className="btn btn-danger btn-sm"
               >
-                Add customer
+                Delete selected
               </button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-[var(--color-outline)]">
-            <table className="w-full min-w-[600px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)]/50">
-                  <th className="w-10 p-3">
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={allFilteredSelected}
-                        onChange={toggleSelectAll}
-                        className="rounded border-[var(--color-outline)]"
-                        aria-label="Select all"
-                      />
-                    </label>
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    Name
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    Contact
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    Address / Province
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    Registration
-                  </th>
-                  <th className="w-24 p-3" aria-label="Actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-b border-[var(--color-outline)] last:border-b-0 hover:bg-[var(--color-surface-variant)]/30"
-                  >
-                    <td className="p-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(c.id)}
-                        onChange={() => toggleSelect(c.id)}
-                        className="rounded border-[var(--color-outline)]"
-                        aria-label={`Select ${c.name}`}
-                      />
-                    </td>
-                    <td className="p-3 font-medium text-[var(--color-on-surface)]">
-                      {c.name}
-                    </td>
-                    <td className="p-3 text-[var(--color-on-surface-variant)]">
-                      {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
-                    </td>
-                    <td className="p-3 text-[var(--color-on-surface-variant)]">
-                      {[c.address, c.city, c.province].filter(Boolean).join(", ") || "—"}
-                    </td>
-                    <td className="p-3 text-[var(--color-on-surface-variant)]">
-                      {c.registration_type ?? "—"}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(c)}
-                          className="text-[var(--color-primary)] hover:underline"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDeleteOne(c.id)}
-                          className="text-[var(--color-error)] hover:underline"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="btn btn-secondary btn-sm"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          {filtered.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30 px-6 py-10 text-center">
+              <p className="text-sm text-[var(--color-on-surface-variant)]">
+                {initialCustomers.length === 0 ? "No customers yet." : "No matches."}
+              </p>
+              {initialCustomers.length === 0 && (
+                <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="Add customer" onClick={openAdd} className="mt-3" />
+              )}
+            </div>
+          ) : (
+            <div className="max-h-[70vh] overflow-auto rounded-xl border border-[var(--color-outline)]">
+              <table className="w-full min-w-[600px] text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-[var(--color-surface-variant)] shadow-[0_1px_0_0_var(--color-divider)]">
+                  <tr>
+                    <th className="w-10 p-3">
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={allFilteredSelected}
+                          onChange={toggleSelectAll}
+                          className="rounded-md border-[var(--color-outline)]"
+                          aria-label="Select all"
+                        />
+                      </label>
+                    </th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">
+                      Name
+                    </th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">
+                      Contact
+                    </th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">
+                      Address / Province
+                    </th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">
+                      Registration
+                    </th>
+                    <th className="w-28 shrink-0 p-3 text-right" aria-label="Actions" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {filtered.map((c) => (
+                    <tr
+                      key={c.id}
+                      className="border-b border-[var(--color-divider)] last:border-b-0 even:bg-[var(--color-surface-variant)]/10 hover:bg-[var(--color-primary-container)]/20 transition-colors duration-150"
+                    >
+                      <td className="p-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(c.id)}
+                          onChange={() => toggleSelect(c.id)}
+                          className="rounded-md border-[var(--color-outline)]"
+                          aria-label={`Select ${c.name}`}
+                        />
+                      </td>
+                      <td className="max-w-[200px] truncate p-3 font-medium text-[var(--color-on-surface)]" title={c.name}>
+                        {c.name}
+                      </td>
+                      <td className="max-w-[180px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[c.email, c.phone].filter(Boolean).join(" · ") || undefined}>
+                        {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
+                      </td>
+                      <td className="max-w-[220px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[c.address, c.city, c.province].filter(Boolean).join(", ") || undefined}>
+                        {[c.address, c.city, c.province].filter(Boolean).join(", ") || "—"}
+                      </td>
+                      <td className="p-3 text-[var(--color-on-surface-variant)]">
+                        {c.registration_type ?? "—"}
+                      </td>
+                      <td className="w-28 shrink-0 p-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <IconButton variant="secondary" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(c)} />
+                          <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={() => openDeleteOne(c.id)} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       <Modal

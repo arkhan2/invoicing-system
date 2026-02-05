@@ -40,13 +40,13 @@ export function ConfirmDialog({
     >
       <div className="absolute inset-0" aria-hidden onClick={onCancel} />
       <div
-        className="card relative z-10 w-full max-w-sm p-6 shadow-lg"
+        className="relative z-10 w-full max-w-sm rounded-2xl bg-[var(--color-card-bg)] p-8 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-title" className="text-lg font-semibold text-[var(--color-on-surface)]">
           {title}
         </h2>
-        <p id="confirm-desc" className="mt-2 text-sm text-[var(--color-on-surface-variant)]">
+        <p id="confirm-desc" className="mt-2 text-sm text-[var(--color-on-surface-variant)] leading-relaxed">
           {message}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">

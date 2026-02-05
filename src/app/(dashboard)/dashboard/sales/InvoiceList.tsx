@@ -2,8 +2,10 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { IconButton } from "@/components/IconButton";
 import { InvoiceForm, type InvoiceListItem } from "./InvoiceForm";
 import { deleteInvoice } from "./actions";
 import { showMessage } from "@/components/MessageBar";
@@ -74,140 +76,77 @@ export function InvoiceList({
   }
 
   const inputClass =
-    "w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]";
+    "w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
   return (
     <>
-      <div className="p-4 sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col">
+        <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-5 py-4">
           <input
             type="search"
-            placeholder="Search by number, customer, or estimate…"
+            placeholder="Search invoices…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={inputClass + " max-w-xs"}
+            className={inputClass + " max-w-[240px] min-w-0"}
             aria-label="Search invoices"
           />
-          <button
-            type="button"
-            onClick={openAdd}
-            className="btn btn-primary btn-sm shrink-0"
-          >
-            New invoice
-          </button>
+          <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="New invoice" onClick={openAdd} />
         </div>
 
-        {createdId && (
-          <div className="mb-4 rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary-container)] px-4 py-2 text-sm text-[var(--color-on-primary-container)]">
-            Invoice created. You can edit it below.
-          </div>
-        )}
+        <div className="flex flex-col gap-4 p-5">
+          {createdId && (
+            <div className="rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-container)] px-4 py-2 text-sm text-[var(--color-on-primary-container)]">
+              Invoice created. Edit below.
+            </div>
+          )}
 
-        {filtered.length === 0 ? (
-          <div className="rounded-lg border border-[var(--color-outline)] border-dashed p-8 text-center">
-            <p className="text-sm text-[var(--color-on-surface-variant)]">
-              {initialInvoices.length === 0
-                ? "No sales invoices yet. Create one from scratch or convert an estimate."
-                : "No invoices match your search."}
-            </p>
-            {initialInvoices.length === 0 && (
-              <button
-                type="button"
-                onClick={openAdd}
-                className="btn btn-primary btn-sm mt-3"
-              >
-                New invoice
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-[var(--color-outline)]">
-            <table className="w-full min-w-[600px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)]/50">
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    Number
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    Date
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    Customer
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    From estimate
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)]">
-                    Status
-                  </th>
-                  <th className="p-3 font-medium text-[var(--color-on-surface)] text-right">
-                    Total
-                  </th>
-                  <th className="w-28 p-3" aria-label="Actions" />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className={`border-b border-[var(--color-outline)] last:border-b-0 hover:bg-[var(--color-surface-variant)]/30 ${createdId === inv.id ? "bg-[var(--color-primary-container)]/40" : ""}`}
-                  >
-                    <td className="p-3 font-medium text-[var(--color-on-surface)]">
-                      {inv.invoice_number}
-                    </td>
-                    <td className="p-3 text-[var(--color-on-surface-variant)]">
-                      {inv.invoice_date}
-                    </td>
-                    <td className="p-3 text-[var(--color-on-surface)]">
-                      {inv.customer_name || "—"}
-                    </td>
-                    <td className="p-3 text-[var(--color-on-surface-variant)]">
-                      {inv.estimate_number ? (
-                        <span title="Created from estimate">{inv.estimate_number}</span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <span
-                        className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
-                          inv.status === "Final" || inv.status === "Sent"
-                            ? "bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]"
-                            : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"
-                        }`}
-                      >
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right font-medium text-[var(--color-on-surface)]">
-                      {inv.total_amount != null
-                        ? Number(inv.total_amount).toFixed(2)
-                        : "—"}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(inv.id)}
-                          className="btn btn-secondary btn-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDelete(inv.id)}
-                          className="btn btn-danger btn-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+          {filtered.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30 px-6 py-10 text-center">
+              <p className="text-sm text-[var(--color-on-surface-variant)]">
+                {initialInvoices.length === 0 ? "No invoices yet." : "No matches."}
+              </p>
+              {initialInvoices.length === 0 && (
+                <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="New invoice" onClick={openAdd} className="mt-3" />
+              )}
+            </div>
+          ) : (
+            <div className="max-h-[70vh] overflow-auto rounded-xl border border-[var(--color-outline)]">
+              <table className="w-full min-w-[600px] text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-[var(--color-surface-variant)] shadow-[0_1px_0_0_var(--color-divider)]">
+                  <tr>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">Number</th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">Date</th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">Customer</th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">From estimate</th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">Status</th>
+                    <th className="w-24 shrink-0 p-3 text-right font-medium text-[var(--color-on-surface)]">Total</th>
+                    <th className="w-28 shrink-0 p-3 text-right" aria-label="Actions" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {filtered.map((inv) => (
+                    <tr key={inv.id} className={`border-b border-[var(--color-divider)] last:border-b-0 even:bg-[var(--color-surface-variant)]/10 hover:bg-[var(--color-primary-container)]/20 transition-colors duration-150 ${createdId === inv.id ? "bg-[var(--color-primary-container)]/30" : ""}`}>
+                      <td className="max-w-[120px] truncate p-3 font-medium text-[var(--color-on-surface)]" title={inv.invoice_number}>{inv.invoice_number}</td>
+                      <td className="whitespace-nowrap p-3 text-[var(--color-on-surface-variant)]">{inv.invoice_date}</td>
+                      <td className="max-w-[180px] truncate p-3 text-[var(--color-on-surface)]" title={inv.customer_name || undefined}>{inv.customer_name || "—"}</td>
+                      <td className="max-w-[120px] truncate p-3 text-[var(--color-on-surface-variant)]" title={inv.estimate_number || undefined}>{inv.estimate_number ?? "—"}</td>
+                      <td className="p-3">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${inv.status === "Final" || inv.status === "Sent" ? "bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]" : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"}`}>{inv.status}</span>
+                      </td>
+                      <td className="w-24 shrink-0 p-3 text-right font-medium tabular-nums text-[var(--color-on-surface)]">{inv.total_amount != null ? Number(inv.total_amount).toFixed(2) : "—"}</td>
+                      <td className="w-28 shrink-0 p-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <IconButton variant="secondary" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(inv.id)} />
+                          <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={() => openDelete(inv.id)} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       <Modal

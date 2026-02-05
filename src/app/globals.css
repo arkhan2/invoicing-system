@@ -3,19 +3,22 @@
 @tailwind utilities;
 
 /* =============================================================================
-   PALETTE — Light & Dark (Google-style: clear hierarchy, highlight, accessibility)
-   Base: #fbfbf9 (surface) · #e8eae6 (surface-variant) · #1c1f24 (on-surface)
-   Primary: #2563eb · Secondary: #0d9488 · Tertiary: #7c3aed
-   All backgrounds use these semantic variables (--color-surface, --color-surface-variant,
-   --color-card-bg, --color-primary-container, etc.) so theme stays consistent.
+   COLOR SYSTEM — Semantic only (no raw hex in components)
+   Use ONLY: --color-surface, --color-surface-variant, --color-card-bg,
+   --color-on-surface, --color-on-surface-variant, --color-primary,
+   --color-primary-container, --color-secondary, --color-error, --color-outline,
+   --color-divider (soft list/table separators),
+   --color-input-bg, --color-placeholder, and *-container / btn-* / badge-* tokens.
+   Hierarchy: page = surface-variant; content/sidebar = surface; cards = card-bg.
+   Single border rule: one border OR one shadow per section. Focus always visible.
    ============================================================================= */
 
-/* --- Light mode (default) --- */
+/* --- Light mode (default) — soft off-whites, no pure white --- */
 :root,
 [data-theme="light"] {
   /* Swatches */
-  --palette-cream: #fbfbf9;
-  --palette-warm-gray: #e8eae6;
+  --palette-cream: #f5f5f3;
+  --palette-warm-gray: #e0e2de;
   --palette-dark: #1c1f24;
   --palette-primary: #2563eb;
   --palette-primary-dark: #1d4ed8;
@@ -25,14 +28,15 @@
   --palette-coral-dark: #cf4632;
   --palette-mint: #2dd4bf;
 
-  /* Semantic (light) */
-  --color-surface: #fbfbf9;
+  /* Semantic (light) — softened, no bright white; control bg distinct from card */
+  --color-surface: #f5f5f3;
   --color-surface-variant: #e8eae6;
   --color-on-surface: #1c1f24;
   --color-on-surface-variant: #4a4d52;
-  --color-placeholder: #d0d2d6;
-  --color-input-bg: #f0f0ee;
+  --color-placeholder: #9ca3af;
+  --color-input-bg: #e5e5e3;
   --color-outline: #c4c6c3;
+  --color-divider: rgba(28, 31, 36, 0.08);
 
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
@@ -55,7 +59,8 @@
   --color-error: #dc2626;
   --color-error-bg: #fef2f2;
 
-  --color-card-bg: #ffffff;
+  /* Card: soft off-white (not pure #fff) */
+  --color-card-bg: #f8f8f6;
   --color-card-text: #1c1f24;
 
   /* Buttons (light) */
@@ -73,6 +78,12 @@
 
   --header-height: 56px;
   --radius: 8px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+  --transition-fast: 150ms;
+  --transition-normal: 200ms;
   --shadow-sm: 0 1px 2px 0 rgb(28 31 36 / 8%), 0 1px 3px 1px rgb(28 31 36 / 6%);
   --shadow-md: 0 1px 3px 0 rgb(28 31 36 / 10%), 0 4px 8px 3px rgb(28 31 36 / 8%);
 }
@@ -87,6 +98,7 @@
     --color-placeholder: #3d414a;
     --color-input-bg: #252830;
     --color-outline: #3f3f46;
+    --color-divider: rgba(255, 255, 255, 0.06);
 
     --color-primary: #60a5fa;
     --color-primary-hover: #93c5fd;
@@ -135,6 +147,7 @@
   --color-placeholder: #3d414a;
   --color-input-bg: #252830;
   --color-outline: #3f3f46;
+  --color-divider: rgba(255, 255, 255, 0.06);
 
   --color-primary: #60a5fa;
   --color-primary-hover: #93c5fd;
@@ -174,13 +187,14 @@
 
 /* Manual light theme override (force light even in dark system preference) */
 [data-theme="light"] {
-  --color-surface: #fbfbf9;
+  --color-surface: #f5f5f3;
   --color-surface-variant: #e8eae6;
   --color-on-surface: #1c1f24;
   --color-on-surface-variant: #4a4d52;
-  --color-placeholder: #d0d2d6;
-  --color-input-bg: #f0f0ee;
+  --color-placeholder: #9ca3af;
+  --color-input-bg: #e5e5e3;
   --color-outline: #c4c6c3;
+  --color-divider: rgba(28, 31, 36, 0.08);
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-on-primary: #ffffff;
@@ -192,7 +206,7 @@
   --color-tertiary-container: #ede9fe;
   --color-error: #dc2626;
   --color-error-bg: #fef2f2;
-  --color-card-bg: #ffffff;
+  --color-card-bg: #f8f8f6;
   --color-card-text: #1c1f24;
   --color-btn-primary-bg: #2563eb;
   --color-btn-primary-bg-hover: #1d4ed8;
@@ -213,19 +227,37 @@
    ELEMENT TOKENS (use palette variables so they respect light/dark)
    ============================================================================= */
 @layer components {
+  /* Buttons: border like nav items, 12px radius, consistent size/color, 200ms transitions */
   .btn {
-    @apply inline-flex items-center justify-center font-medium rounded-lg transition-colors disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 font-medium transition-colors disabled:opacity-50;
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-md);
+    transition-duration: var(--transition-normal);
+    min-height: 2.25rem; /* 36px base */
   }
   .btn-md {
     @apply px-4 py-2.5 text-sm;
+    min-height: 2.5rem; /* 40px */
   }
   .btn-sm {
     @apply px-3 py-1.5 text-sm;
+    min-height: 2rem; /* 32px */
+  }
+
+  /* Circular icon-only buttons (same semantics as .btn, use with .btn-primary etc.) */
+  .btn-icon {
+    width: 2rem;
+    height: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0;
+    border-radius: 9999px;
   }
 
   .btn-primary {
     background-color: var(--color-btn-primary-bg);
     color: var(--color-btn-primary-text);
+    border-color: var(--color-btn-primary-bg-hover);
   }
   .btn-primary:hover:not(:disabled) {
     background-color: var(--color-btn-primary-bg-hover);
@@ -234,6 +266,7 @@
   .btn-secondary {
     background-color: var(--color-btn-secondary-bg);
     color: var(--color-btn-secondary-text);
+    border-color: var(--color-outline);
   }
   .btn-secondary:hover:not(:disabled) {
     background-color: var(--color-btn-secondary-bg-hover);
@@ -242,22 +275,51 @@
   .btn-danger {
     background-color: var(--color-btn-danger-bg);
     color: var(--color-btn-danger-text);
+    border-color: var(--color-btn-danger-bg-hover);
   }
   .btn-danger:hover:not(:disabled) {
     background-color: var(--color-btn-danger-bg-hover);
   }
 
+  /* Badges/tags: pill style */
   .badge-success {
-    @apply inline-flex items-center rounded-md px-2 py-0.5 text-sm font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 text-sm font-medium;
+    border-radius: var(--radius-pill);
     background-color: var(--color-badge-success-bg);
     color: var(--color-badge-success-text);
   }
 
-  /* Section/card containers: sharp corners (no rounded). */
+  /* Cards: 8–12px radius, single subtle border, 16–20px padding when used */
   .card {
-    @apply border border-[var(--color-outline)] shadow-card;
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-md);
     background-color: var(--color-card-bg);
     color: var(--color-card-text);
+  }
+  /* Soft divider for table rows / list separators (no harsh lines) */
+  .divider-subtle {
+    border-color: var(--color-divider);
+  }
+
+  /* Base input style: 12px radius, min-height 40px, clear focus */
+  .input-base {
+    width: 100%;
+    min-height: 2.5rem;
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-on-surface);
+    background-color: var(--color-input-bg);
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+  }
+  .input-base::placeholder {
+    color: var(--color-placeholder);
+  }
+  .input-base:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px var(--color-primary-container);
   }
 }
 
@@ -267,32 +329,43 @@
     color: var(--color-on-surface);
     background: var(--color-surface-variant);
     -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
   }
 
   h1 {
-    @apply text-2xl font-medium tracking-tight text-[var(--color-on-surface)];
+    @apply text-2xl font-semibold tracking-tight text-[var(--color-on-surface)];
+    line-height: 1.3;
   }
   h2 {
-    @apply text-xl font-medium tracking-tight text-[var(--color-on-surface)];
+    @apply text-xl font-semibold tracking-tight text-[var(--color-on-surface)];
+    line-height: 1.35;
   }
   h3 {
     @apply text-lg font-medium text-[var(--color-on-surface)];
+    line-height: 1.4;
   }
   p {
     @apply text-[var(--color-on-surface-variant)];
+    line-height: 1.55;
   }
 }
 
-/* Focus ring — same as Company name for all form controls */
+/* Focus = same design as selected nav item (primary border + primary-container glow) */
 input:focus,
 textarea:focus,
 select:focus {
-  @apply outline-none border-[var(--color-primary)] ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-surface)];
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-container);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 button:focus-visible,
 a:focus-visible {
-  @apply outline-none ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-surface)];
+  outline: none;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px var(--color-primary-container);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 /* Placeholder text — dim so it reads as hint (e.g. "e.g. …") */
@@ -305,4 +378,18 @@ input,
 textarea,
 select {
   background-color: var(--color-input-bg);
+}
+
+/* Date/datetime inputs: same height as other controls; ensure value is visible (browsers can use faint system styles) */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  color: var(--color-on-surface);
+  height: 2.5rem;
+  box-sizing: border-box;
+}
+input[type="date"]::placeholder,
+input[type="datetime-local"]::placeholder,
+input[type="time"]::placeholder {
+  color: var(--color-placeholder);
 }

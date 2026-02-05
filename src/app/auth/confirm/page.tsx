@@ -45,7 +45,7 @@ export default function AuthConfirmPage() {
         <p className="text-sm text-[var(--color-on-surface-variant)] mb-6">
           Your email has been verified. Please sign in with your email and password to continue.
         </p>
-        <Link href="/login" className="btn btn-primary btn-md w-full inline-block text-center">
+        <Link href="/login" className="btn btn-primary btn-sm w-full inline-block text-center">
           Go to Sign in
         </Link>
       </div>

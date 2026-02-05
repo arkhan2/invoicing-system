@@ -9,11 +9,13 @@ import {
   getInvoiceWithItems,
   type InvoiceFormState,
 } from "./actions";
+import { Save, Loader2 } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
+import { IconButton } from "@/components/IconButton";
 import { showMessage } from "@/components/MessageBar";
 
 const inputClass =
-  "w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors focus:border-[var(--color-primary)]";
+  "w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
 const STATUS_OPTIONS = ["Draft", "Final", "Sent"] as const;
@@ -201,167 +203,43 @@ export function InvoiceForm({
       }}
       className="flex h-full flex-col"
     >
-      {/* Title bar: Edit Invoice / New Invoice + Close */}
-      <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-outline)] pb-4">
-        <h2 className="text-xl font-semibold text-[var(--color-on-surface)]">
-          {isEdit ? "Edit Invoice" : "New Invoice"}
-        </h2>
-        <Link
-          href={invoiceId ? `/dashboard/sales/${invoiceId}` : "/dashboard/sales"}
-          className="p-2 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-error)]"
-          aria-label="Close"
-        >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </Link>
-      </div>
-
-      {state?.error && (
-        <div
-          className="mt-4 rounded-lg border border-[var(--color-error)] bg-[var(--color-error-bg)] px-4 py-3 text-sm text-[var(--color-error)]"
-          role="alert"
-        >
-          {state.error}
+      {/* Header: title + actions */}
+      <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {isEdit ? (
+            <Link
+              href={`/dashboard/sales/${invoiceId}`}
+              className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
+              aria-label="Back to invoice"
+            >
+              <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+          ) : onCancel ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex shrink-0 rounded-xl p-2 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)] transition-colors"
+              aria-label="Close"
+            >
+              <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          ) : null}
+          <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
+            {isEdit ? (initialInvoiceNumber ? `Invoice ${initialInvoiceNumber}` : "Edit invoice") : "New invoice"}
+          </h2>
         </div>
-      )}
-
-      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto pt-4 pr-6">
-        {/* Customer section */}
-        <section>
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <label htmlFor="invoice-customer" className={labelClass}>
-              Customer Name <span className="text-[var(--color-error)]">*</span>
-            </label>
-            {selectedCustomer && (
-              <Link
-                href="/dashboard/customers"
-                className="text-sm text-[var(--color-primary)] hover:underline"
-              >
-                {selectedCustomer.name.length > 24 ? selectedCustomer.name.slice(0, 24) + "…" : selectedCustomer.name} →
-              </Link>
-            )}
-          </div>
-          <select
-            id="invoice-customer"
-            name="customer_id"
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            required
-            className={inputClass + " min-h-[42px] cursor-pointer"}
-          >
-            <option value="">— Select customer —</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-
-          {selectedCustomer && billingLines.length > 0 && (
-            <div className="mt-3 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30 px-4 py-3">
-              <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-                Billing Address
-              </h4>
-              <p className="text-sm text-[var(--color-on-surface)] whitespace-pre-line">
-                {billingLines.join("\n")}
-              </p>
-            </div>
-          )}
-        </section>
-
-        {/* Invoice details */}
-        <section>
-          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-            Invoice Details
-          </h4>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <label className={labelClass}>
-                Invoice# <span className="text-[var(--color-error)]">*</span>
-              </label>
-              <div className="flex min-h-[42px] items-center rounded-lg border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2.5 text-sm text-[var(--color-on-surface)]">
-                {isEdit ? (initialInvoiceNumber ?? "—") : "Auto-generated"}
-              </div>
-            </div>
-            <div>
-              <label htmlFor="invoice-date" className={labelClass}>
-                Invoice Date <span className="text-[var(--color-error)]">*</span>
-              </label>
-              <input
-                id="invoice-date"
-                name="invoice_date"
-                type="date"
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="invoice-status" className={labelClass}>
-                Status
-              </label>
-              <select
-                id="invoice-status"
-                name="status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as "Draft" | "Final" | "Sent")}
-                className={inputClass + " min-h-[42px] cursor-pointer"}
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </section>
-
-        {/* Line items */}
-        <section>
-          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-            Line Items
-          </h4>
-          <LineItemsEditor items={items} onChange={setItems} />
-
-          <div className="mt-4 flex justify-end">
-            <table className="w-full max-w-xs text-right text-sm">
-              <tbody>
-                <tr>
-                  <td className="py-1 pr-4 text-[var(--color-on-surface-variant)]">Subtotal</td>
-                  <td className="py-1 font-medium text-[var(--color-on-surface)]">
-                    {subtotal.toFixed(2)}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-1 pr-4 text-[var(--color-on-surface-variant)]">Tax</td>
-                  <td className="py-1 font-medium text-[var(--color-on-surface)]">
-                    {totalTax.toFixed(2)}
-                  </td>
-                </tr>
-                <tr className="border-t border-[var(--color-outline)]">
-                  <td className="py-2 pr-4 font-medium text-[var(--color-on-surface)]">Total</td>
-                  <td className="py-2 text-lg font-semibold text-[var(--color-on-surface)]">
-                    {total.toFixed(2)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      {/* Action bar: Save, Cancel + PDF template */}
-      <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-4 border-t border-[var(--color-outline)] pt-6 mt-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <IconButton
             type="submit"
+            variant="primary"
+            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            label={loading ? "Saving…" : "Save"}
             disabled={loading}
-            className="btn btn-primary btn-sm min-w-[100px]"
-          >
-            {loading ? "Saving…" : "Save"}
-          </button>
+          />
           <Link
             href={invoiceId ? `/dashboard/sales/${invoiceId}` : "/dashboard/sales"}
             className="btn btn-secondary btn-sm"
@@ -369,8 +247,147 @@ export function InvoiceForm({
             Cancel
           </Link>
         </div>
+      </div>
+
+      {state?.error && (
+        <div
+          className="mx-4 mt-3 rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] px-3 py-2.5 text-sm text-[var(--color-error)]"
+          role="alert"
+        >
+          {state.error}
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-surface-variant)] p-4">
+        <div className="mx-auto max-w-4xl space-y-5">
+          {/* Customer + Invoice details side by side on md+ */}
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          {/* Customer card */}
+          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+              Customer
+            </h3>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <label htmlFor="invoice-customer" className={labelClass}>
+                  Customer name <span className="text-[var(--color-error)]">*</span>
+                </label>
+                {selectedCustomer && (
+                  <Link href="/dashboard/customers" className="text-sm text-[var(--color-primary)] hover:underline">
+                    {selectedCustomer.name.length > 24 ? selectedCustomer.name.slice(0, 24) + "…" : selectedCustomer.name} →
+                  </Link>
+                )}
+              </div>
+              <select
+                id="invoice-customer"
+                name="customer_id"
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                required
+                className={inputClass + " !min-h-[2.5rem] cursor-pointer"}
+              >
+                <option value="">— Select customer —</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {selectedCustomer && billingLines.length > 0 && (
+                <div className="rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/20 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-on-surface-variant)] mb-1">
+                    Billing address
+                  </p>
+                  <p className="text-sm text-[var(--color-on-surface)] whitespace-pre-line">
+                    {billingLines.join("\n")}
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Invoice details card */}
+          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+              Invoice details
+            </h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className={labelClass}>
+                  Invoice # <span className="text-[var(--color-error)]">*</span>
+                </label>
+                <div className="flex min-h-[2.5rem] items-center rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] px-3 py-2.5 text-sm font-medium text-[var(--color-on-surface)]">
+                  {isEdit ? (initialInvoiceNumber ?? "—") : "Auto-generated"}
+                </div>
+              </div>
+              <div>
+                <label htmlFor="invoice-date" className={labelClass}>
+                  Invoice date <span className="text-[var(--color-error)]">*</span>
+                </label>
+                <input
+                  id="invoice-date"
+                  name="invoice_date"
+                  type="date"
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  className={inputClass + " !min-h-[2.5rem]"}
+                />
+              </div>
+              <div>
+                <label htmlFor="invoice-status" className={labelClass}>
+                  Status
+                </label>
+                <select
+                  id="invoice-status"
+                  name="status"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as "Draft" | "Final" | "Sent")}
+                  className={inputClass + " !min-h-[2.5rem] cursor-pointer"}
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+          </div>
+
+          {/* Line items card */}
+          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+              Line items
+            </h3>
+            <LineItemsEditor items={items} onChange={setItems} />
+            <div className="mt-4 flex justify-end border-t border-[var(--color-divider)] pt-3">
+              <table className="w-full max-w-xs text-right text-sm tabular-nums">
+                <tbody>
+                  <tr>
+                    <td className="py-1 pr-4 text-[var(--color-on-surface-variant)]">Subtotal</td>
+                    <td className="py-1 font-medium text-[var(--color-on-surface)]">{subtotal.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1 pr-4 text-[var(--color-on-surface-variant)]">Tax</td>
+                    <td className="py-1 font-medium text-[var(--color-on-surface)]">{totalTax.toFixed(2)}</td>
+                  </tr>
+                  <tr className="border-t border-[var(--color-divider)]">
+                    <td className="py-2 pr-4 font-medium text-[var(--color-on-surface)]">Total</td>
+                    <td className="py-2 text-lg font-semibold text-[var(--color-on-surface)]">{total.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Footer: PDF template info */}
+      <div className="flex flex-shrink-0 items-center border-t border-[var(--color-divider)] px-4 py-2">
         <p className="text-xs text-[var(--color-on-surface-variant)]">
-          PDF Template: <span className="font-medium text-[var(--color-on-surface)]">Invoice</span>{" "}
+          PDF template: <span className="font-medium text-[var(--color-on-surface)]">Invoice</span>
+          {" · "}
           <button type="button" className="text-[var(--color-primary)] hover:underline">
             Change
           </button>

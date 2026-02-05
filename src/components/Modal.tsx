@@ -37,17 +37,17 @@ export function Modal({
         onClick={onClose}
       />
       <div
-        className="card relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-lg"
+        className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl overflow-hidden bg-[var(--color-card-bg)] shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 flex items-center justify-between border-b border-[var(--color-outline)] bg-[var(--color-card-bg)] px-6 py-4">
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-divider)] bg-[var(--color-card-bg)] px-6 py-4">
           <h2 id="modal-title" className="text-lg font-semibold text-[var(--color-on-surface)]">
             {title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
+            className="rounded-xl border border-[var(--color-outline)] p-2 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
             aria-label="Close"
           >
             <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +55,7 @@ export function Modal({
             </svg>
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   );

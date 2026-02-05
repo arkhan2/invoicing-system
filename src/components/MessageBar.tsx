@@ -65,7 +65,7 @@ export function MessageBar() {
     <div
       role="status"
       aria-live="polite"
-      className={`fixed right-4 z-50 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium transition-colors transition-opacity duration-300 ${isSuccess ? "outline-none ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-surface)]" : ""} ${typeStyles[type]} ${
+      className={`fixed right-4 z-50 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ${isSuccess ? "outline-none ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-surface)]" : ""} ${typeStyles[type]} ${
         fadeOut ? "opacity-0" : "opacity-100"
       }`}
       style={{

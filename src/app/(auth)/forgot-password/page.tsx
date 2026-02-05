@@ -106,7 +106,7 @@ function ForgotPasswordForm() {
           <form onSubmit={handleResetPassword} className="space-y-4">
             {error && (
               <div
-                className="text-sm p-3 rounded-lg border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
+                className="text-sm p-3 rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
                 role="alert"
               >
                 {error}
@@ -125,7 +125,7 @@ function ForgotPasswordForm() {
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                 placeholder="e.g. 79119087"
-                className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] text-center tracking-widest text-lg"
+                className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] text-center tracking-widest text-lg"
               />
             </div>
             <div>
@@ -140,7 +140,7 @@ function ForgotPasswordForm() {
                 required
                 minLength={6}
                 autoComplete="new-password"
-                className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+                className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
                 placeholder="At least 6 characters"
               />
             </div>
@@ -156,11 +156,11 @@ function ForgotPasswordForm() {
                 required
                 minLength={6}
                 autoComplete="new-password"
-                className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+                className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
                 placeholder="Repeat password"
               />
             </div>
-            <button type="submit" disabled={loading} className="btn btn-primary btn-md w-full">
+            <button type="submit" disabled={loading} className="btn btn-primary btn-sm w-full">
               {loading ? "Updating…" : "Reset password"}
             </button>
           </form>
@@ -194,7 +194,7 @@ function ForgotPasswordForm() {
         <form onSubmit={handleSendCode} className="space-y-4">
           {message && (
             <div
-              className="text-sm p-3 rounded-lg border border-[var(--color-outline)] bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]"
+              className="text-sm p-3 rounded-xl border border-[var(--color-outline)] bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]"
               role="status"
             >
               {decodeURIComponent(message)}
@@ -202,7 +202,7 @@ function ForgotPasswordForm() {
           )}
           {error && (
             <div
-              className="text-sm p-3 rounded-lg border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
+              className="text-sm p-3 rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
               role="alert"
             >
               {error}
@@ -219,7 +219,7 @@ function ForgotPasswordForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="you@example.com"
             />
           </div>
@@ -231,7 +231,7 @@ function ForgotPasswordForm() {
           <button
             type="submit"
             disabled={loading || cooldownSec > 0}
-            className="btn btn-primary btn-md w-full"
+            className="btn btn-primary btn-sm w-full"
           >
             {loading ? "Sending…" : cooldownSec > 0 ? "Wait before trying again" : "Send code"}
           </button>

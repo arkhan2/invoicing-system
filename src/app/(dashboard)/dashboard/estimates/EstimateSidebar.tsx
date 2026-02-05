@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
@@ -86,66 +87,66 @@ export function EstimateSidebar({
   }
 
   const inputClass =
-    "w-full border border-[var(--color-outline)] rounded-lg px-3 py-2 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] focus:border-[var(--color-primary)]";
+    "w-full border border-[var(--color-outline)] rounded-xl px-3 py-2 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
   return (
     <>
       <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)]">
-        <div className="flex-shrink-0 p-3">
+        <div className="flex flex-shrink-0 items-center gap-2 px-3 pt-3 pb-2">
           <Link
             href="/dashboard/estimates/new"
-            className={`block rounded-lg px-3 py-2.5 text-center text-sm font-medium transition-colors ${
+            className={`inline-flex shrink-0 items-center justify-center w-8 h-8 rounded-full border transition-colors duration-200 ${
               isNew
-                ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                : "bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] hover:bg-[var(--color-primary)] hover:text-[var(--color-on-primary)]"
+                ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                : "border-[var(--color-outline)] bg-[var(--color-card-bg)] text-[var(--color-card-text)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-[var(--color-on-primary)]"
             }`}
+            aria-label="New estimate"
+            title="New estimate"
           >
-            New estimate
+            <Plus className="w-4 h-4" />
           </Link>
-        </div>
-        <div className="flex-shrink-0 px-3 pb-2">
           <input
             type="search"
             placeholder="Search estimates…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={inputClass}
+            className={inputClass + " min-h-[2rem]"}
             aria-label="Search estimates"
           />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
           {filtered.length === 0 ? (
-            <div className="px-3 py-6 text-center text-sm text-[var(--color-on-surface-variant)]">
+            <div className="py-6 text-center text-sm text-[var(--color-on-surface-variant)]">
               {estimates.length === 0 ? "No estimates yet" : "No matches"}
             </div>
           ) : (
-            <ul className="space-y-0.5 p-2" role="list">
+            <ul className="space-y-2" role="list">
               {filtered.map((e) => {
                 const isActive = activeId === e.id;
                 return (
                   <li key={e.id}>
                     <Link
                       href={`/dashboard/estimates/${e.id}`}
-                      className={`block rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                      className={`block rounded-xl border px-3 py-2.5 text-left transition-colors duration-200 ${
                         isActive
                           ? "border-[var(--color-primary)] bg-[var(--color-primary-container)]"
-                          : "border-transparent hover:bg-[var(--color-surface-variant)]"
+                          : "border-[var(--color-outline)] bg-[var(--color-card-bg)] hover:bg-[var(--color-surface-variant)]"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`truncate text-sm font-medium ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-on-surface)]"}`}>
+                        <span className={`truncate text-sm font-medium ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
                           {e.estimate_number}
                         </span>
-                        <span className={`shrink-0 text-xs ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-on-surface-variant)]"}`}>
+                        <span className={`shrink-0 text-xs ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
                           {e.total_amount != null ? Number(e.total_amount).toFixed(0) : "—"}
                         </span>
                       </div>
-                      <div className={`mt-0.5 truncate text-xs ${isActive ? "text-[var(--color-on-primary-container)]/90" : "text-[var(--color-on-surface-variant)]"}`}>
+                      <div className={`mt-0.5 truncate text-xs ${isActive ? "text-[var(--color-on-primary-container)]/90" : "text-[var(--color-card-text)]"}`}>
                         {e.customer_name || "—"}
                       </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                         <span
-                          className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             e.status === "Converted"
                               ? "bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]"
                               : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"
@@ -153,22 +154,24 @@ export function EstimateSidebar({
                         >
                           {e.status}
                         </span>
-                        {canConvert(e.status) && (
+                        <span className="flex items-center gap-1">
+                          {canConvert(e.status) && (
+                            <button
+                              type="button"
+                              onClick={(ev) => openConvert(ev, e.id)}
+                              className="text-[10px] text-[var(--color-secondary)] hover:underline"
+                            >
+                              Convert
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={(ev) => openConvert(ev, e.id)}
-                            className="text-[10px] text-[var(--color-secondary)] hover:underline"
+                            onClick={(ev) => openDelete(ev, e.id)}
+                            className="text-[10px] text-[var(--color-error)] hover:underline"
                           >
-                            Convert
+                            Delete
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(ev) => openDelete(ev, e.id)}
-                          className="text-[10px] text-[var(--color-error)] hover:underline"
-                        >
-                          Delete
-                        </button>
+                        </span>
                       </div>
                     </Link>
                   </li>

@@ -35,9 +35,8 @@ export default async function InvoiceEditPage({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--color-card-bg)]">
-        <div className="min-h-0 flex-1 overflow-y-auto pl-6 pr-8 pt-6 pb-6">
-          <InvoiceForm
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full bg-[var(--color-card-bg)]">
+        <InvoiceForm
             invoiceId={id}
             companyId={company.id}
             customers={customers ?? []}
@@ -53,7 +52,6 @@ export default async function InvoiceEditPage({
             initialInvoiceNumber={invoice.invoice_number}
             initialInvoiceDate={invoice.invoice_date ?? null}
           />
-        </div>
       </div>
     </div>
   );

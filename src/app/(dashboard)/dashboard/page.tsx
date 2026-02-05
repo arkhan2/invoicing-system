@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -12,22 +13,34 @@ export default async function DashboardPage() {
   const company = companies?.[0];
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-medium text-[var(--color-on-surface)]">Dashboard</h1>
-      {hasCompany ? (
-        <p className="text-[var(--color-on-surface-variant)]">
-          Company: <strong className="text-[var(--color-on-surface)]">{company?.name}</strong>. Use the sidebar to manage customers, vendors, items, and invoices.
+    <div className="mx-auto w-full max-w-[1600px] flex flex-col gap-8">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-on-surface)]">
+          Dashboard
+        </h1>
+        <p className="max-w-xl text-sm text-[var(--color-on-surface-variant)]">
+          {hasCompany
+            ? `Company: ${company?.name}. Use the sidebar to manage customers, vendors, items, and invoices.`
+            : "Create your company to get started."}
         </p>
-      ) : (
-        <div className="card p-4">
-          <p className="font-medium text-[var(--color-card-text)]">Create your company first</p>
-          <p className="text-sm text-[var(--color-on-surface-variant)] mt-1">
-            You need a company to add customers, vendors, and invoices.
-          </p>
-          <Link href="/dashboard/company" className="btn btn-primary btn-md mt-4 inline-block">
-            Create company
-          </Link>
-        </div>
+      </header>
+
+      {!hasCompany && (
+        <section>
+          <div className="card max-w-xl p-6 flex flex-col">
+            <h3 className="text-lg font-semibold text-[var(--color-on-surface)] truncate">
+              Create your company first
+            </h3>
+            <p className="mt-1 text-sm text-[var(--color-on-surface-variant)]">
+              You need a company to add customers, vendors, and invoices.
+            </p>
+            <div className="mt-auto pt-4 flex justify-end">
+              <Link href="/dashboard/company" className="btn btn-primary btn-icon" aria-label="Create company" title="Create company">
+                <Plus className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
       )}
     </div>
   );

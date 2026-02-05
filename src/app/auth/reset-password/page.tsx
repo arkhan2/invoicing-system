@@ -86,7 +86,7 @@ function ResetPasswordForm() {
       <div className="min-h-screen flex items-center justify-center p-6 bg-surface-variant">
         <div className="card w-full max-w-[400px] p-8 text-center">
           <p className="text-[var(--color-card-text)] mb-4">{error}</p>
-          <Link href="/forgot-password" className="btn btn-primary btn-md inline-block">
+          <Link href="/forgot-password" className="btn btn-primary btn-sm inline-block">
             Request new link
           </Link>
         </div>
@@ -106,7 +106,7 @@ function ResetPasswordForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div
-              className="text-sm p-3 rounded-lg border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
+              className="text-sm p-3 rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
               role="alert"
             >
               {error}
@@ -124,7 +124,7 @@ function ResetPasswordForm() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="At least 6 characters"
             />
           </div>
@@ -140,11 +140,11 @@ function ResetPasswordForm() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="Repeat password"
             />
           </div>
-          <button type="submit" disabled={loading} className="btn btn-primary btn-md w-full">
+          <button type="submit" disabled={loading} className="btn btn-primary btn-sm w-full">
             {loading ? "Updating…" : "Update password"}
           </button>
         </form>

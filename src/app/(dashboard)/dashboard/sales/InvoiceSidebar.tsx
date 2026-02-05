@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { deleteInvoice } from "./actions";
@@ -58,7 +59,7 @@ export function InvoiceSidebar({
   }
 
   const inputClass =
-    "w-full border border-[var(--color-outline)] rounded-lg px-3 py-2 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] focus:border-[var(--color-primary)]";
+    "w-full border border-[var(--color-outline)] rounded-xl px-3 py-2 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
   return (
     <>
@@ -66,13 +67,15 @@ export function InvoiceSidebar({
         <div className="flex-shrink-0 p-3">
           <Link
             href="/dashboard/sales/new"
-            className={`block rounded-lg px-3 py-2.5 text-center text-sm font-medium transition-colors ${
+            className={`inline-flex items-center justify-center w-8 h-8 rounded-full border transition-colors duration-200 ${
               isNew
-                ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                : "bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)] hover:bg-[var(--color-primary)] hover:text-[var(--color-on-primary)]"
+                ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                : "border-[var(--color-outline)] bg-[var(--color-card-bg)] text-[var(--color-card-text)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-[var(--color-on-primary)]"
             }`}
+            aria-label="New invoice"
+            title="New invoice"
           >
-            New invoice
+            <Plus className="w-4 h-4" />
           </Link>
         </div>
         <div className="flex-shrink-0 px-3 pb-2">
@@ -98,26 +101,26 @@ export function InvoiceSidebar({
                   <li key={inv.id}>
                     <Link
                       href={`/dashboard/sales/${inv.id}`}
-                      className={`block rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                      className={`block rounded-xl border px-3 py-2.5 text-left transition-colors duration-200 ${
                         isActive
                           ? "border-[var(--color-primary)] bg-[var(--color-primary-container)]"
-                          : "border-transparent hover:bg-[var(--color-surface-variant)]"
+                          : "border-[var(--color-outline)] bg-[var(--color-card-bg)] hover:bg-[var(--color-surface-variant)]"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`truncate text-sm font-medium ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-on-surface)]"}`}>
+                        <span className={`truncate text-sm font-medium ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
                           {inv.invoice_number}
                         </span>
-                        <span className={`shrink-0 text-xs ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-on-surface-variant)]"}`}>
+                        <span className={`shrink-0 text-xs ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
                           {inv.total_amount != null ? Number(inv.total_amount).toFixed(0) : "—"}
                         </span>
                       </div>
-                      <div className={`mt-0.5 truncate text-xs ${isActive ? "text-[var(--color-on-primary-container)]/90" : "text-[var(--color-on-surface-variant)]"}`}>
+                      <div className={`mt-0.5 truncate text-xs ${isActive ? "text-[var(--color-on-primary-container)]/90" : "text-[var(--color-card-text)]"}`}>
                         {inv.customer_name || "—"}
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1">
                         <span
-                          className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             inv.status === "Final" || inv.status === "Sent"
                               ? "bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]"
                               : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"

@@ -55,20 +55,20 @@ export function DashboardNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-0.5" aria-label="Main navigation">
+    <nav className="flex flex-col gap-1.5" aria-label="Main navigation">
       {items.map(({ href, label, icon }) => {
         const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
         return (
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-3 rounded-lg border-l-2 py-2.5 pl-3 pr-3 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-3 rounded-xl border py-2.5 pl-3 pr-3 text-sm font-medium transition-colors duration-200 ${
               isActive
-                ? "border-l-[var(--color-primary)] bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)]"
-                : "border-l-transparent text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
+                ? "border-[var(--color-primary)] bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)]"
+                : "border-[var(--color-outline)] bg-[var(--color-card-bg)] text-[var(--color-card-text)] hover:bg-[var(--color-surface-variant)]"
             }`}
           >
-            <span className={isActive ? "text-[var(--color-primary)]" : "text-[var(--color-on-surface-variant)]"}>
+            <span className={isActive ? "text-[var(--color-primary)]" : "text-current"}>
               {icons[icon]}
             </span>
             {label}
@@ -84,7 +84,7 @@ export function SignOutButton() {
     <form action="/api/auth/signout" method="post" className="mt-auto pt-3">
       <button
         type="submit"
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[var(--color-on-surface-variant)] transition-colors hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
+        className="btn btn-secondary btn-sm w-full justify-start gap-3"
       >
         <svg className="size-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

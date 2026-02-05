@@ -77,7 +77,7 @@ export default function SignupPage() {
           <p className="text-sm text-[var(--color-on-surface-variant)] mb-6">
             We sent a confirmation link to <strong className="text-[var(--color-card-text)]">{email}</strong>. Click the link to activate your account, then sign in.
           </p>
-          <Link href="/login" className="btn btn-primary btn-md w-full inline-block text-center">
+          <Link href="/login" className="btn btn-primary btn-sm w-full inline-block text-center">
             Go to Sign in
           </Link>
         </div>
@@ -97,7 +97,7 @@ export default function SignupPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div
-              className="text-sm p-3 rounded-lg border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
+              className="text-sm p-3 rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] text-[var(--color-error)]"
               role="alert"
             >
               {error}
@@ -114,7 +114,7 @@ export default function SignupPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="you@example.com"
             />
           </div>
@@ -130,7 +130,7 @@ export default function SignupPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="At least 6 characters"
             />
           </div>
@@ -146,11 +146,11 @@ export default function SignupPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="Repeat password"
             />
           </div>
-          <button type="submit" disabled={loading} className="btn btn-primary btn-md w-full">
+          <button type="submit" disabled={loading} className="btn btn-primary btn-sm w-full">
             {loading ? "Creating account…" : "Sign up"}
           </button>
           <div className="relative my-4">
@@ -161,7 +161,7 @@ export default function SignupPage() {
           <button
             type="button"
             onClick={handleGoogleSignUp}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] text-[var(--color-card-text)] hover:bg-[var(--color-surface-variant)] transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] text-[var(--color-card-text)] hover:bg-[var(--color-surface-variant)] transition-colors"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden>
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

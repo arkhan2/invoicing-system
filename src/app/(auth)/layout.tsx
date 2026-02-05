@@ -6,7 +6,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen bg-[var(--color-surface-variant)]">
+    <div className="relative h-screen overflow-y-auto bg-[var(--color-surface-variant)]">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>

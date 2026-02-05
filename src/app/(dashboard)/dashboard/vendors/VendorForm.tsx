@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { Save, Loader2 } from "lucide-react";
 import {
   createVendor,
   updateVendor,
   type VendorFormState,
 } from "./actions";
 import { PAKISTAN_PROVINCES, getCitiesForProvince } from "@/lib/pakistan";
+import { IconButton } from "@/components/IconButton";
 import { showMessage } from "@/components/MessageBar";
 
 export type Vendor = {
@@ -23,7 +25,7 @@ export type Vendor = {
 };
 
 const inputClass =
-  "w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors focus:border-[var(--color-primary)]";
+  "w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 const labelClass =
   "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
@@ -91,7 +93,7 @@ export function VendorForm({
     <form action={handleSubmit} className="space-y-6">
       {state?.error && (
         <div
-          className="rounded-lg border border-[var(--color-error)] bg-[var(--color-error-bg)] px-4 py-3 text-sm text-[var(--color-error)]"
+          className="rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] px-4 py-3 text-sm text-[var(--color-error)]"
           role="alert"
         >
           {state.error}
@@ -215,13 +217,13 @@ export function VendorForm({
       </Section>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-outline)] pt-4">
-        <button
+        <IconButton
           type="submit"
+          variant="primary"
+          icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          label={loading ? "Saving…" : isCreate ? "Add vendor" : "Save changes"}
           disabled={loading}
-          className="btn btn-primary btn-sm min-w-[100px]"
-        >
-          {loading ? "Saving…" : isCreate ? "Add vendor" : "Save changes"}
-        </button>
+        />
         <button
           type="button"
           onClick={onCancel}

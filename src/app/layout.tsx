@@ -28,7 +28,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen overflow-x-hidden overflow-y-hidden">{children}</body>
     </html>
   );
 }

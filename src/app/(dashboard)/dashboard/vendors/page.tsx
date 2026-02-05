@@ -26,7 +26,7 @@ export default async function VendorsPage() {
     .order("name");
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-[1600px] flex flex-col gap-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-on-surface)]">
           Vendors
@@ -36,9 +36,11 @@ export default async function VendorsPage() {
         </p>
       </header>
 
-      <div className="card w-full max-w-full overflow-hidden p-0 shadow-card">
-        <VendorList vendors={vendors ?? []} companyId={company.id} />
-      </div>
+      <section className="w-full">
+        <div className="card overflow-hidden p-0">
+          <VendorList vendors={vendors ?? []} companyId={company.id} />
+        </div>
+      </section>
     </div>
   );
 }

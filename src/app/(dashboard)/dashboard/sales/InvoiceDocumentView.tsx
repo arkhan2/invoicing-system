@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 
 type Company = {
   name: string;
@@ -63,14 +64,16 @@ export function InvoiceDocumentView({
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       {/* Action bar */}
-      <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-outline)] bg-[var(--color-surface)] px-4 py-3">
+      <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-divider)] bg-[var(--color-surface)] px-4 py-3">
         <Link
           href={`/dashboard/sales/${invoiceId}/edit`}
-          className="btn btn-secondary btn-sm"
+          className="btn btn-secondary btn-icon"
+          aria-label="Edit"
+          title="Edit"
         >
-          Edit
+          <Pencil className="w-4 h-4" />
         </Link>
-        <span className="ml-2 rounded-md px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
+        <span className="ml-2 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
           {status}
         </span>
         {estimateNumber && (
@@ -84,7 +87,7 @@ export function InvoiceDocumentView({
       <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-card-bg)] pl-8 pr-10 pt-8 pb-8">
         <div className="mx-auto max-w-4xl">
           {/* Header row */}
-          <div className="flex flex-col gap-8 border-b border-[var(--color-outline)] pb-8 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-8 border-b border-[var(--color-divider)] pb-8 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
               {company.logo_url ? (
                 <img
@@ -156,10 +159,10 @@ export function InvoiceDocumentView({
           </div>
 
           {/* Items table */}
-          <div className="mt-8 overflow-hidden border border-[var(--color-outline)]">
+          <div className="mt-8 overflow-hidden rounded-xl border border-[var(--color-outline)]">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)] text-[var(--color-on-surface)]">
+                <tr className="border-b border-[var(--color-divider)] bg-[var(--color-surface-variant)] text-[var(--color-on-surface)]">
                   <th className="w-12 p-3 font-medium">#</th>
                   <th className="w-28 p-3 font-medium">Item Number</th>
                   <th className="p-3 font-medium">Item & Description</th>
@@ -172,7 +175,7 @@ export function InvoiceDocumentView({
                 {items.map((row, i) => (
                   <tr
                     key={i}
-                    className={i === 0 ? "bg-[var(--color-card-bg)]" : "border-t border-[var(--color-outline)] bg-[var(--color-card-bg)]"}
+                    className={i === 0 ? "bg-[var(--color-card-bg)]" : "border-t border-[var(--color-divider)] bg-[var(--color-card-bg)]"}
                   >
                     <td className="p-3 text-[var(--color-on-surface-variant)]">{i + 1}</td>
                     <td className="p-3 text-[var(--color-on-surface)]">{row.item_number ?? ""}</td>
@@ -213,7 +216,7 @@ export function InvoiceDocumentView({
                     {Number(totalTax).toLocaleString()}
                   </td>
                 </tr>
-                <tr className="border-t-2 border-[var(--color-outline)]">
+                <tr className="border-t-2 border-[var(--color-divider)]">
                   <td className="py-2 pr-4 font-semibold text-[var(--color-on-surface)]">Total</td>
                   <td className="py-2 text-right text-lg font-semibold text-[var(--color-on-surface)]">
                     {Number(totalAmount).toLocaleString()}

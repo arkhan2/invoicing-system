@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Pencil, Trash2, FileOutput } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { convertEstimateToInvoice } from "./actions";
+import { IconButton } from "@/components/IconButton";
+import { convertEstimateToInvoice, deleteEstimate } from "./actions";
 import { showMessage } from "@/components/MessageBar";
 import { useState } from "react";
 
@@ -63,6 +65,7 @@ export function EstimateDocumentView({
 }) {
   const router = useRouter();
   const [convertState, setConvertState] = useState<{ loading: boolean } | null>(null);
+  const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
 
   const canConvert = status !== "Converted" && status !== "Declined" && status !== "Expired";
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
@@ -80,6 +83,19 @@ export function EstimateDocumentView({
     else router.refresh();
   }
 
+  async function handleDelete() {
+    setDeleteState({ loading: true });
+    const result = await deleteEstimate(estimateId);
+    setDeleteState(null);
+    if (result?.error) {
+      showMessage(result.error, "error");
+      return;
+    }
+    showMessage("Estimate deleted.", "success");
+    router.push("/dashboard/estimates");
+    router.refresh();
+  }
+
   const addressLine = [company.address, company.city, company.province].filter(Boolean).join(", ");
   const customerAddress = [customer.address, customer.city, customer.province].filter(Boolean).join(", ");
 
@@ -87,23 +103,30 @@ export function EstimateDocumentView({
     <>
       <div className="flex h-full min-h-0 w-full flex-col">
         {/* Action bar */}
-        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-outline)] bg-[var(--color-surface)] px-4 py-3">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-divider)] bg-[var(--color-surface)] px-4 py-3">
           <Link
             href={`/dashboard/estimates/${estimateId}/edit`}
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-icon"
+            aria-label="Edit"
+            title="Edit"
           >
-            Edit
+            <Pencil className="w-4 h-4" />
           </Link>
+          <IconButton
+            variant="danger"
+            icon={<Trash2 className="w-4 h-4" />}
+            label="Delete"
+            onClick={() => setDeleteState({ loading: false })}
+          />
           {canConvert && (
-            <button
-              type="button"
+            <IconButton
+              variant="primary"
+              icon={<FileOutput className="w-4 h-4" />}
+              label="Convert to invoice"
               onClick={() => setConvertState({ loading: false })}
-              className="btn btn-primary btn-sm"
-            >
-              Convert to Invoice
-            </button>
+            />
           )}
-          <span className="ml-2 rounded-md px-2 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
+          <span className="ml-2 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
             {status}
           </span>
         </div>
@@ -112,7 +135,7 @@ export function EstimateDocumentView({
         <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-card-bg)] pl-8 pr-10 pt-8 pb-8">
           <div className="mx-auto max-w-4xl">
             {/* Header row: Company left, ESTIMATE + number + date right */}
-            <div className="flex flex-col gap-8 border-b border-[var(--color-outline)] pb-8 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-8 border-b border-[var(--color-divider)] pb-8 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-4">
                 {company.logo_url ? (
                   <img
@@ -184,10 +207,10 @@ export function EstimateDocumentView({
             </div>
 
             {/* Items table */}
-            <div className="mt-8 overflow-hidden border border-[var(--color-outline)]">
+            <div className="mt-8 overflow-hidden rounded-xl border border-[var(--color-outline)]">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)] text-[var(--color-on-surface)]">
+                  <tr className="border-b border-[var(--color-divider)] bg-[var(--color-surface-variant)] text-[var(--color-on-surface)]">
                     <th className="w-12 p-3 font-medium">#</th>
                     <th className="w-28 p-3 font-medium">Item Number</th>
                     <th className="p-3 font-medium">Item & Description</th>
@@ -200,7 +223,7 @@ export function EstimateDocumentView({
                   {items.map((row, i) => (
                     <tr
                       key={i}
-                      className={i === 0 ? "bg-[var(--color-card-bg)]" : "border-t border-[var(--color-outline)] bg-[var(--color-card-bg)]"}
+                      className={i === 0 ? "bg-[var(--color-card-bg)]" : "border-t border-[var(--color-divider)] bg-[var(--color-card-bg)]"}
                     >
                       <td className="p-3 text-[var(--color-on-surface-variant)]">{i + 1}</td>
                       <td className="p-3 text-[var(--color-on-surface)]">{row.item_number ?? ""}</td>
@@ -241,7 +264,7 @@ export function EstimateDocumentView({
                       {Number(totalTax).toLocaleString()}
                     </td>
                   </tr>
-                  <tr className="border-t-2 border-[var(--color-outline)]">
+                  <tr className="border-t-2 border-[var(--color-divider)]">
                     <td className="py-2 pr-4 font-semibold text-[var(--color-on-surface)]">Total</td>
                     <td className="py-2 text-right text-lg font-semibold text-[var(--color-on-surface)]">
                       {Number(totalAmount).toLocaleString()}
@@ -252,7 +275,7 @@ export function EstimateDocumentView({
             </div>
 
             {notes && (
-              <div className="mt-8 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30 p-4">
+              <div className="mt-8 rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30 p-4">
                 <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
                   Notes
                 </h3>
@@ -273,6 +296,17 @@ export function EstimateDocumentView({
         loading={convertState?.loading ?? false}
         onConfirm={handleConvert}
         onCancel={() => setConvertState(null)}
+      />
+      <ConfirmDialog
+        open={!!deleteState}
+        title="Delete estimate?"
+        message="This estimate will be removed. This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        loadingLabel="Deleting…"
+        loading={deleteState?.loading ?? false}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteState(null)}
       />
     </>
   );
