@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 export type CompanyFormState = {
   error?: string;
+  success?: boolean;
 };
 
 export async function createCompany(
@@ -137,5 +138,5 @@ export async function updateCompany(
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/company");
-  redirect("/dashboard");
+  return { success: true };
 }

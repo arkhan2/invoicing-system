@@ -30,6 +30,8 @@
   --color-surface-variant: #e8eae6;
   --color-on-surface: #1c1f24;
   --color-on-surface-variant: #4a4d52;
+  --color-placeholder: #d0d2d6;
+  --color-input-bg: #f0f0ee;
   --color-outline: #c4c6c3;
 
   --color-primary: #2563eb;
@@ -82,6 +84,8 @@
     --color-surface-variant: #262a31;
     --color-on-surface: #f4f4f5;
     --color-on-surface-variant: #a1a1aa;
+    --color-placeholder: #3d414a;
+    --color-input-bg: #252830;
     --color-outline: #3f3f46;
 
     --color-primary: #60a5fa;
@@ -128,6 +132,8 @@
   --color-surface-variant: #262a31;
   --color-on-surface: #f4f4f5;
   --color-on-surface-variant: #a1a1aa;
+  --color-placeholder: #3d414a;
+  --color-input-bg: #252830;
   --color-outline: #3f3f46;
 
   --color-primary: #60a5fa;
@@ -172,6 +178,8 @@
   --color-surface-variant: #e8eae6;
   --color-on-surface: #1c1f24;
   --color-on-surface-variant: #4a4d52;
+  --color-placeholder: #d0d2d6;
+  --color-input-bg: #f0f0ee;
   --color-outline: #c4c6c3;
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
@@ -245,8 +253,9 @@
     color: var(--color-badge-success-text);
   }
 
+  /* Section/card containers: sharp corners (no rounded). */
   .card {
-    @apply rounded-lg border border-[var(--color-outline)] shadow-card;
+    @apply border border-[var(--color-outline)] shadow-card;
     background-color: var(--color-card-bg);
     color: var(--color-card-text);
   }
@@ -274,9 +283,26 @@
   }
 }
 
-/* Focus ring */
+/* Focus ring — same as Company name for all form controls */
 input:focus,
+textarea:focus,
+select:focus {
+  @apply outline-none border-[var(--color-primary)] ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-surface)];
+}
+
 button:focus-visible,
 a:focus-visible {
   @apply outline-none ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-surface)];
+}
+
+/* Placeholder text — dim so it reads as hint (e.g. "e.g. …") */
+::placeholder {
+  color: var(--color-placeholder);
+}
+
+/* Empty text box background (inputs, textareas, selects) */
+input,
+textarea,
+select {
+  background-color: var(--color-input-bg);
 }

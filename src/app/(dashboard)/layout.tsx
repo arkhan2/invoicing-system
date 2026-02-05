@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { DashboardGate } from "@/components/DashboardGate";
 import { DashboardNav, SignOutButton, type NavItem } from "@/components/DashboardNav";
+import { MessageBar } from "@/components/MessageBar";
 
 export default async function DashboardLayout({
   children,
@@ -32,14 +33,16 @@ export default async function DashboardLayout({
     { href: "/dashboard/customers", label: "Customers", icon: "customers" },
     { href: "/dashboard/vendors", label: "Vendors", icon: "vendors" },
     { href: "/dashboard/items", label: "Items", icon: "items" },
+    { href: "/dashboard/estimates", label: "Estimates", icon: "estimates" },
     { href: "/dashboard/sales", label: "Sales Invoices", icon: "sales" },
     { href: "/dashboard/purchases", label: "Purchase Invoices", icon: "purchases" },
   ];
   const navItems = hasCompany ? allNavItems : [{ href: "/dashboard/company", label: "Company", icon: "company" as const }];
 
   return (
-    <div className="min-h-screen flex flex-col bg-surface-variant">
-      {/* Header: reserved area 56dp, no critical content hidden (Google design) */}
+    <div className="flex h-screen flex-col overflow-hidden bg-[var(--color-surface-variant)]">
+      <MessageBar />
+      {/* Fixed top bar */}
       <header
         className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-[var(--color-outline)] bg-[var(--color-surface)] px-4"
         style={{ minHeight: "var(--header-height, 56px)" }}
@@ -69,18 +72,16 @@ export default async function DashboardLayout({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)] p-3">
+      {/* Fixed nav + scrollable main */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)] p-3 overflow-y-auto">
           <DashboardNav items={navItems} />
           <SignOutButton />
         </aside>
 
-        {/* Main: one primary content area; gate redirects to company if profile incomplete */}
         <DashboardGate hasCompany={hasCompany}>
-          <main className="flex-1 p-6 overflow-auto bg-surface-variant">
-            <div className="max-w-4xl mx-auto">
-              {children}
-            </div>
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-6 bg-[var(--color-surface-variant)]">
+            {children}
           </main>
         </DashboardGate>
       </div>

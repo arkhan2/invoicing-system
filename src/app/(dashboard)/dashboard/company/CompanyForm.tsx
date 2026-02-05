@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createCompany, updateCompany, type CompanyFormState } from "./actions";
+import { PAKISTAN_PROVINCES, getCitiesForProvince } from "@/lib/pakistan";
+import { showMessage } from "@/components/MessageBar";
 
 type Company = {
   id: string;
@@ -23,8 +26,22 @@ type Company = {
 export function CompanyForm({ company }: { company: Company | null }) {
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState<CompanyFormState>({});
-
+  const [selectedProvince, setSelectedProvince] = useState(company?.province ?? "");
+  const [selectedCity, setSelectedCity] = useState(company?.city ?? "");
   const isCreate = !company;
+
+  const cityOptions = getCitiesForProvince(selectedProvince);
+
+  function preserveScroll(callback: () => void) {
+    const main = document.querySelector("main");
+    const scrollTop = main?.scrollTop ?? 0;
+    callback();
+    const restore = () => main?.scrollTo({ top: scrollTop });
+    requestAnimationFrame(restore);
+    setTimeout(restore, 50);
+  }
+
+  const router = useRouter();
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -35,7 +52,12 @@ export function CompanyForm({ company }: { company: Company | null }) {
         if (result?.error) setState(result);
       } else {
         const result = await updateCompany(company.id, state, formData);
-        if (result?.error) setState(result);
+        if (result?.error) {
+          setState(result);
+        } else if (result?.success) {
+          router.refresh();
+          showMessage("Changes saved.", "success");
+        }
       }
     } finally {
       setLoading(false);
@@ -43,7 +65,7 @@ export function CompanyForm({ company }: { company: Company | null }) {
   }
 
   const inputClass =
-    "w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-surface)] placeholder:text-[var(--color-on-surface-variant)] transition-colors focus:border-[var(--color-primary)]";
+    "w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors focus:border-[var(--color-primary)]";
   const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
   function Section({
@@ -84,7 +106,7 @@ export function CompanyForm({ company }: { company: Company | null }) {
               <img
                 src={company.logo_url}
                 alt="Company logo"
-                className="h-20 w-20 shrink-0 object-contain rounded-xl border border-[var(--color-outline)] bg-[var(--color-surface)] p-1"
+                className="h-20 w-20 shrink-0 object-contain rounded-xl bg-[var(--color-surface)] p-1"
               />
             ) : (
               <div
@@ -175,12 +197,42 @@ export function CompanyForm({ company }: { company: Company | null }) {
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="city" className={labelClass}>City</label>
-              <input id="city" name="city" type="text" defaultValue={company?.city ?? ""} className={inputClass} placeholder="e.g. Lahore" />
+              <label htmlFor="province" className={labelClass}>Province</label>
+              <select
+                id="province"
+                name="province"
+                value={selectedProvince}
+                onChange={(e) => {
+                  preserveScroll(() => {
+                    setSelectedProvince(e.target.value);
+                    setSelectedCity("");
+                  });
+                }}
+                className={inputClass + " min-h-[42px] cursor-pointer"}
+              >
+                <option value="">— Select —</option>
+                {PAKISTAN_PROVINCES.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label htmlFor="province" className={labelClass}>Province</label>
-              <input id="province" name="province" type="text" defaultValue={company?.province ?? ""} className={inputClass} placeholder="e.g. Punjab" />
+              <label htmlFor="city" className={labelClass}>City</label>
+              <select
+                id="city"
+                name="city"
+                value={selectedCity}
+                onChange={(e) => {
+                  preserveScroll(() => setSelectedCity(e.target.value));
+                }}
+                className={inputClass + " min-h-[42px] cursor-pointer"}
+                disabled={!selectedProvince}
+              >
+                <option value="">— Select —</option>
+                {cityOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
           </div>
         </Section>
@@ -205,7 +257,7 @@ export function CompanyForm({ company }: { company: Company | null }) {
               id="registration_type"
               name="registration_type"
               defaultValue={company?.registration_type ?? ""}
-              className={inputClass}
+              className={inputClass + " min-h-[42px] cursor-pointer"}
             >
               <option value="">— Select —</option>
               <option value="Registered">Registered</option>

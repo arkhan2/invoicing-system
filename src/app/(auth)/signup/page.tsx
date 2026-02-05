@@ -114,7 +114,7 @@ export default function SignupPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-surface)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="you@example.com"
             />
           </div>
@@ -130,7 +130,7 @@ export default function SignupPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-surface)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="At least 6 characters"
             />
           </div>
@@ -146,7 +146,7 @@ export default function SignupPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-surface)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-outline)] rounded-lg px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="Repeat password"
             />
           </div>
