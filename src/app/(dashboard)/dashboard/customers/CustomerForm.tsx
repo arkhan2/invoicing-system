@@ -55,7 +55,7 @@ export function CustomerForm({
 }: {
   customer: Customer | null;
   companyId: string;
-  onSuccess: () => void;
+  onSuccess: (customerId?: string) => void;
   onCancel: () => void;
 }) {
   const [loading, setLoading] = useState(false);
@@ -76,15 +76,17 @@ export function CustomerForm({
           setState(result);
           return;
         }
+        showMessage("Customer added.", "success");
+        onSuccess((result as { customerId?: string }).customerId);
       } else {
         const result = await updateCustomer(customer.id, companyId, state, formData);
         if (result?.error) {
           setState(result);
           return;
         }
+        showMessage("Customer saved.", "success");
+        onSuccess();
       }
-      showMessage(isCreate ? "Customer added." : "Customer saved.", "success");
-      onSuccess();
     } finally {
       setLoading(false);
     }

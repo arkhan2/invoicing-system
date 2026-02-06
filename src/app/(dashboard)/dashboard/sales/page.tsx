@@ -10,7 +10,7 @@ export default function SalesPage() {
         </p>
         <Link
           href="/dashboard/sales/new"
-          className="btn btn-primary btn-icon mt-3"
+          className="btn btn-add btn-icon mt-3"
           aria-label="New invoice"
           title="New invoice"
         >

@@ -9,13 +9,15 @@ import {
   getEstimateWithItems,
   type EstimateFormState,
 } from "./actions";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, Plus, Pencil } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
+import { Modal } from "@/components/Modal";
 import { showMessage } from "@/components/MessageBar";
+import { CustomerForm, type Customer } from "@/app/(dashboard)/dashboard/customers/CustomerForm";
 
 const inputClass =
-  "w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
+  "w-full min-h-[2.5rem] border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
 const STATUS_OPTIONS = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"];
@@ -96,8 +98,11 @@ export function EstimateForm({
   );
   const [validUntil, setValidUntil] = useState("");
   const [status, setStatus] = useState("Draft");
+  const [projectName, setProjectName] = useState("");
+  const [subject, setSubject] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<LineItemRow[]>(defaultItems());
+  const [customerModal, setCustomerModal] = useState<"add" | "edit" | null>(null);
 
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === customerId) as CustomerOption | undefined,
@@ -118,6 +123,8 @@ export function EstimateForm({
       setEstimateDate(data.estimate.estimate_date ?? new Date().toISOString().slice(0, 10));
       setValidUntil(data.estimate.valid_until ?? "");
       setStatus(data.estimate.status ?? "Draft");
+      setProjectName((data.estimate as { project_name?: string | null }).project_name ?? "");
+      setSubject((data.estimate as { subject?: string | null }).subject ?? "");
       setNotes(data.estimate.notes ?? "");
       setItems(data.items.length > 0 ? data.items : defaultItems());
       setLoadState("done");
@@ -134,6 +141,8 @@ export function EstimateForm({
     formData.set("estimate_date", estimateDate);
     formData.set("valid_until", validUntil);
     formData.set("status", sendNow ? "Sent" : status);
+    formData.set("project_name", projectName);
+    formData.set("subject", subject);
     formData.set("notes", notes);
     formData.set("items", JSON.stringify(items));
     try {
@@ -191,6 +200,7 @@ export function EstimateForm({
   }
 
   return (
+    <>
     <form
       id="estimate-form"
       onSubmit={(e) => doSubmit(e, false)}
@@ -277,15 +287,26 @@ export function EstimateForm({
               Customer
             </h3>
             <div className="space-y-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label htmlFor="estimate-customer" className={labelClass}>
                   Customer name <span className="text-[var(--color-error)]">*</span>
                 </label>
-                {selectedCustomer && (
-                  <Link href="/dashboard/customers" className="text-sm text-[var(--color-primary)] hover:underline">
-                    {selectedCustomer.name.length > 24 ? selectedCustomer.name.slice(0, 24) + "…" : selectedCustomer.name} →
-                  </Link>
-                )}
+                <div className="flex items-center gap-1">
+                  <IconButton
+                    variant="add"
+                    icon={<Plus className="w-4 h-4" />}
+                    label="Add customer"
+                    onClick={() => setCustomerModal("add")}
+                  />
+                  {selectedCustomer && (
+                    <IconButton
+                      variant="edit"
+                      icon={<Pencil className="w-4 h-4" />}
+                      label="Edit customer"
+                      onClick={() => setCustomerModal("edit")}
+                    />
+                  )}
+                </div>
               </div>
               <select
                 id="estimate-customer"
@@ -293,7 +314,7 @@ export function EstimateForm({
                 value={customerId}
                 onChange={(e) => setCustomerId(e.target.value)}
                 required
-                className={inputClass + " !min-h-[2.5rem] cursor-pointer"}
+                className={inputClass + " h-[2.5rem] min-h-0 cursor-pointer"}
               >
                 <option value="">— Select customer —</option>
                 {customers.map((c) => (
@@ -312,6 +333,34 @@ export function EstimateForm({
                   </p>
                 </div>
               )}
+              <div>
+                <label htmlFor="estimate-project-name" className={labelClass}>
+                  Project name
+                </label>
+                <input
+                  id="estimate-project-name"
+                  name="project_name"
+                  type="text"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  className={inputClass + " h-[2.5rem] min-h-0"}
+                  placeholder="e.g. Office renovation"
+                />
+              </div>
+              <div>
+                <label htmlFor="estimate-subject" className={labelClass}>
+                  Subject
+                </label>
+                <input
+                  id="estimate-subject"
+                  name="subject"
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className={inputClass + " h-[2.5rem] min-h-0"}
+                  placeholder="e.g. Quote for steel fabrication"
+                />
+              </div>
             </div>
           </section>
 
@@ -321,7 +370,6 @@ export function EstimateForm({
               Quote details
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              {/* Column 1: Quote date, Expiry date (stacked) */}
               <div>
                 <label htmlFor="estimate-date" className={labelClass}>
                   Quote date <span className="text-[var(--color-error)]">*</span>
@@ -332,14 +380,14 @@ export function EstimateForm({
                   type="date"
                   value={estimateDate}
                   onChange={(e) => setEstimateDate(e.target.value)}
-                  className={inputClass + " !min-h-[2.5rem]"}
+                  className={inputClass + " h-[2.5rem] min-h-0"}
                 />
               </div>
               <div>
                 <label className={labelClass}>
                   Quote # <span className="text-[var(--color-error)]">*</span>
                 </label>
-                <div className="flex min-h-[2.5rem] items-center rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] px-3 py-2.5 text-sm font-medium text-[var(--color-on-surface)]">
+                <div className="flex h-[2.5rem] items-center rounded-xl border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2.5 text-sm font-medium text-[var(--color-on-surface)]">
                   {isEdit ? (initialEstimateNumber ?? "—") : "Auto-generated"}
                 </div>
               </div>
@@ -353,7 +401,7 @@ export function EstimateForm({
                   type="date"
                   value={validUntil}
                   onChange={(e) => setValidUntil(e.target.value)}
-                  className={inputClass + " !min-h-[2.5rem]"}
+                  className={inputClass + " h-[2.5rem] min-h-0"}
                 />
               </div>
               <div>
@@ -365,7 +413,7 @@ export function EstimateForm({
                   name="status"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className={inputClass + " !min-h-[2.5rem] cursor-pointer"}
+                  className={inputClass + " h-[2.5rem] min-h-0 cursor-pointer"}
                 >
                   {STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
@@ -436,5 +484,23 @@ export function EstimateForm({
         </p>
       </div>
     </form>
+
+    <Modal
+      open={customerModal !== null}
+      onClose={() => setCustomerModal(null)}
+      title={customerModal === "add" ? "Add customer" : "Edit customer"}
+    >
+      <CustomerForm
+          customer={customerModal === "edit" && selectedCustomer ? (selectedCustomer as Customer) : null}
+          companyId={companyId}
+          onSuccess={(newId) => {
+            if (newId) setCustomerId(newId);
+            setCustomerModal(null);
+            router.refresh();
+          }}
+          onCancel={() => setCustomerModal(null)}
+        />
+    </Modal>
+  </>
   );
 }

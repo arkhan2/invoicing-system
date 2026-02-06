@@ -78,6 +78,8 @@ function computeRow(r: Partial<LineItemRow>): LineItemRow {
 
 const inputClass =
   "w-full min-h-[2.25rem] border border-[var(--color-outline)] rounded-xl px-2 py-1.5 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] box-border";
+const inputClassRight =
+  inputClass + " text-right tabular-nums";
 
 export function LineItemsEditor({
   items,
@@ -110,9 +112,9 @@ export function LineItemsEditor({
             <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)]">
               <th className="w-12 p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">#</th>
               <th className="w-28 p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Item #</th>
-              <th className="min-w-[220px] p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Description</th>
+              <th className="min-w-[380px] p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Description</th>
               <th className="w-20 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Qty</th>
-              <th className="w-28 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Unit price</th>
+              <th className="w-32 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Unit price</th>
               <th className="w-24 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Total</th>
               {!disabled && <th className="w-12 p-2.5" aria-label="Remove" />}
             </tr>
@@ -120,8 +122,8 @@ export function LineItemsEditor({
           <tbody>
             {items.map((row, i) => (
               <tr key={i} className="border-b border-[var(--color-divider)] last:border-b-0 hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150 align-top">
-                <td className="align-top p-2 text-[var(--color-on-surface-variant)]">{i + 1}</td>
-                <td className="align-top p-2">
+                <td className="w-12 p-2.5 align-top text-[var(--color-on-surface-variant)] tabular-nums">{i + 1}</td>
+                <td className="w-28 p-2.5 align-top">
                   <input
                     type="text"
                     value={row.item_number}
@@ -131,7 +133,7 @@ export function LineItemsEditor({
                     placeholder="Item #"
                   />
                 </td>
-                <td className="min-w-[220px] p-2 align-top">
+                <td className="min-w-[380px] p-2.5 align-top">
                   <textarea
                     value={row.product_description}
                     onChange={(e) => {
@@ -147,7 +149,7 @@ export function LineItemsEditor({
                     placeholder="Product or service"
                   />
                 </td>
-                <td className="align-top p-2">
+                <td className="w-20 p-2.5 align-top text-right">
                   <input
                     type="number"
                     min={0}
@@ -157,10 +159,10 @@ export function LineItemsEditor({
                       updateRow(i, { quantity: parseFloat(e.target.value) || 0 })
                     }
                     disabled={disabled}
-                    className={inputClass}
+                    className={inputClassRight}
                   />
                 </td>
-                <td className="align-top p-2">
+                <td className="w-32 p-2.5 align-top text-right">
                   <input
                     type="number"
                     min={0}
@@ -170,14 +172,14 @@ export function LineItemsEditor({
                       updateRow(i, { unit_price: parseFloat(e.target.value) || 0 })
                     }
                     disabled={disabled}
-                    className={inputClass}
+                    className={inputClassRight + " input-no-spinner"}
                   />
                 </td>
-                <td className="align-top p-2 text-[var(--color-on-surface-variant)]">
+                <td className="w-24 p-2.5 align-top text-right tabular-nums text-[var(--color-on-surface-variant)]">
                   {row.total_values.toFixed(2)}
                 </td>
                 {!disabled && (
-                  <td className="align-top p-2">
+                  <td className="w-12 p-2.5 align-top">
                     <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Remove row" onClick={() => removeRow(i)} />
                   </td>
                 )}
@@ -187,7 +189,7 @@ export function LineItemsEditor({
         </table>
         {!disabled && (
           <div className="border-t border-[var(--color-divider)] px-2 py-2">
-            <IconButton variant="secondary" icon={<Plus className="w-4 h-4" />} label="Add row" onClick={addRow} />
+            <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add row" onClick={addRow} />
           </div>
         )}
       </div>

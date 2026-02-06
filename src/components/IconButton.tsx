@@ -2,12 +2,14 @@
 
 import type { ButtonHTMLAttributes } from "react";
 
-type Variant = "primary" | "secondary" | "danger";
+type Variant = "primary" | "secondary" | "danger" | "edit" | "add";
 
 const variantClass: Record<Variant, string> = {
   primary: "btn btn-primary btn-icon",
   secondary: "btn btn-secondary btn-icon",
   danger: "btn btn-danger btn-icon",
+  edit: "btn btn-edit btn-icon",
+  add: "btn btn-add btn-icon",
 };
 
 export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {

@@ -10,7 +10,7 @@ export default function EstimatesPage() {
         </p>
         <Link
           href="/dashboard/estimates/new"
-          className="btn btn-primary btn-icon mt-3"
+          className="btn btn-add btn-icon mt-3"
           aria-label="New estimate"
           title="New estimate"
         >

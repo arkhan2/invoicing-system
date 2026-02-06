@@ -29,7 +29,7 @@ export default async function EstimateEditPage({
 
   const { data: customers } = await supabase
     .from("customers")
-    .select("id, name, address, city, province, ntn_cnic, phone, email")
+    .select("id, name, address, city, province, ntn_cnic, phone, email, registration_type")
     .eq("company_id", company.id)
     .order("name");
 

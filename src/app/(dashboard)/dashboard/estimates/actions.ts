@@ -69,6 +69,8 @@ export async function createEstimate(
   const validStatus = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"].includes(status) ? status : "Draft";
   const validUntil = (formData.get("valid_until") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
+  const projectName = (formData.get("project_name") as string)?.trim() || null;
+  const subject = (formData.get("subject") as string)?.trim() || null;
 
   const items = parseItems(formData);
   if (items.length === 0) return { error: "Add at least one line item." };
@@ -86,6 +88,8 @@ export async function createEstimate(
       status: validStatus,
       valid_until: validUntil || null,
       notes,
+      project_name: projectName,
+      subject,
       total_amount: totalAmount,
       total_tax: totalTax,
     })
@@ -145,6 +149,8 @@ export async function updateEstimate(
   const validStatus = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"].includes(status) ? status : "Draft";
   const validUntil = (formData.get("valid_until") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
+  const projectName = (formData.get("project_name") as string)?.trim() || null;
+  const subject = (formData.get("subject") as string)?.trim() || null;
 
   const { error: upErr } = await supabase
     .from("estimates")
@@ -154,6 +160,8 @@ export async function updateEstimate(
       status: validStatus,
       valid_until: validUntil || null,
       notes,
+      project_name: projectName,
+      subject,
       total_amount: totalAmount,
       total_tax: totalTax,
       updated_at: new Date().toISOString(),
@@ -196,7 +204,7 @@ export async function getEstimateWithItems(estimateId: string) {
   if (!user) return null;
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("id, company_id, customer_id, estimate_number, estimate_date, status, valid_until, notes, total_amount, total_tax")
+    .select("id, company_id, customer_id, estimate_number, estimate_date, status, valid_until, notes, project_name, subject, total_amount, total_tax")
     .eq("id", estimateId)
     .single();
   if (!estimate) return null;

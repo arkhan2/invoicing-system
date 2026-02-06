@@ -67,11 +67,7 @@ export function InvoiceSidebar({
         <div className="flex-shrink-0 p-3">
           <Link
             href="/dashboard/sales/new"
-            className={`inline-flex items-center justify-center w-8 h-8 rounded-full border transition-colors duration-200 ${
-              isNew
-                ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                : "border-[var(--color-outline)] bg-[var(--color-card-bg)] text-[var(--color-card-text)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] hover:text-[var(--color-on-primary)]"
-            }`}
+            className={`btn btn-icon ${isNew ? "btn-primary" : "btn-add"}`}
             aria-label="New invoice"
             title="New invoice"
           >

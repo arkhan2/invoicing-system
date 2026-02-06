@@ -117,7 +117,7 @@ export function EstimateList({
             className={inputClass + " max-w-[240px] min-w-0"}
             aria-label="Search estimates"
           />
-          <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="New estimate" onClick={openAdd} />
+          <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="New estimate" onClick={openAdd} />
         </div>
 
         <div className="flex flex-col gap-4 p-5">
@@ -127,7 +127,7 @@ export function EstimateList({
                 {initialEstimates.length === 0 ? "No estimates yet." : "No matches."}
               </p>
               {initialEstimates.length === 0 && (
-                <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="New estimate" onClick={openAdd} className="mt-3" />
+                <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="New estimate" onClick={openAdd} className="mt-3" />
               )}
             </div>
           ) : (
@@ -162,7 +162,7 @@ export function EstimateList({
                     </div>
                   </div>
                   <div className="flex shrink-0 justify-end gap-2">
-                    <IconButton variant="secondary" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(e.id)} />
+                    <IconButton variant="edit" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(e.id)} />
                     {canConvert(e.status) && <IconButton variant="primary" icon={<FileOutput className="w-4 h-4" />} label="Convert to invoice" onClick={() => openConvert(e.id)} />}
                     <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={() => openDelete(e.id)} />
                   </div>

@@ -127,7 +127,7 @@ export function VendorList({
             className={inputClass + " max-w-[240px] min-w-0"}
             aria-label="Search vendors"
           />
-          <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="Add vendor" onClick={openAdd} />
+          <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add vendor" onClick={openAdd} />
         </div>
 
         <div className="flex flex-col gap-4 p-5">
@@ -155,7 +155,7 @@ export function VendorList({
                 {initialVendors.length === 0 ? "No vendors yet." : "No matches."}
               </p>
             {initialVendors.length === 0 && (
-                <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="Add vendor" onClick={openAdd} className="mt-3" />
+                <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add vendor" onClick={openAdd} className="mt-3" />
             )}
             </div>
           ) : (
@@ -185,7 +185,7 @@ export function VendorList({
                       <td className="max-w-[220px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[v.address, v.city, v.province].filter(Boolean).join(", ") || undefined}>{[v.address, v.city, v.province].filter(Boolean).join(", ") || "—"}</td>
                       <td className="w-28 shrink-0 p-3 text-right">
                         <div className="flex justify-end gap-2">
-                          <IconButton variant="secondary" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(v)} />
+                          <IconButton variant="edit" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(v)} />
                           <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={() => openDeleteOne(v.id)} />
                         </div>
                       </td>

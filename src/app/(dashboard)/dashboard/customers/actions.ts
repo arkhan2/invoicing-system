@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export type CustomerFormState = { error?: string };
+export type CustomerFormState = { error?: string; customerId?: string };
 
 export async function createCustomer(
   companyId: string,
@@ -23,25 +23,30 @@ export async function createCustomer(
     return { error: "You must be signed in to add a customer." };
   }
 
-  const { error } = await supabase.from("customers").insert({
-    company_id: companyId,
-    name,
-    ntn_cnic: (formData.get("ntn_cnic") as string)?.trim() || null,
-    address: (formData.get("address") as string)?.trim() || null,
-    city: (formData.get("city") as string)?.trim() || null,
-    province: (formData.get("province") as string)?.trim() || null,
-    registration_type: ["Registered", "Unregistered"].includes(
-      (formData.get("registration_type") as string) || ""
-    )
-      ? (formData.get("registration_type") as string)
-      : null,
-    phone: (formData.get("phone") as string)?.trim() || null,
-    email: (formData.get("email") as string)?.trim() || null,
-  });
+  const { data, error } = await supabase
+    .from("customers")
+    .insert({
+      company_id: companyId,
+      name,
+      ntn_cnic: (formData.get("ntn_cnic") as string)?.trim() || null,
+      address: (formData.get("address") as string)?.trim() || null,
+      city: (formData.get("city") as string)?.trim() || null,
+      province: (formData.get("province") as string)?.trim() || null,
+      registration_type: ["Registered", "Unregistered"].includes(
+        (formData.get("registration_type") as string) || ""
+      )
+        ? (formData.get("registration_type") as string)
+        : null,
+      phone: (formData.get("phone") as string)?.trim() || null,
+      email: (formData.get("email") as string)?.trim() || null,
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard/customers");
-  return {};
+  revalidatePath("/dashboard/estimates");
+  return { customerId: data?.id };
 }
 
 export async function updateCustomer(
@@ -85,6 +90,7 @@ export async function updateCustomer(
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard/customers");
+  revalidatePath("/dashboard/estimates");
   return {};
 }
 

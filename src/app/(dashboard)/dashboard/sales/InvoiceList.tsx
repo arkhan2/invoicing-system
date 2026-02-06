@@ -90,7 +90,7 @@ export function InvoiceList({
             className={inputClass + " max-w-[240px] min-w-0"}
             aria-label="Search invoices"
           />
-          <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="New invoice" onClick={openAdd} />
+          <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="New invoice" onClick={openAdd} />
         </div>
 
         <div className="flex flex-col gap-4 p-5">
@@ -106,7 +106,7 @@ export function InvoiceList({
                 {initialInvoices.length === 0 ? "No invoices yet." : "No matches."}
               </p>
               {initialInvoices.length === 0 && (
-                <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="New invoice" onClick={openAdd} className="mt-3" />
+                <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="New invoice" onClick={openAdd} className="mt-3" />
               )}
             </div>
           ) : (
@@ -136,7 +136,7 @@ export function InvoiceList({
                       <td className="w-24 shrink-0 p-3 text-right font-medium tabular-nums text-[var(--color-on-surface)]">{inv.total_amount != null ? Number(inv.total_amount).toFixed(2) : "—"}</td>
                       <td className="w-28 shrink-0 p-3 text-right">
                         <div className="flex justify-end gap-2">
-                          <IconButton variant="secondary" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(inv.id)} />
+                          <IconButton variant="edit" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(inv.id)} />
                           <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={() => openDelete(inv.id)} />
                         </div>
                       </td>

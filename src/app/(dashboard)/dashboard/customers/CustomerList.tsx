@@ -128,7 +128,7 @@ export function CustomerList({
             className={inputClass + " max-w-[240px] min-w-0"}
             aria-label="Search customers"
           />
-          <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="Add customer" onClick={openAdd} />
+          <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add customer" onClick={openAdd} />
         </div>
 
         {/* Card body */}
@@ -161,7 +161,7 @@ export function CustomerList({
                 {initialCustomers.length === 0 ? "No customers yet." : "No matches."}
               </p>
               {initialCustomers.length === 0 && (
-                <IconButton variant="primary" icon={<Plus className="w-4 h-4" />} label="Add customer" onClick={openAdd} className="mt-3" />
+                <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add customer" onClick={openAdd} className="mt-3" />
               )}
             </div>
           ) : (
@@ -224,7 +224,7 @@ export function CustomerList({
                       </td>
                       <td className="w-28 shrink-0 p-3 text-right">
                         <div className="flex justify-end gap-2">
-                          <IconButton variant="secondary" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(c)} />
+                          <IconButton variant="edit" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(c)} />
                           <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={() => openDeleteOne(c.id)} />
                         </div>
                       </td>

@@ -73,6 +73,12 @@
   --color-btn-danger-bg: #dc2626;
   --color-btn-danger-bg-hover: #b91c1c;
   --color-btn-danger-text: #ffffff;
+  --color-btn-edit-bg: #d97706;
+  --color-btn-edit-bg-hover: #b45309;
+  --color-btn-edit-text: #ffffff;
+  --color-btn-add-bg: #0d9488;
+  --color-btn-add-bg-hover: #0f766e;
+  --color-btn-add-text: #ffffff;
   --color-badge-success-bg: #2dd4bf;
   --color-badge-success-text: #134e4a;
 
@@ -130,6 +136,12 @@
     --color-btn-danger-bg: #dc2626;
     --color-btn-danger-bg-hover: #ef4444;
     --color-btn-danger-text: #ffffff;
+    --color-btn-edit-bg: #f59e0b;
+    --color-btn-edit-bg-hover: #d97706;
+    --color-btn-edit-text: #1c1f24;
+    --color-btn-add-bg: #0d9488;
+    --color-btn-add-bg-hover: #2dd4bf;
+    --color-btn-add-text: #ffffff;
     --color-badge-success-bg: #2dd4bf;
     --color-badge-success-text: #134e4a;
 
@@ -178,6 +190,12 @@
   --color-btn-danger-bg: #dc2626;
   --color-btn-danger-bg-hover: #ef4444;
   --color-btn-danger-text: #ffffff;
+  --color-btn-edit-bg: #f59e0b;
+  --color-btn-edit-bg-hover: #d97706;
+  --color-btn-edit-text: #1c1f24;
+  --color-btn-add-bg: #0d9488;
+  --color-btn-add-bg-hover: #2dd4bf;
+  --color-btn-add-text: #ffffff;
   --color-badge-success-bg: #2dd4bf;
   --color-badge-success-text: #134e4a;
 
@@ -217,6 +235,12 @@
   --color-btn-danger-bg: #dc2626;
   --color-btn-danger-bg-hover: #b91c1c;
   --color-btn-danger-text: #ffffff;
+  --color-btn-edit-bg: #d97706;
+  --color-btn-edit-bg-hover: #b45309;
+  --color-btn-edit-text: #ffffff;
+  --color-btn-add-bg: #0d9488;
+  --color-btn-add-bg-hover: #0f766e;
+  --color-btn-add-text: #ffffff;
   --color-badge-success-bg: #2dd4bf;
   --color-badge-success-text: #134e4a;
   --shadow-sm: 0 1px 2px 0 rgb(28 31 36 / 8%), 0 1px 3px 1px rgb(28 31 36 / 6%);
@@ -281,6 +305,24 @@
     background-color: var(--color-btn-danger-bg-hover);
   }
 
+  .btn-edit {
+    background-color: var(--color-btn-edit-bg);
+    color: var(--color-btn-edit-text);
+    border-color: var(--color-btn-edit-bg-hover);
+  }
+  .btn-edit:hover:not(:disabled) {
+    background-color: var(--color-btn-edit-bg-hover);
+  }
+
+  .btn-add {
+    background-color: var(--color-btn-add-bg);
+    color: var(--color-btn-add-text);
+    border-color: var(--color-btn-add-bg-hover);
+  }
+  .btn-add:hover:not(:disabled) {
+    background-color: var(--color-btn-add-bg-hover);
+  }
+
   /* Badges/tags: pill style */
   .badge-success {
     @apply inline-flex items-center px-2.5 py-0.5 text-sm font-medium;
@@ -288,6 +330,31 @@
     background-color: var(--color-badge-success-bg);
     color: var(--color-badge-success-text);
   }
+
+  /* A4 document view: white page, shadow below, always light-view colors (same as light theme) */
+  .document-page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #ffffff !important;
+    color: #1c1f24 !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  }
+  /* Multi-page: each page keeps A4 min height and gets spacing below */
+  .document-page-spaced {
+    min-height: 297mm;
+  }
+  /* Force document content to light-view text/backgrounds in both themes */
+  .document-page .doc-muted { color: #4a4d52 !important; }
+  .document-page .doc-border { border-color: #e5e7eb !important; }
+  .document-page .doc-head { background: #f3f4f6 !important; color: #1c1f24 !important; }
+  .document-page .doc-cell { background: #ffffff !important; color: #1c1f24 !important; }
+  .document-page .doc-notes-bg { background: #f9fafb !important; border-color: #e5e7eb !important; color: #1c1f24 !important; }
+  .document-page h1,
+  .document-page h2,
+  .document-page h3,
+  .document-page p,
+  .document-page td,
+  .document-page th { color: #1c1f24 !important; }
 
   /* Cards: 8–12px radius, single subtle border, 16–20px padding when used */
   .card {
@@ -392,4 +459,15 @@ input[type="date"]::placeholder,
 input[type="datetime-local"]::placeholder,
 input[type="time"]::placeholder {
   color: var(--color-placeholder);
+}
+
+/* Hide up/down arrows on number inputs (e.g. unit price in line items) */
+.input-no-spinner::-webkit-inner-spin-button,
+.input-no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.input-no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }

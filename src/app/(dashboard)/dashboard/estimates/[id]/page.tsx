@@ -21,7 +21,7 @@ export default async function EstimateViewPage({
 
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("id, estimate_number, estimate_date, status, notes, total_amount, total_tax, customer_id")
+    .select("id, estimate_number, estimate_date, status, notes, project_name, subject, total_amount, total_tax, customer_id")
     .eq("id", id)
     .eq("company_id", company.id)
     .single();
@@ -57,6 +57,8 @@ export default async function EstimateViewPage({
           estimateDate={estimate.estimate_date ?? ""}
           status={estimate.status ?? "Draft"}
           notes={estimate.notes ?? null}
+          projectName={estimate.project_name ?? null}
+          subject={estimate.subject ?? null}
           totalAmount={Number(estimate.total_amount) ?? 0}
           totalTax={Number(estimate.total_tax) ?? 0}
           company={{
