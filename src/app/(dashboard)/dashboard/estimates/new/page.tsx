@@ -14,12 +14,6 @@ export default async function NewEstimatePage() {
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name, address, city, province, ntn_cnic, phone, email")
-    .eq("company_id", company.id)
-    .order("name");
-
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--color-card-bg)]">
@@ -27,7 +21,6 @@ export default async function NewEstimatePage() {
           <EstimateForm
             estimateId={null}
             companyId={company.id}
-            customers={customers ?? []}
             company={{ name: company.name }}
           />
         </div>

@@ -21,17 +21,32 @@ export default async function EstimateEditPage({
 
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("id, estimate_number, estimate_date")
+    .select("id, estimate_number, estimate_date, customer_id")
     .eq("id", id)
     .eq("company_id", company.id)
     .single();
   if (!estimate) notFound();
 
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name, address, city, province, ntn_cnic, phone, email, registration_type")
-    .eq("company_id", company.id)
-    .order("name");
+  let initialCustomer: {
+    id: string;
+    name: string;
+    address?: string | null;
+    city?: string | null;
+    province?: string | null;
+    ntn_cnic?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    registration_type?: string | null;
+  } | null = null;
+  if (estimate.customer_id) {
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id, name, address, city, province, ntn_cnic, phone, email, registration_type")
+      .eq("id", estimate.customer_id)
+      .eq("company_id", company.id)
+      .maybeSingle();
+    if (customer) initialCustomer = customer;
+  }
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
@@ -39,10 +54,11 @@ export default async function EstimateEditPage({
         <EstimateForm
             estimateId={id}
             companyId={company.id}
-            customers={customers ?? []}
             company={{ name: company.name }}
             initialEstimateNumber={estimate.estimate_number}
             initialEstimateDate={estimate.estimate_date ?? null}
+            initialCustomerId={estimate.customer_id ?? undefined}
+            initialSelectedCustomer={initialCustomer ?? undefined}
           />
       </div>
     </div>

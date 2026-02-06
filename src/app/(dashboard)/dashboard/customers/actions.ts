@@ -124,3 +124,67 @@ export async function deleteCustomers(customerIds: string[]): Promise<CustomerFo
   revalidatePath("/dashboard/customers");
   return {};
 }
+
+export type CustomerSearchResult = {
+  id: string;
+  name: string;
+  address?: string | null;
+  city?: string | null;
+  province?: string | null;
+  ntn_cnic?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  registration_type?: string | null;
+};
+
+const CUSTOMER_SELECT =
+  "id, name, address, city, province, ntn_cnic, phone, email, registration_type";
+
+export async function searchCustomers(
+  companyId: string,
+  query: string
+): Promise<CustomerSearchResult[]> {
+  const raw = (query || "").trim();
+  if (!raw) return [];
+  const q = raw.replace(/%/g, "").replace(/_/g, " ");
+  if (!q) return [];
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const pattern = `%${q}%`;
+  const { data, error } = await supabase
+    .from("customers")
+    .select(CUSTOMER_SELECT)
+    .eq("company_id", companyId)
+    .or(`name.ilike.${pattern},email.ilike.${pattern},phone.ilike.${pattern}`)
+    .order("name")
+    .limit(20);
+
+  if (error) return [];
+  return (data ?? []) as CustomerSearchResult[];
+}
+
+export async function getCustomerById(
+  companyId: string,
+  customerId: string
+): Promise<CustomerSearchResult | null> {
+  if (!customerId) return null;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("customers")
+    .select(CUSTOMER_SELECT)
+    .eq("id", customerId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as CustomerSearchResult;
+}

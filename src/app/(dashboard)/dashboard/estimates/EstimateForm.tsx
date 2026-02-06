@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -9,12 +9,18 @@ import {
   getEstimateWithItems,
   type EstimateFormState,
 } from "./actions";
-import { Save, Loader2, Plus, Pencil } from "lucide-react";
+import { Save, Loader2, Plus, Pencil, Search, X } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
 import { Modal } from "@/components/Modal";
 import { showMessage } from "@/components/MessageBar";
 import { CustomerForm, type Customer } from "@/app/(dashboard)/dashboard/customers/CustomerForm";
+import {
+  searchCustomers,
+  getCustomerById,
+  type CustomerSearchResult,
+} from "@/app/(dashboard)/dashboard/customers/actions";
+import { formatEstimateDate } from "@/lib/formatDate";
 
 const inputClass =
   "w-full min-h-[2.5rem] border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
@@ -66,22 +72,26 @@ export type EstimateListItem = {
   customer_id: string;
 };
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function EstimateForm({
   estimateId,
   companyId,
-  customers,
   company,
   initialEstimateNumber,
   initialEstimateDate,
+  initialCustomerId,
+  initialSelectedCustomer,
   onSuccess,
   onCancel,
 }: {
   estimateId: string | null;
   companyId: string;
-  customers: (CustomerOption | { id: string; name: string })[];
   company?: { name: string } | null;
   initialEstimateNumber?: string | null;
   initialEstimateDate?: string | null;
+  initialCustomerId?: string | null;
+  initialSelectedCustomer?: CustomerSearchResult | null;
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
@@ -92,7 +102,16 @@ export function EstimateForm({
     isEdit ? "loading" : "idle"
   );
   const [state, setState] = useState<EstimateFormState>({});
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(
+    initialSelectedCustomer ?? null
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CustomerSearchResult[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [estimateDate, setEstimateDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
@@ -104,10 +123,55 @@ export function EstimateForm({
   const [items, setItems] = useState<LineItemRow[]>(defaultItems());
   const [customerModal, setCustomerModal] = useState<"add" | "edit" | null>(null);
 
-  const selectedCustomer = useMemo(
-    () => customers.find((c) => c.id === customerId) as CustomerOption | undefined,
-    [customers, customerId]
+  const runSearch = useCallback(
+    async (q: string) => {
+      if (!q.trim()) {
+        setSearchResults([]);
+        return;
+      }
+      setSearchLoading(true);
+      const list = await searchCustomers(companyId, q);
+      setSearchResults(list);
+      setSearchLoading(false);
+    },
+    [companyId]
   );
+
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => runSearch(searchQuery), SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery, runSearch]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectCustomer = useCallback((c: CustomerSearchResult) => {
+    setCustomerId(c.id);
+    setSelectedCustomer(c);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchOpen(false);
+  }, []);
+
+  const handleClearCustomer = useCallback(() => {
+    setCustomerId("");
+    setSelectedCustomer(null);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!estimateId) return;
@@ -135,6 +199,10 @@ export function EstimateForm({
   }, [estimateId]);
 
   async function handleSubmit(formData: FormData, sendNow = false) {
+    if (!customerId) {
+      setState({ error: "Please select or add a customer." });
+      return;
+    }
     setLoading(true);
     setState({});
     formData.set("customer_id", customerId);
@@ -189,7 +257,11 @@ export function EstimateForm({
   );
   const total = items.reduce((s, i) => s + i.total_values, 0);
   const billingLines = selectedCustomer
-    ? [selectedCustomer.address, selectedCustomer.ntn_cnic ? `NTN: ${selectedCustomer.ntn_cnic}` : null, [selectedCustomer.city, selectedCustomer.province].filter(Boolean).join(", ")].filter(Boolean)
+    ? [
+        selectedCustomer.address,
+        selectedCustomer.ntn_cnic ? `NTN: ${selectedCustomer.ntn_cnic}` : null,
+        [selectedCustomer.city, selectedCustomer.province].filter(Boolean).join(", "),
+      ].filter(Boolean)
     : [];
 
   function doSubmit(e: React.FormEvent<HTMLFormElement>, sendNow: boolean) {
@@ -308,21 +380,73 @@ export function EstimateForm({
                   )}
                 </div>
               </div>
-              <select
-                id="estimate-customer"
-                name="customer_id"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                required
-                className={inputClass + " h-[2.5rem] min-h-0 cursor-pointer"}
-              >
-                <option value="">— Select customer —</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <input type="hidden" name="customer_id" value={customerId} />
+              {selectedCustomer ? (
+                <div className="flex items-center gap-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2.5 min-h-[2.5rem]">
+                  <span className="flex-1 text-sm text-[var(--color-on-surface)]">{selectedCustomer.name}</span>
+                  <button
+                    type="button"
+                    onClick={handleClearCustomer}
+                    className="shrink-0 rounded p-1 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
+                    aria-label="Change customer"
+                    title="Change customer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div ref={searchRef} className="relative">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-[var(--color-on-surface-variant)]" aria-hidden />
+                    <input
+                      id="estimate-customer"
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setSearchOpen(true);
+                      }}
+                      onFocus={() => setSearchOpen(true)}
+                      placeholder="Search customers by name, email, or phone…"
+                      className={inputClass + " h-[2.5rem] min-h-0 pl-9"}
+                      autoComplete="off"
+                    />
+                  </div>
+                  {searchOpen && (
+                    <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-60 overflow-y-auto rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] shadow-lg">
+                      {searchLoading ? (
+                        <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-[var(--color-on-surface-variant)]">
+                          <Loader2 className="w-4 h-4 animate-spin" /> Searching…
+                        </div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-[var(--color-on-surface-variant)]">
+                          {searchQuery.trim() ? "No customers found. Add one with + above." : "Type to search customers."}
+                        </div>
+                      ) : (
+                        <ul className="py-1" role="listbox">
+                          {searchResults.map((c) => (
+                            <li key={c.id}>
+                              <button
+                                type="button"
+                                role="option"
+                                className="w-full px-3 py-2.5 text-left text-sm text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
+                                onClick={() => handleSelectCustomer(c)}
+                              >
+                                <span className="font-medium">{c.name}</span>
+                                {(c.email || c.phone) && (
+                                  <span className="ml-2 text-[var(--color-on-surface-variant)]">
+                                    {[c.email, c.phone].filter(Boolean).join(" · ")}
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               {selectedCustomer && billingLines.length > 0 && (
                 <div className="rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/20 p-3">
                   <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-on-surface-variant)] mb-1">
@@ -381,7 +505,13 @@ export function EstimateForm({
                   value={estimateDate}
                   onChange={(e) => setEstimateDate(e.target.value)}
                   className={inputClass + " h-[2.5rem] min-h-0"}
+                  required
                 />
+                {estimateDate && (
+                  <p className="mt-0.5 text-xs text-[var(--color-on-surface-variant)]">
+                    {formatEstimateDate(estimateDate)}
+                  </p>
+                )}
               </div>
               <div>
                 <label className={labelClass}>
@@ -403,6 +533,11 @@ export function EstimateForm({
                   onChange={(e) => setValidUntil(e.target.value)}
                   className={inputClass + " h-[2.5rem] min-h-0"}
                 />
+                {validUntil && (
+                  <p className="mt-0.5 text-xs text-[var(--color-on-surface-variant)]">
+                    {formatEstimateDate(validUntil)}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="estimate-status" className={labelClass}>
@@ -493,9 +628,13 @@ export function EstimateForm({
       <CustomerForm
           customer={customerModal === "edit" && selectedCustomer ? (selectedCustomer as Customer) : null}
           companyId={companyId}
-          onSuccess={(newId) => {
-            if (newId) setCustomerId(newId);
+          onSuccess={async (newId) => {
             setCustomerModal(null);
+            if (newId) {
+              setCustomerId(newId);
+              const customer = await getCustomerById(companyId, newId);
+              if (customer) setSelectedCustomer(customer);
+            }
             router.refresh();
           }}
           onCancel={() => setCustomerModal(null)}

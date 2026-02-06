@@ -10,6 +10,7 @@ import {
   convertEstimateToInvoice,
 } from "./actions";
 import { showMessage } from "@/components/MessageBar";
+import { formatEstimateDate } from "@/lib/formatDate";
 import type { EstimateListItem } from "./EstimateForm";
 
 export function EstimateSidebar({
@@ -133,12 +134,19 @@ export function EstimateSidebar({
                         <span className={`truncate text-sm font-medium ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
                           {e.estimate_number}
                         </span>
+                        {e.estimate_date && (
+                          <span className={`shrink-0 text-[10px] ${isActive ? "text-[var(--color-on-primary-container)]/80" : "text-[var(--color-on-surface-variant)]"}`}>
+                            {formatEstimateDate(e.estimate_date)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 flex items-center justify-between gap-2">
+                        <span className={`truncate text-xs ${isActive ? "text-[var(--color-on-primary-container)]/90" : "text-[var(--color-card-text)]"}`}>
+                          {e.customer_name || "—"}
+                        </span>
                         <span className={`shrink-0 text-xs ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
                           {e.total_amount != null ? Number(e.total_amount).toFixed(0) : "—"}
                         </span>
-                      </div>
-                      <div className={`mt-0.5 truncate text-xs ${isActive ? "text-[var(--color-on-primary-container)]/90" : "text-[var(--color-card-text)]"}`}>
-                        {e.customer_name || "—"}
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                         <span

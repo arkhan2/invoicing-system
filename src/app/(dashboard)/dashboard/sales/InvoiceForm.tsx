@@ -331,6 +331,7 @@ export function InvoiceForm({
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
                   className={inputClass + " !min-h-[2.5rem]"}
+                  required
                 />
               </div>
               <div>

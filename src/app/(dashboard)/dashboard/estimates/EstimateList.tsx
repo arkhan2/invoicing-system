@@ -15,11 +15,9 @@ import { showMessage } from "@/components/MessageBar";
 
 export function EstimateList({
   estimates: initialEstimates,
-  customers,
   companyId,
 }: {
   estimates: EstimateListItem[];
-  customers: { id: string; name: string }[];
   companyId: string;
 }) {
   const router = useRouter();
@@ -181,7 +179,6 @@ export function EstimateList({
         <EstimateForm
           estimateId={editingEstimateId}
           companyId={companyId}
-          customers={customers}
           onSuccess={closeModal}
           onCancel={closeModal}
         />

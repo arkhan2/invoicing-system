@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { convertEstimateToInvoice, deleteEstimate } from "./actions";
 import { showMessage } from "@/components/MessageBar";
+import { formatEstimateDate } from "@/lib/formatDate";
 import { useState } from "react";
 
 const ROWS_PER_PAGE = 14;
@@ -244,7 +245,7 @@ export function EstimateDocumentView({
                     <div className="text-left sm:text-right">
                       <p className="text-3xl font-bold tracking-tight">ESTIMATE</p>
                       <p className="mt-1 text-lg font-semibold"># {estimateNumber}</p>
-                      <p className="mt-1 text-sm doc-muted">Estimate Date: {estimateDate}</p>
+                      <p className="mt-1 text-sm doc-muted">Estimate Date: {formatEstimateDate(estimateDate)}</p>
                     </div>
                   </div>
 
