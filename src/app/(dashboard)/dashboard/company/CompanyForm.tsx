@@ -3,7 +3,7 @@
 import { useState, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Save, Loader2, Plus, Trash2 } from "lucide-react";
+import { Save, Loader2, Plus, Trash2, ChevronLeft, X } from "lucide-react";
 import {
   createCompany,
   updateCompany,
@@ -43,10 +43,14 @@ export function CompanyForm({
   company,
   salesTaxRates,
   withholdingTaxRates,
+  onSaved,
+  onCancel,
 }: {
   company: Company | null;
   salesTaxRates: TaxRateRow[];
   withholdingTaxRates: TaxRateRow[];
+  onSaved?: () => void;
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -86,6 +90,7 @@ export function CompanyForm({
         } else if (result?.success) {
           router.refresh();
           showMessage("Changes saved.", "success");
+          onSaved?.();
         }
       }
     } finally {
@@ -98,28 +103,47 @@ export function CompanyForm({
       {/* Header: title + Save (same as estimate/invoice edit) */}
       <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
-          {company && (
+          {company && !onCancel && (
             <Link
               href="/dashboard"
-              className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
+              className="btn btn-secondary btn-icon shrink-0"
               aria-label="Back to dashboard"
+              title="Back to dashboard"
             >
-              <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft className="size-4" />
             </Link>
+          )}
+          {company && onCancel && (
+            <IconButton
+              type="button"
+              variant="secondary"
+              icon={<ChevronLeft className="size-4" />}
+              label="Back to profile"
+              onClick={onCancel}
+            />
           )}
           <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
             {isCreate ? "Create your company" : "Company profile"}
           </h2>
         </div>
-        <IconButton
-          type="submit"
-          variant="primary"
-          icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          label={loading ? "Saving…" : isCreate ? "Create company" : "Save"}
-          disabled={loading}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          {company && onCancel && (
+            <IconButton
+              type="button"
+              variant="secondary"
+              icon={<X className="w-4 h-4" />}
+              label="Cancel"
+              onClick={onCancel}
+            />
+          )}
+          <IconButton
+            type="submit"
+            variant="primary"
+            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            label={loading ? "Saving…" : isCreate ? "Create company" : "Save"}
+            disabled={loading}
+          />
+        </div>
       </div>
 
       {/* Body: scrollable, card sections (edit layout) */}

@@ -1,6 +1,6 @@
 import { createClient, getUserSafe } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { CompanyForm } from "./CompanyForm";
+import { CompanyProfile } from "./CompanyProfile";
 import { getCompanyTaxRates } from "./actions";
 
 export default async function CompanyPage() {
@@ -23,7 +23,7 @@ export default async function CompanyPage() {
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full bg-[var(--color-card-bg)]">
-        <CompanyForm
+        <CompanyProfile
           company={company}
           salesTaxRates={taxRates.salesTaxRates}
           withholdingTaxRates={taxRates.withholdingTaxRates}
