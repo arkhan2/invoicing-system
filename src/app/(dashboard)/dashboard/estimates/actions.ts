@@ -75,8 +75,19 @@ export async function createEstimate(
   const items = parseItems(formData);
   if (items.length === 0) return { error: "Add at least one line item." };
 
-  const totalAmount = items.reduce((sum, i) => sum + Number(i.total_values), 0);
-  const totalTax = items.reduce((sum, i) => sum + (Number(i.sales_tax_applicable) || 0) + (Number(i.extra_tax) || 0) + (Number(i.further_tax) || 0) - (Number(i.sales_tax_withheld_at_source) || 0), 0);
+  const subtotal = items.reduce((sum, i) => sum + Number(i.total_values), 0);
+  const discountAmountRaw = Number((formData.get("discount_amount") as string) ?? 0) || 0;
+  const discountType = (formData.get("discount_type") as string) === "percentage" ? "percentage" : "amount";
+  const salesTaxRateId = (formData.get("sales_tax_rate_id") as string)?.trim() || null;
+  const discountValue = discountType === "percentage" ? (subtotal * discountAmountRaw) / 100 : discountAmountRaw;
+  const totalAfterDiscount = Math.max(0, subtotal - discountValue);
+  let salesTaxRatePct = 0;
+  if (salesTaxRateId) {
+    const { data: rateRow } = await supabase.from("company_sales_tax_rates").select("rate").eq("id", salesTaxRateId).eq("company_id", companyId).single();
+    salesTaxRatePct = rateRow ? Number(rateRow.rate) : 0;
+  }
+  const totalTax = (totalAfterDiscount * salesTaxRatePct) / 100;
+  const totalAmount = totalAfterDiscount + totalTax;
 
   const { data: estimate, error: estErr } = await supabase
     .from("estimates")
@@ -92,6 +103,9 @@ export async function createEstimate(
       subject,
       total_amount: totalAmount,
       total_tax: totalTax,
+      discount_amount: discountAmountRaw,
+      discount_type: discountType,
+      sales_tax_rate_id: salesTaxRateId,
     })
     .select("id")
     .single();
@@ -141,16 +155,30 @@ export async function updateEstimate(
   const items = parseItems(formData);
   if (items.length === 0) return { error: "Add at least one line item." };
 
-  const totalAmount = items.reduce((sum, i) => sum + Number(i.total_values), 0);
-  const totalTax = items.reduce((sum, i) => sum + (Number(i.sales_tax_applicable) || 0) + (Number(i.extra_tax) || 0) + (Number(i.further_tax) || 0) - (Number(i.sales_tax_withheld_at_source) || 0), 0);
+  const subtotal = items.reduce((sum, i) => sum + Number(i.total_values), 0);
+  const discountAmountRaw = Number((formData.get("discount_amount") as string) ?? 0) || 0;
+  const discountType = (formData.get("discount_type") as string) === "percentage" ? "percentage" : "amount";
+  const salesTaxRateId = (formData.get("sales_tax_rate_id") as string)?.trim() || null;
+  const discountValue = discountType === "percentage" ? (subtotal * discountAmountRaw) / 100 : discountAmountRaw;
+  const totalAfterDiscount = Math.max(0, subtotal - discountValue);
+  let salesTaxRatePct = 0;
+  if (salesTaxRateId) {
+    const { data: rateRow } = await supabase.from("company_sales_tax_rates").select("rate").eq("id", salesTaxRateId).eq("company_id", companyId).single();
+    salesTaxRatePct = rateRow ? Number(rateRow.rate) : 0;
+  }
+  const totalTax = (totalAfterDiscount * salesTaxRatePct) / 100;
+  const totalAmount = totalAfterDiscount + totalTax;
 
   const estimateDate = (formData.get("estimate_date") as string) || new Date().toISOString().slice(0, 10);
   const status = (formData.get("status") as string) || "Draft";
-  const validStatus = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"].includes(status) ? status : "Draft";
+  let validStatus = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"].includes(status) ? status : "Draft";
   const validUntil = (formData.get("valid_until") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
   const projectName = (formData.get("project_name") as string)?.trim() || null;
   const subject = (formData.get("subject") as string)?.trim() || null;
+
+  const { data: existing } = await supabase.from("estimates").select("status").eq("id", estimateId).eq("company_id", companyId).single();
+  if (existing?.status === "Converted") validStatus = "Converted";
 
   const { error: upErr } = await supabase
     .from("estimates")
@@ -164,6 +192,9 @@ export async function updateEstimate(
       subject,
       total_amount: totalAmount,
       total_tax: totalTax,
+      discount_amount: discountAmountRaw,
+      discount_type: discountType,
+      sales_tax_rate_id: salesTaxRateId,
       updated_at: new Date().toISOString(),
     })
     .eq("id", estimateId)
@@ -204,7 +235,7 @@ export async function getEstimateWithItems(estimateId: string) {
   if (!user) return null;
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("id, company_id, customer_id, estimate_number, estimate_date, status, valid_until, notes, project_name, subject, total_amount, total_tax")
+    .select("id, company_id, customer_id, estimate_number, estimate_date, status, valid_until, notes, project_name, subject, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id")
     .eq("id", estimateId)
     .single();
   if (!estimate) return null;

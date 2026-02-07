@@ -125,7 +125,7 @@ function ForgotPasswordForm() {
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                 placeholder="e.g. 79119087"
-                className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] text-center tracking-widest text-lg"
+                className="w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] text-center tracking-widest text-lg"
               />
             </div>
             <div>
@@ -140,7 +140,7 @@ function ForgotPasswordForm() {
                 required
                 minLength={6}
                 autoComplete="new-password"
-                className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+                className="w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
                 placeholder="At least 6 characters"
               />
             </div>
@@ -156,7 +156,7 @@ function ForgotPasswordForm() {
                 required
                 minLength={6}
                 autoComplete="new-password"
-                className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+                className="w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
                 placeholder="Repeat password"
               />
             </div>
@@ -219,7 +219,7 @@ function ForgotPasswordForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
+              className="w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-card-text)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)]"
               placeholder="you@example.com"
             />
           </div>

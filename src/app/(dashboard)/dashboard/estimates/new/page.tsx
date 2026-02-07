@@ -1,6 +1,7 @@
 import { createClient, getUserSafe } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EstimateForm } from "../EstimateForm";
+import { getCompanyTaxRates } from "@/app/(dashboard)/dashboard/company/actions";
 
 export default async function NewEstimatePage() {
   const supabase = await createClient();
@@ -14,6 +15,8 @@ export default async function NewEstimatePage() {
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
+  const { salesTaxRates } = await getCompanyTaxRates(company.id);
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--color-card-bg)]">
@@ -22,6 +25,7 @@ export default async function NewEstimatePage() {
             estimateId={null}
             companyId={company.id}
             company={{ name: company.name }}
+            salesTaxRates={salesTaxRates}
           />
         </div>
       </div>

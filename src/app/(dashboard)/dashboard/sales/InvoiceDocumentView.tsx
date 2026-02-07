@@ -150,7 +150,7 @@ export function InvoiceDocumentView({
       </div>
 
       {/* Document body: grey area + one or more A4 pages with shadow */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-[#9ca3af]/25 py-8 px-4">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-outline)]/20 py-8 px-4">
         <div className="space-y-8">
           {pageChunks.map((chunk, pageIndex) => {
             const startIndex = pageIndex * ROWS_PER_PAGE;
@@ -168,7 +168,7 @@ export function InvoiceDocumentView({
                         aria-hidden
                       />
                     ) : (
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg font-semibold text-blue-800">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)] text-lg font-semibold text-[var(--color-on-primary-container)]">
                         {company.name.slice(0, 2).toUpperCase()}
                       </div>
                     )}

@@ -21,11 +21,25 @@ export default async function EstimateViewPage({
 
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("id, estimate_number, estimate_date, status, notes, project_name, subject, total_amount, total_tax, customer_id")
+    .select("id, estimate_number, estimate_date, status, notes, project_name, subject, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id, customer_id")
     .eq("id", id)
     .eq("company_id", company.id)
     .single();
   if (!estimate) notFound();
+
+  let salesTaxLabel: string | null = null;
+  if (estimate.sales_tax_rate_id) {
+    const { data: rate } = await supabase
+      .from("company_sales_tax_rates")
+      .select("name, rate")
+      .eq("id", estimate.sales_tax_rate_id)
+      .eq("company_id", company.id)
+      .maybeSingle();
+    if (rate?.name != null && rate?.rate != null) {
+      salesTaxLabel = `${rate.name} (${Number(rate.rate)}%)`;
+    }
+  }
+  if (!salesTaxLabel) salesTaxLabel = "Sales tax";
 
   const { data: customer } = await supabase
     .from("customers")
@@ -61,6 +75,9 @@ export default async function EstimateViewPage({
           subject={estimate.subject ?? null}
           totalAmount={Number(estimate.total_amount) ?? 0}
           totalTax={Number(estimate.total_tax) ?? 0}
+          discountAmount={estimate.discount_amount != null ? Number(estimate.discount_amount) : null}
+          discountType={estimate.discount_type === "percentage" ? "percentage" : estimate.discount_type === "amount" ? "amount" : null}
+          salesTaxLabel={salesTaxLabel}
           company={{
             name: company.name,
             address: company.address ?? null,

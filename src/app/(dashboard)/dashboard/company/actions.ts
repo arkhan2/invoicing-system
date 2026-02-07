@@ -140,3 +140,117 @@ export async function updateCompany(
   revalidatePath("/dashboard/company");
   return { success: true };
 }
+
+export type TaxRateRow = { id: string; name: string; rate: number };
+
+export async function getCompanyTaxRates(companyId: string): Promise<{
+  salesTaxRates: TaxRateRow[];
+  withholdingTaxRates: TaxRateRow[];
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { salesTaxRates: [], withholdingTaxRates: [] };
+
+  const [salesRes, withholdingRes] = await Promise.all([
+    supabase
+      .from("company_sales_tax_rates")
+      .select("id, name, rate")
+      .eq("company_id", companyId)
+      .order("created_at"),
+    supabase
+      .from("company_withholding_tax_rates")
+      .select("id, name, rate")
+      .eq("company_id", companyId)
+      .order("created_at"),
+  ]);
+
+  const salesTaxRates: TaxRateRow[] = (salesRes.data ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    rate: Number(r.rate),
+  }));
+  const withholdingTaxRates: TaxRateRow[] = (withholdingRes.data ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    rate: Number(r.rate),
+  }));
+  return { salesTaxRates, withholdingTaxRates };
+}
+
+export async function addSalesTaxRate(
+  companyId: string,
+  name: string,
+  rate: number
+): Promise<CompanyFormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+  const trimmed = (name || "").trim();
+  if (!trimmed) return { error: "Name is required." };
+  if (rate < 0 || rate > 100) return { error: "Rate must be between 0 and 100." };
+
+  const { error } = await supabase.from("company_sales_tax_rates").insert({
+    company_id: companyId,
+    name: trimmed,
+    rate,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/company");
+  return {};
+}
+
+export async function deleteSalesTaxRate(rateId: string): Promise<CompanyFormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { error } = await supabase.from("company_sales_tax_rates").delete().eq("id", rateId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/company");
+  return {};
+}
+
+export async function addWithholdingTaxRate(
+  companyId: string,
+  name: string,
+  rate: number
+): Promise<CompanyFormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+  const trimmed = (name || "").trim();
+  if (!trimmed) return { error: "Name is required." };
+  if (rate < 0 || rate > 100) return { error: "Rate must be between 0 and 100." };
+
+  const { error } = await supabase.from("company_withholding_tax_rates").insert({
+    company_id: companyId,
+    name: trimmed,
+    rate,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/company");
+  return {};
+}
+
+export async function deleteWithholdingTaxRate(rateId: string): Promise<CompanyFormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { error } = await supabase.from("company_withholding_tax_rates").delete().eq("id", rateId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/company");
+  return {};
+}

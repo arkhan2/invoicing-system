@@ -23,7 +23,7 @@ import {
 import { formatEstimateDate } from "@/lib/formatDate";
 
 const inputClass =
-  "w-full min-h-[2.5rem] border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
+  "w-full min-h-[2.5rem] border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
 const STATUS_OPTIONS = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"];
@@ -74,10 +74,13 @@ export type EstimateListItem = {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+export type SalesTaxRateOption = { id: string; name: string; rate: number };
+
 export function EstimateForm({
   estimateId,
   companyId,
   company,
+  salesTaxRates = [],
   initialEstimateNumber,
   initialEstimateDate,
   initialCustomerId,
@@ -88,6 +91,7 @@ export function EstimateForm({
   estimateId: string | null;
   companyId: string;
   company?: { name: string } | null;
+  salesTaxRates?: SalesTaxRateOption[];
   initialEstimateNumber?: string | null;
   initialEstimateDate?: string | null;
   initialCustomerId?: string | null;
@@ -122,6 +126,9 @@ export function EstimateForm({
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<LineItemRow[]>(defaultItems());
   const [customerModal, setCustomerModal] = useState<"add" | "edit" | null>(null);
+  const [discountAmount, setDiscountAmount] = useState("");
+  const [discountType, setDiscountType] = useState<"amount" | "percentage">("amount");
+  const [salesTaxRateId, setSalesTaxRateId] = useState("");
 
   const runSearch = useCallback(
     async (q: string) => {
@@ -191,6 +198,10 @@ export function EstimateForm({
       setSubject((data.estimate as { subject?: string | null }).subject ?? "");
       setNotes(data.estimate.notes ?? "");
       setItems(data.items.length > 0 ? data.items : defaultItems());
+      const est = data.estimate as { discount_amount?: number | null; discount_type?: string | null; sales_tax_rate_id?: string | null };
+      setDiscountAmount(est.discount_amount != null ? String(est.discount_amount) : "");
+      setDiscountType(est.discount_type === "percentage" ? "percentage" : "amount");
+      setSalesTaxRateId(est.sales_tax_rate_id ?? "");
       setLoadState("done");
     })();
     return () => {
@@ -212,6 +223,9 @@ export function EstimateForm({
     formData.set("project_name", projectName);
     formData.set("subject", subject);
     formData.set("notes", notes);
+    formData.set("discount_amount", discountAmount);
+    formData.set("discount_type", discountType);
+    formData.set("sales_tax_rate_id", salesTaxRateId);
     formData.set("items", JSON.stringify(items));
     try {
       if (isEdit) {
@@ -249,13 +263,15 @@ export function EstimateForm({
     );
   }
 
-  const subtotal = items.reduce((s, i) => s + i.value_sales_excluding_st, 0);
-  const totalTax = items.reduce(
-    (s, i) =>
-      s + i.sales_tax_applicable - i.sales_tax_withheld_at_source + i.extra_tax + i.further_tax,
-    0
-  );
-  const total = items.reduce((s, i) => s + i.total_values, 0);
+  const subtotal = items.reduce((s, i) => s + i.total_values, 0);
+  const discountNum = Number(discountAmount) || 0;
+  const discountValue = discountType === "percentage" ? (subtotal * discountNum) / 100 : discountNum;
+  const totalAfterDiscount = Math.max(0, subtotal - discountValue);
+  const selectedSalesRate = salesTaxRates.find((r) => r.id === salesTaxRateId);
+  const salesTaxRatePct = selectedSalesRate ? selectedSalesRate.rate : 0;
+  const salesTaxAmount = (totalAfterDiscount * salesTaxRatePct) / 100;
+  const finalTotal = totalAfterDiscount + salesTaxAmount;
+
   const billingLines = selectedCustomer
     ? [
         selectedCustomer.address,
@@ -517,7 +533,7 @@ export function EstimateForm({
                 <label className={labelClass}>
                   Quote # <span className="text-[var(--color-error)]">*</span>
                 </label>
-                <div className="flex h-[2.5rem] items-center rounded-xl border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2.5 text-sm font-medium text-[var(--color-on-surface)]">
+                <div className="flex h-[2.5rem] items-center rounded-xl border border-[var(--color-input-border)] bg-[var(--color-input-bg)] px-3 py-2.5 text-sm font-medium text-[var(--color-on-surface)]">
                   {isEdit ? (initialEstimateNumber ?? "—") : "Auto-generated"}
                 </div>
               </div>
@@ -567,20 +583,94 @@ export function EstimateForm({
               Line items
             </h3>
             <LineItemsEditor items={items} onChange={setItems} />
-            <div className="mt-4 flex justify-end border-t border-[var(--color-divider)] pt-3">
-              <table className="w-full max-w-xs text-right text-sm tabular-nums">
+
+            {/* Discount & tax calculations — table styled like line items */}
+            <div className="mt-6 overflow-hidden rounded-xl border border-[var(--color-outline)]">
+              <table className="w-full min-w-[320px] text-left text-sm tabular-nums">
+                <thead>
+                  <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)]">
+                    <th className="p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+                      Calculation
+                    </th>
+                    <th className="w-28 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+                      Amount
+                    </th>
+                  </tr>
+                </thead>
                 <tbody>
-                  <tr>
-                    <td className="py-1 pr-4 text-[var(--color-on-surface-variant)]">Subtotal</td>
-                    <td className="py-1 font-medium text-[var(--color-on-surface)]">{subtotal.toFixed(2)}</td>
+                  <tr className="border-b border-[var(--color-divider)] hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150">
+                    <td className="p-2.5 text-[var(--color-on-surface-variant)]">Total</td>
+                    <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">
+                      {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
                   </tr>
-                  <tr>
-                    <td className="py-1 pr-4 text-[var(--color-on-surface-variant)]">Tax</td>
-                    <td className="py-1 font-medium text-[var(--color-on-surface)]">{totalTax.toFixed(2)}</td>
+                  <tr className="border-b border-[var(--color-divider)] hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150 align-middle">
+                    <td className="p-2.5">
+                      <div className="flex min-w-0 flex-nowrap items-center gap-2">
+                        <span className="shrink-0 text-[var(--color-on-surface-variant)]">Discount</span>
+                        <input
+                          id="estimate-discount"
+                          type="number"
+                          min={0}
+                          step={discountType === "percentage" ? 0.01 : 1}
+                          value={discountAmount}
+                          onChange={(e) => setDiscountAmount(e.target.value)}
+                          className={inputClass + " input-no-spinner h-[2.25rem] min-h-0 w-[9rem] max-w-[9rem] shrink-0"}
+                          placeholder={discountType === "percentage" ? "0" : "0"}
+                          aria-label="Discount value"
+                        />
+                        <select
+                          name="discount_type"
+                          value={discountType}
+                          onChange={(e) => setDiscountType(e.target.value as "amount" | "percentage")}
+                          className={inputClass + " h-[2.25rem] min-h-0 w-[10rem] max-w-[10rem] shrink-0 cursor-pointer"}
+                          aria-label="Discount type"
+                        >
+                          <option value="amount">Amount</option>
+                          <option value="percentage">%</option>
+                        </select>
+                      </div>
+                    </td>
+                    <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">
+                      -{discountValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
                   </tr>
-                  <tr className="border-t border-[var(--color-divider)]">
-                    <td className="py-2 pr-4 font-medium text-[var(--color-on-surface)]">Total</td>
-                    <td className="py-2 text-lg font-semibold text-[var(--color-on-surface)]">{total.toFixed(2)}</td>
+                  <tr className="border-b border-[var(--color-divider)] hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150">
+                    <td className="p-2.5 text-[var(--color-on-surface-variant)]">Total after discount</td>
+                    <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">
+                      {totalAfterDiscount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-[var(--color-divider)] hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150 align-middle">
+                    <td className="p-2.5">
+                      <div className="flex min-w-0 flex-nowrap items-center gap-2">
+                        <span className="shrink-0 text-[var(--color-on-surface-variant)]">Sales tax</span>
+                        <select
+                          id="estimate-sales-tax"
+                          name="sales_tax_rate_id"
+                          value={salesTaxRateId}
+                          onChange={(e) => setSalesTaxRateId(e.target.value)}
+                          className={inputClass + " h-[2.25rem] min-h-0 w-[10rem] max-w-[10rem] shrink-0 cursor-pointer"}
+                          aria-label="Sales tax rate"
+                        >
+                          <option value="">— None —</option>
+                          {salesTaxRates.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name} ({r.rate}%)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </td>
+                    <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">
+                      {salesTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                  <tr className="border-t-2 border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30">
+                    <td className="p-2.5 font-semibold text-[var(--color-on-surface)]">G.Total</td>
+                    <td className="p-2.5 text-right text-base font-semibold text-[var(--color-on-surface)]">
+                      {finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </td>
                   </tr>
                 </tbody>
               </table>

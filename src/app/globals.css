@@ -13,74 +13,72 @@
    Single border rule: one border OR one shadow per section. Focus always visible.
    ============================================================================= */
 
-/* --- Light mode (default) — soft off-whites, no pure white --- */
+/* --- Light mode — soft, easy on eyes (no bright white) --- */
 :root,
 [data-theme="light"] {
-  /* Swatches */
-  --palette-cream: #f5f5f3;
-  --palette-warm-gray: #e0e2de;
-  --palette-dark: #1c1f24;
-  --palette-primary: #2563eb;
-  --palette-primary-dark: #1d4ed8;
-  --palette-secondary: #0d9488;
-  --palette-tertiary: #7c3aed;
-  --palette-coral: #e5533d;
-  --palette-coral-dark: #cf4632;
-  --palette-mint: #2dd4bf;
+  /* Swatches: warm, muted */
+  --palette-cream: #ebe9e6;
+  --palette-warm-gray: #dddad6;
+  --palette-dark: #3a3734;
+  --palette-primary: #5c8bc4;
+  --palette-primary-dark: #4c7ab4;
+  --palette-secondary: #5a9d96;
+  --palette-tertiary: #8b6fa8;
+  --palette-coral: #b87268;
+  --palette-coral-dark: #a8645a;
+  --palette-mint: #6cb8a8;
 
-  /* Semantic (light) — softened, no bright white; control bg distinct from card */
-  --color-surface: #f5f5f3;
-  --color-surface-variant: #e8eae6;
-  --color-on-surface: #1c1f24;
-  --color-on-surface-variant: #4a4d52;
-  --color-placeholder: #9ca3af;
-  --color-input-bg: #e5e5e3;
-  --color-outline: #c4c6c3;
-  --color-divider: rgba(28, 31, 36, 0.08);
+  /* Surfaces: warm gray (reduced brightness) */
+  --color-surface: #e8e6e3;
+  --color-surface-variant: #e0ddda;
+  --color-on-surface: #3a3734;
+  --color-on-surface-variant: #5c5956;
+  --color-placeholder: #8a8682;
+  --color-input-bg: #f5f3f0;
+  --color-input-border: #a8a49e;
+  --color-input-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  --color-outline: #b2aea8;
+  --color-divider: rgba(58, 55, 52, 0.1);
 
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-on-primary: #ffffff;
+  --color-primary: #5c8bc4;
+  --color-primary-hover: #4c7ab4;
+  --color-on-primary: #f0f4f8;
 
-  /* Nav / highlight container (primary tint) */
-  --color-primary-container: #dbeafe;
-  --color-on-primary-container: #1e40af;
+  --color-primary-container: #c2d4ea;
+  --color-on-primary-container: #2d4a6a;
 
-  /* Secondary accent (links, badges, highlights) */
-  --color-secondary: #0d9488;
-  --color-secondary-container: #ccfbf1;
-  --color-on-secondary: #ffffff;
-  --color-on-secondary-container: #134e4a;
+  --color-secondary: #5a9d96;
+  --color-secondary-container: #b8ddd8;
+  --color-on-secondary: #f0f8f6;
+  --color-on-secondary-container: #234a45;
 
-  /* Tertiary (optional emphasis) */
-  --color-tertiary: #7c3aed;
-  --color-tertiary-container: #ede9fe;
+  --color-tertiary: #8b6fa8;
+  --color-tertiary-container: #ddd0e8;
 
-  --color-error: #dc2626;
-  --color-error-bg: #fef2f2;
+  --color-error: #b87268;
+  --color-error-bg: #f5e6e4;
 
-  /* Card: soft off-white (not pure #fff) */
-  --color-card-bg: #f8f8f6;
-  --color-card-text: #1c1f24;
+  --color-card-bg: #efedea;
+  --color-card-text: #3a3734;
 
-  /* Buttons (light) */
-  --color-btn-primary-bg: #2563eb;
-  --color-btn-primary-bg-hover: #1d4ed8;
-  --color-btn-primary-text: #ffffff;
-  --color-btn-secondary-bg: #e8eae6;
-  --color-btn-secondary-bg-hover: #d4d6d3;
-  --color-btn-secondary-text: #1c1f24;
-  --color-btn-danger-bg: #dc2626;
-  --color-btn-danger-bg-hover: #b91c1c;
-  --color-btn-danger-text: #ffffff;
-  --color-btn-edit-bg: #d97706;
-  --color-btn-edit-bg-hover: #b45309;
-  --color-btn-edit-text: #ffffff;
-  --color-btn-add-bg: #0d9488;
-  --color-btn-add-bg-hover: #0f766e;
-  --color-btn-add-text: #ffffff;
-  --color-badge-success-bg: #2dd4bf;
-  --color-badge-success-text: #134e4a;
+  /* Buttons: same hue family, readable on soft bg */
+  --color-btn-primary-bg: #5c8bc4;
+  --color-btn-primary-bg-hover: #4c7ab4;
+  --color-btn-primary-text: #f0f4f8;
+  --color-btn-secondary-bg: #d4d1ce;
+  --color-btn-secondary-bg-hover: #c4c0bd;
+  --color-btn-secondary-text: #3a3734;
+  --color-btn-danger-bg: #b87268;
+  --color-btn-danger-bg-hover: #a8645a;
+  --color-btn-danger-text: #f8f2f0;
+  --color-btn-edit-bg: #c49868;
+  --color-btn-edit-bg-hover: #b48858;
+  --color-btn-edit-text: #2d2018;
+  --color-btn-add-bg: #5a9d96;
+  --color-btn-add-bg-hover: #4a8d86;
+  --color-btn-add-text: #f0f8f6;
+  --color-badge-success-bg: #6cb8a8;
+  --color-badge-success-text: #234a45;
 
   --header-height: 56px;
   --radius: 8px;
@@ -90,161 +88,169 @@
   --radius-pill: 9999px;
   --transition-fast: 150ms;
   --transition-normal: 200ms;
-  --shadow-sm: 0 1px 2px 0 rgb(28 31 36 / 8%), 0 1px 3px 1px rgb(28 31 36 / 6%);
-  --shadow-md: 0 1px 3px 0 rgb(28 31 36 / 10%), 0 4px 8px 3px rgb(28 31 36 / 8%);
+  --shadow-sm: 0 1px 2px 0 rgb(58 55 52 / 6%), 0 1px 3px 1px rgb(58 55 52 / 5%);
+  --shadow-md: 0 2px 6px 0 rgb(58 55 52 / 8%), 0 4px 12px 3px rgb(58 55 52 / 6%);
 }
 
-/* --- Dark mode (system or data-theme) --- */
+/* --- Dark mode — darker; form controls same bg as cards --- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-surface: #1c1f24;
-    --color-surface-variant: #262a31;
-    --color-on-surface: #f4f4f5;
-    --color-on-surface-variant: #a1a1aa;
-    --color-placeholder: #3d414a;
-    --color-input-bg: #252830;
-    --color-outline: #3f3f46;
+    --color-surface: #181a1e;
+    --color-surface-variant: #1e2024;
+    --color-on-surface: #e2e0dd;
+    --color-on-surface-variant: #9c9a96;
+    --color-placeholder: #6a6864;
+    --color-card-bg: #222428;
+    --color-input-bg: #2a2c30;
+    --color-input-border: #404348;
+    --color-input-shadow: none;
+    --color-outline: #404348;
     --color-divider: rgba(255, 255, 255, 0.06);
 
-    --color-primary: #60a5fa;
-    --color-primary-hover: #93c5fd;
-    --color-on-primary: #1e3a8a;
+    /* Same primary blue family as light */
+    --color-primary: #6c9cd4;
+    --color-primary-hover: #7cacdc;
+    --color-on-primary: #f0f4f8;
 
-    --color-primary-container: #1e3a8a;
-    --color-on-primary-container: #bfdbfe;
+    --color-primary-container: #2a3d58;
+    --color-on-primary-container: #b8cce8;
 
-    --color-secondary: #2dd4bf;
-    --color-secondary-container: #134e4a;
-    --color-on-secondary: #134e4a;
-    --color-on-secondary-container: #99f6e4;
+    --color-secondary: #6aada6;
+    --color-secondary-container: #234a45;
+    --color-on-secondary: #f0f8f6;
+    --color-on-secondary-container: #a8d8d2;
 
-    --color-tertiary: #a78bfa;
-    --color-tertiary-container: #4c1d95;
+    --color-tertiary: #9b7eb8;
+    --color-tertiary-container: #3d3250;
 
-    --color-error: #f87171;
-    --color-error-bg: rgba(248, 113, 113, 0.18);
+    --color-error: #c88278;
+    --color-error-bg: rgba(200, 130, 120, 0.18);
 
-    --color-card-bg: #2d3036;
-    --color-card-text: #f4f4f5;
+    --color-card-text: #e2e0dd;
 
-    --color-btn-primary-bg: #3b82f6;
-    --color-btn-primary-bg-hover: #60a5fa;
-    --color-btn-primary-text: #ffffff;
-    --color-btn-secondary-bg: #3f3f46;
-    --color-btn-secondary-bg-hover: #52525b;
-    --color-btn-secondary-text: #f4f4f5;
-    --color-btn-danger-bg: #dc2626;
-    --color-btn-danger-bg-hover: #ef4444;
-    --color-btn-danger-text: #ffffff;
-    --color-btn-edit-bg: #f59e0b;
-    --color-btn-edit-bg-hover: #d97706;
-    --color-btn-edit-text: #1c1f24;
-    --color-btn-add-bg: #0d9488;
-    --color-btn-add-bg-hover: #2dd4bf;
-    --color-btn-add-text: #ffffff;
-    --color-badge-success-bg: #2dd4bf;
-    --color-badge-success-text: #134e4a;
+    --color-btn-primary-bg: #5c8bc4;
+    --color-btn-primary-bg-hover: #6c9cd4;
+    --color-btn-primary-text: #f0f4f8;
+    --color-btn-secondary-bg: #3e4146;
+    --color-btn-secondary-bg-hover: #4e5156;
+    --color-btn-secondary-text: #e2e0dd;
+    --color-btn-danger-bg: #b87268;
+    --color-btn-danger-bg-hover: #c88278;
+    --color-btn-danger-text: #f8f2f0;
+    --color-btn-edit-bg: #c49868;
+    --color-btn-edit-bg-hover: #d4a878;
+    --color-btn-edit-text: #2d2018;
+    --color-btn-add-bg: #5a9d96;
+    --color-btn-add-bg-hover: #6aada6;
+    --color-btn-add-text: #f0f8f6;
+    --color-badge-success-bg: #6cb8a8;
+    --color-badge-success-text: #234a45;
 
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 24%), 0 1px 3px 1px rgb(0 0 0 / 18%);
-    --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 24%), 0 4px 8px 3px rgb(0 0 0 / 18%);
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 20%), 0 1px 3px 1px rgb(0 0 0 / 14%);
+    --shadow-md: 0 2px 6px 0 rgb(0 0 0 / 22%), 0 4px 12px 3px rgb(0 0 0 / 16%);
   }
 }
 
-/* Manual dark theme (when data-theme="dark" is set on html) */
+/* Manual dark theme — same as system dark (darker; inputs = card bg) */
 [data-theme="dark"] {
-  --color-surface: #1c1f24;
-  --color-surface-variant: #262a31;
-  --color-on-surface: #f4f4f5;
-  --color-on-surface-variant: #a1a1aa;
-  --color-placeholder: #3d414a;
-  --color-input-bg: #252830;
-  --color-outline: #3f3f46;
+  --color-surface: #181a1e;
+  --color-surface-variant: #1e2024;
+  --color-on-surface: #e2e0dd;
+  --color-on-surface-variant: #9c9a96;
+  --color-placeholder: #6a6864;
+  --color-card-bg: #222428;
+  --color-input-bg: #2a2c30;
+  --color-input-border: #404348;
+  --color-input-shadow: none;
+  --color-outline: #404348;
   --color-divider: rgba(255, 255, 255, 0.06);
 
-  --color-primary: #60a5fa;
-  --color-primary-hover: #93c5fd;
-  --color-on-primary: #1e3a8a;
+  --color-primary: #6c9cd4;
+  --color-primary-hover: #7cacdc;
+  --color-on-primary: #f0f4f8;
 
-  --color-primary-container: #1e3a8a;
-  --color-on-primary-container: #bfdbfe;
+  --color-primary-container: #2a3d58;
+  --color-on-primary-container: #b8cce8;
 
-  --color-secondary: #2dd4bf;
-  --color-secondary-container: #134e4a;
-  --color-on-secondary-container: #99f6e4;
+  --color-secondary: #6aada6;
+  --color-secondary-container: #234a45;
+  --color-on-secondary: #f0f8f6;
+  --color-on-secondary-container: #a8d8d2;
 
-  --color-tertiary: #a78bfa;
-  --color-tertiary-container: #4c1d95;
+  --color-tertiary: #9b7eb8;
+  --color-tertiary-container: #3d3250;
 
-  --color-error: #f87171;
-  --color-error-bg: rgba(248, 113, 113, 0.18);
+  --color-error: #c88278;
+  --color-error-bg: rgba(200, 130, 120, 0.18);
 
-  --color-card-bg: #27272a;
-  --color-card-text: #f4f4f5;
+  --color-card-text: #e2e0dd;
 
-  --color-btn-primary-bg: #3b82f6;
-  --color-btn-primary-bg-hover: #60a5fa;
-  --color-btn-primary-text: #ffffff;
-  --color-btn-secondary-bg: #3f3f46;
-  --color-btn-secondary-bg-hover: #52525b;
-  --color-btn-secondary-text: #f4f4f5;
-  --color-btn-danger-bg: #dc2626;
-  --color-btn-danger-bg-hover: #ef4444;
-  --color-btn-danger-text: #ffffff;
-  --color-btn-edit-bg: #f59e0b;
-  --color-btn-edit-bg-hover: #d97706;
-  --color-btn-edit-text: #1c1f24;
-  --color-btn-add-bg: #0d9488;
-  --color-btn-add-bg-hover: #2dd4bf;
-  --color-btn-add-text: #ffffff;
-  --color-badge-success-bg: #2dd4bf;
-  --color-badge-success-text: #134e4a;
+  --color-btn-primary-bg: #5c8bc4;
+  --color-btn-primary-bg-hover: #6c9cd4;
+  --color-btn-primary-text: #f0f4f8;
+  --color-btn-secondary-bg: #3e4146;
+  --color-btn-secondary-bg-hover: #4e5156;
+  --color-btn-secondary-text: #e2e0dd;
+  --color-btn-danger-bg: #b87268;
+  --color-btn-danger-bg-hover: #c88278;
+  --color-btn-danger-text: #f8f2f0;
+  --color-btn-edit-bg: #c49868;
+  --color-btn-edit-bg-hover: #d4a878;
+  --color-btn-edit-text: #2d2018;
+  --color-btn-add-bg: #5a9d96;
+  --color-btn-add-bg-hover: #6aada6;
+  --color-btn-add-text: #f0f8f6;
+  --color-badge-success-bg: #6cb8a8;
+  --color-badge-success-text: #234a45;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 24%), 0 1px 3px 1px rgb(0 0 0 / 18%);
-  --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 24%), 0 4px 8px 3px rgb(0 0 0 / 18%);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 20%), 0 1px 3px 1px rgb(0 0 0 / 14%);
+  --shadow-md: 0 2px 6px 0 rgb(0 0 0 / 22%), 0 4px 12px 3px rgb(0 0 0 / 16%);
 }
 
-/* Manual light theme override (force light even in dark system preference) */
+/* Manual light theme override — same as :root light (soft, easy on eyes) */
 [data-theme="light"] {
-  --color-surface: #f5f5f3;
-  --color-surface-variant: #e8eae6;
-  --color-on-surface: #1c1f24;
-  --color-on-surface-variant: #4a4d52;
-  --color-placeholder: #9ca3af;
-  --color-input-bg: #e5e5e3;
-  --color-outline: #c4c6c3;
-  --color-divider: rgba(28, 31, 36, 0.08);
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-on-primary: #ffffff;
-  --color-primary-container: #dbeafe;
-  --color-on-primary-container: #1e40af;
-  --color-secondary: #0d9488;
-  --color-secondary-container: #ccfbf1;
-  --color-tertiary: #7c3aed;
-  --color-tertiary-container: #ede9fe;
-  --color-error: #dc2626;
-  --color-error-bg: #fef2f2;
-  --color-card-bg: #f8f8f6;
-  --color-card-text: #1c1f24;
-  --color-btn-primary-bg: #2563eb;
-  --color-btn-primary-bg-hover: #1d4ed8;
-  --color-btn-primary-text: #ffffff;
-  --color-btn-secondary-bg: #e8eae6;
-  --color-btn-secondary-bg-hover: #d4d6d3;
-  --color-btn-secondary-text: #1c1f24;
-  --color-btn-danger-bg: #dc2626;
-  --color-btn-danger-bg-hover: #b91c1c;
-  --color-btn-danger-text: #ffffff;
-  --color-btn-edit-bg: #d97706;
-  --color-btn-edit-bg-hover: #b45309;
-  --color-btn-edit-text: #ffffff;
-  --color-btn-add-bg: #0d9488;
-  --color-btn-add-bg-hover: #0f766e;
-  --color-btn-add-text: #ffffff;
-  --color-badge-success-bg: #2dd4bf;
-  --color-badge-success-text: #134e4a;
-  --shadow-sm: 0 1px 2px 0 rgb(28 31 36 / 8%), 0 1px 3px 1px rgb(28 31 36 / 6%);
-  --shadow-md: 0 1px 3px 0 rgb(28 31 36 / 10%), 0 4px 8px 3px rgb(28 31 36 / 8%);
+  --color-surface: #e8e6e3;
+  --color-surface-variant: #e0ddda;
+  --color-on-surface: #3a3734;
+  --color-on-surface-variant: #5c5956;
+  --color-placeholder: #8a8682;
+  --color-input-bg: #f5f3f0;
+  --color-input-border: #a8a49e;
+  --color-input-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  --color-outline: #b2aea8;
+  --color-divider: rgba(58, 55, 52, 0.1);
+  --color-primary: #5c8bc4;
+  --color-primary-hover: #4c7ab4;
+  --color-on-primary: #f0f4f8;
+  --color-primary-container: #c2d4ea;
+  --color-on-primary-container: #2d4a6a;
+  --color-secondary: #5a9d96;
+  --color-secondary-container: #b8ddd8;
+  --color-tertiary: #8b6fa8;
+  --color-tertiary-container: #ddd0e8;
+  --color-error: #b87268;
+  --color-error-bg: #f5e6e4;
+  --color-card-bg: #efedea;
+  --color-card-text: #3a3734;
+  --color-btn-primary-bg: #5c8bc4;
+  --color-btn-primary-bg-hover: #4c7ab4;
+  --color-btn-primary-text: #f0f4f8;
+  --color-btn-secondary-bg: #d4d1ce;
+  --color-btn-secondary-bg-hover: #c4c0bd;
+  --color-btn-secondary-text: #3a3734;
+  --color-btn-danger-bg: #b87268;
+  --color-btn-danger-bg-hover: #a8645a;
+  --color-btn-danger-text: #f8f2f0;
+  --color-btn-edit-bg: #c49868;
+  --color-btn-edit-bg-hover: #b48858;
+  --color-btn-edit-text: #2d2018;
+  --color-btn-add-bg: #5a9d96;
+  --color-btn-add-bg-hover: #4a8d86;
+  --color-btn-add-text: #f0f8f6;
+  --color-badge-success-bg: #6cb8a8;
+  --color-badge-success-text: #234a45;
+  --shadow-sm: 0 1px 2px 0 rgb(58 55 52 / 6%), 0 1px 3px 1px rgb(58 55 52 / 5%);
+  --shadow-md: 0 2px 6px 0 rgb(58 55 52 / 8%), 0 4px 12px 3px rgb(58 55 52 / 6%);
 }
 
 /* =============================================================================
@@ -331,30 +337,28 @@
     color: var(--color-badge-success-text);
   }
 
-  /* A4 document view: white page, shadow below, always light-view colors (same as light theme) */
+  /* A4 document view: soft paper (matches light theme), consistent in both modes */
   .document-page {
     width: 210mm;
     min-height: 297mm;
-    background: #ffffff !important;
-    color: #1c1f24 !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.06);
+    background: #efedea !important;
+    color: #3a3734 !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
   }
-  /* Multi-page: each page keeps A4 min height and gets spacing below */
   .document-page-spaced {
     min-height: 297mm;
   }
-  /* Force document content to light-view text/backgrounds in both themes */
-  .document-page .doc-muted { color: #4a4d52 !important; }
-  .document-page .doc-border { border-color: #e5e7eb !important; }
-  .document-page .doc-head { background: #f3f4f6 !important; color: #1c1f24 !important; }
-  .document-page .doc-cell { background: #ffffff !important; color: #1c1f24 !important; }
-  .document-page .doc-notes-bg { background: #f9fafb !important; border-color: #e5e7eb !important; color: #1c1f24 !important; }
+  .document-page .doc-muted { color: #5c5956 !important; }
+  .document-page .doc-border { border-color: #b2aea8 !important; }
+  .document-page .doc-head { background: #e0ddda !important; color: #3a3734 !important; }
+  .document-page .doc-cell { background: #efedea !important; color: #3a3734 !important; }
+  .document-page .doc-notes-bg { background: #e8e6e3 !important; border-color: #b2aea8 !important; color: #3a3734 !important; }
   .document-page h1,
   .document-page h2,
   .document-page h3,
   .document-page p,
   .document-page td,
-  .document-page th { color: #1c1f24 !important; }
+  .document-page th { color: #3a3734 !important; }
 
   /* Cards: 8–12px radius, single subtle border, 16–20px padding when used */
   .card {
@@ -440,11 +444,17 @@ a:focus-visible {
   color: var(--color-placeholder);
 }
 
-/* Empty text box background (inputs, textareas, selects) */
+/* Editable controls: distinct background and border from page/card */
 input,
 textarea,
 select {
   background-color: var(--color-input-bg);
+  color: var(--color-on-surface);
+  border-color: var(--color-input-border, var(--color-outline));
+}
+select option {
+  background-color: var(--color-input-bg);
+  color: var(--color-on-surface);
 }
 
 /* Date/datetime inputs: same height as other controls; ensure value is visible (browsers can use faint system styles) */

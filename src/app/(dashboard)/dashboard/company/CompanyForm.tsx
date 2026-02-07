@@ -1,10 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Save, Loader2 } from "lucide-react";
-import { createCompany, updateCompany, type CompanyFormState } from "./actions";
+import { Save, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  createCompany,
+  updateCompany,
+  addSalesTaxRate,
+  deleteSalesTaxRate,
+  addWithholdingTaxRate,
+  deleteWithholdingTaxRate,
+  type CompanyFormState,
+  type TaxRateRow,
+} from "./actions";
 import { PAKISTAN_PROVINCES, getCitiesForProvince } from "@/lib/pakistan";
 import { IconButton } from "@/components/IconButton";
 import { showMessage } from "@/components/MessageBar";
@@ -27,15 +36,29 @@ type Company = {
 };
 
 const inputClass =
-  "w-full border border-[var(--color-outline)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] min-h-[2.5rem]";
+  "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] min-h-[2.5rem]";
 const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
-export function CompanyForm({ company }: { company: Company | null }) {
+export function CompanyForm({
+  company,
+  salesTaxRates,
+  withholdingTaxRates,
+}: {
+  company: Company | null;
+  salesTaxRates: TaxRateRow[];
+  withholdingTaxRates: TaxRateRow[];
+}) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState<CompanyFormState>({});
   const [selectedProvince, setSelectedProvince] = useState(company?.province ?? "");
   const [selectedCity, setSelectedCity] = useState(company?.city ?? "");
   const [logoFileLabel, setLogoFileLabel] = useState<string>("");
+  const [newSalesName, setNewSalesName] = useState("");
+  const [newSalesRate, setNewSalesRate] = useState("");
+  const [newWithholdingName, setNewWithholdingName] = useState("");
+  const [newWithholdingRate, setNewWithholdingRate] = useState("");
+  const [rateSubmitting, setRateSubmitting] = useState<string | null>(null);
   const isCreate = !company;
 
   const cityOptions = getCitiesForProvince(selectedProvince);
@@ -48,8 +71,6 @@ export function CompanyForm({ company }: { company: Company | null }) {
     requestAnimationFrame(restore);
     setTimeout(restore, 50);
   }
-
-  const router = useRouter();
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -146,7 +167,7 @@ export function CompanyForm({ company }: { company: Company | null }) {
                   </label>
                 )}
                 {company && (
-                  <div className="flex min-h-[2.5rem] items-center gap-3 rounded-xl border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2">
+                  <div className="flex min-h-[2.5rem] items-center gap-3 rounded-xl border border-[var(--color-input-border)] bg-[var(--color-input-bg)] px-3 py-2">
                     <input
                       id="logo"
                       type="file"
@@ -377,6 +398,173 @@ export function CompanyForm({ company }: { company: Company | null }) {
               </div>
             </div>
           </section>
+
+          {/* Sales tax rates & Withholding tax rates: only when company exists */}
+          {company && (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+                  Sales tax rates
+                </h3>
+                <p className="mb-3 text-xs text-[var(--color-on-surface-variant)]">
+                  Add rates (e.g. GST Reg 18%, GST UnReg 20%) to use on estimates and invoices.
+                </p>
+                <div className="mb-4 grid grid-cols-[1fr_6rem_2.5rem] items-center gap-x-3 gap-y-2 text-sm">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Tax Name</span>
+                  <span className="text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Percentage</span>
+                  <span />
+                  {salesTaxRates.map((r) => (
+                    <Fragment key={r.id}>
+                      <span className="rounded-lg border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2 font-medium text-[var(--color-on-surface)]">{r.name}</span>
+                      <span className="text-right text-[var(--color-on-surface-variant)]">{r.rate}%</span>
+                      <IconButton
+                        variant="danger"
+                        icon={<Trash2 className="w-4 h-4" />}
+                        label="Remove"
+                        disabled={rateSubmitting !== null}
+                        onClick={async () => {
+                          setRateSubmitting(r.id);
+                          const res = await deleteSalesTaxRate(r.id);
+                          setRateSubmitting(null);
+                          if (res?.error) showMessage(res.error, "error");
+                          else router.refresh();
+                        }}
+                      />
+                    </Fragment>
+                  ))}
+                  {salesTaxRates.length === 0 && (
+                    <span className="col-span-3 rounded-lg border border-dashed border-[var(--color-outline)] px-3 py-2 text-[var(--color-on-surface-variant)]">
+                      No sales tax rates yet
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-[1fr_6rem_2.5rem] items-center gap-x-3">
+                  <input
+                    type="text"
+                    value={newSalesName}
+                    onChange={(e) => setNewSalesName(e.target.value)}
+                    placeholder="e.g. Standard"
+                    className={inputClass}
+                    aria-label="Sales tax rate name"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    value={newSalesRate}
+                    onChange={(e) => setNewSalesRate(e.target.value)}
+                    placeholder="%"
+                    className={inputClass + " text-right"}
+                    aria-label="Sales tax rate %"
+                  />
+                  <IconButton
+                    variant="add"
+                    icon={<Plus className="w-4 h-4" />}
+                    label="Add sales tax rate"
+                    disabled={rateSubmitting !== null}
+                    onClick={async () => {
+                      const rate = parseFloat(newSalesRate);
+                      if (!(newSalesName.trim()) || Number.isNaN(rate) || rate < 0 || rate > 100) {
+                        showMessage("Enter a name and rate (0–100).", "error");
+                        return;
+                      }
+                      setRateSubmitting("add-sales");
+                      const res = await addSalesTaxRate(company.id, newSalesName.trim(), rate);
+                      setRateSubmitting(null);
+                      if (res?.error) showMessage(res.error, "error");
+                      else {
+                        setNewSalesName("");
+                        setNewSalesRate("");
+                        router.refresh();
+                      }
+                    }}
+                  />
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+                  Withholding tax rates
+                </h3>
+                <p className="mb-3 text-xs text-[var(--color-on-surface-variant)]">
+                  Add withholding tax rates (e.g. 3%, 6%) for estimates and invoices.
+                </p>
+                <div className="mb-4 grid grid-cols-[1fr_6rem_2.5rem] items-center gap-x-3 gap-y-2 text-sm">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Tax Name</span>
+                  <span className="text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Percentage</span>
+                  <span />
+                  {withholdingTaxRates.map((r) => (
+                    <Fragment key={r.id}>
+                      <span className="rounded-lg border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2 font-medium text-[var(--color-on-surface)]">{r.name}</span>
+                      <span className="text-right text-[var(--color-on-surface-variant)]">{r.rate}%</span>
+                      <IconButton
+                        variant="danger"
+                        icon={<Trash2 className="w-4 h-4" />}
+                        label="Remove"
+                        disabled={rateSubmitting !== null}
+                        onClick={async () => {
+                          setRateSubmitting(r.id);
+                          const res = await deleteWithholdingTaxRate(r.id);
+                          setRateSubmitting(null);
+                          if (res?.error) showMessage(res.error, "error");
+                          else router.refresh();
+                        }}
+                      />
+                    </Fragment>
+                  ))}
+                  {withholdingTaxRates.length === 0 && (
+                    <span className="col-span-3 rounded-lg border border-dashed border-[var(--color-outline)] px-3 py-2 text-[var(--color-on-surface-variant)]">
+                      No withholding tax rates yet
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-[1fr_6rem_2.5rem] items-center gap-x-3">
+                  <input
+                    type="text"
+                    value={newWithholdingName}
+                    onChange={(e) => setNewWithholdingName(e.target.value)}
+                    placeholder="e.g. WHT 3%"
+                    className={inputClass}
+                    aria-label="Withholding tax rate name"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    value={newWithholdingRate}
+                    onChange={(e) => setNewWithholdingRate(e.target.value)}
+                    placeholder="%"
+                    className={inputClass + " text-right"}
+                    aria-label="Withholding tax rate %"
+                  />
+                  <IconButton
+                    variant="add"
+                    icon={<Plus className="w-4 h-4" />}
+                    label="Add withholding tax rate"
+                    disabled={rateSubmitting !== null}
+                    onClick={async () => {
+                      const rate = parseFloat(newWithholdingRate);
+                      if (!(newWithholdingName.trim()) || Number.isNaN(rate) || rate < 0 || rate > 100) {
+                        showMessage("Enter a name and rate (0–100).", "error");
+                        return;
+                      }
+                      setRateSubmitting("add-withholding");
+                      const res = await addWithholdingTaxRate(company.id, newWithholdingName.trim(), rate);
+                      setRateSubmitting(null);
+                      if (res?.error) showMessage(res.error, "error");
+                      else {
+                        setNewWithholdingName("");
+                        setNewWithholdingRate("");
+                        router.refresh();
+                      }
+                    }}
+                  />
+                </div>
+              </section>
+            </div>
+          )}
         </div>
       </div>
     </form>

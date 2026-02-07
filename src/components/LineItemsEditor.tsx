@@ -77,7 +77,7 @@ function computeRow(r: Partial<LineItemRow>): LineItemRow {
 }
 
 const inputClass =
-  "w-full min-h-[2.25rem] border border-[var(--color-outline)] rounded-xl px-2 py-1.5 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] box-border";
+  "w-full min-h-[2.25rem] border border-[var(--color-input-border)] rounded-xl px-2 py-1.5 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] box-border";
 const inputClassRight =
   inputClass + " text-right tabular-nums";
 

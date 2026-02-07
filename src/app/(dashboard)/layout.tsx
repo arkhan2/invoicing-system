@@ -31,10 +31,10 @@ export default async function DashboardLayout({
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
     { href: "/dashboard/company", label: "Company", icon: "company" },
     { href: "/dashboard/customers", label: "Customers", icon: "customers" },
-    { href: "/dashboard/vendors", label: "Vendors", icon: "vendors" },
-    { href: "/dashboard/items", label: "Items", icon: "items" },
     { href: "/dashboard/estimates", label: "Estimates", icon: "estimates" },
     { href: "/dashboard/sales", label: "Sales Invoices", icon: "sales" },
+    { href: "/dashboard/items", label: "Items", icon: "items" },
+    { href: "/dashboard/vendors", label: "Vendors", icon: "vendors" },
     { href: "/dashboard/purchases", label: "Purchase Invoices", icon: "purchases" },
   ];
   const navItems = hasCompany ? allNavItems : [{ href: "/dashboard/company", label: "Company", icon: "company" as const }];

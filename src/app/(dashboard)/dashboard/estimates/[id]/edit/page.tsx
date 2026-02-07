@@ -1,6 +1,7 @@
 import { createClient, getUserSafe } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { EstimateForm } from "../../EstimateForm";
+import { getCompanyTaxRates } from "@/app/(dashboard)/dashboard/company/actions";
 
 export default async function EstimateEditPage({
   params,
@@ -48,6 +49,8 @@ export default async function EstimateEditPage({
     if (customer) initialCustomer = customer;
   }
 
+  const { salesTaxRates } = await getCompanyTaxRates(company.id);
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full bg-[var(--color-card-bg)]">
@@ -55,6 +58,7 @@ export default async function EstimateEditPage({
             estimateId={id}
             companyId={company.id}
             company={{ name: company.name }}
+            salesTaxRates={salesTaxRates}
             initialEstimateNumber={estimate.estimate_number}
             initialEstimateDate={estimate.estimate_date ?? null}
             initialCustomerId={estimate.customer_id ?? undefined}

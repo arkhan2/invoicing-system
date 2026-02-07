@@ -54,6 +54,9 @@ export function EstimateDocumentView({
   subject,
   totalAmount,
   totalTax,
+  discountAmount,
+  discountType,
+  salesTaxLabel,
   company,
   customer,
   items,
@@ -67,6 +70,9 @@ export function EstimateDocumentView({
   subject: string | null;
   totalAmount: number;
   totalTax: number;
+  discountAmount?: number | null;
+  discountType?: "amount" | "percentage" | null;
+  salesTaxLabel?: string | null;
   company: Company;
   customer: Customer;
   items: Item[];
@@ -78,6 +84,15 @@ export function EstimateDocumentView({
   const canConvert = status !== "Converted" && status !== "Declined" && status !== "Expired";
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
   const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+
+  const discountValue =
+    discountAmount != null && discountType
+      ? discountType === "percentage"
+        ? (subtotal * discountAmount) / 100
+        : discountAmount
+      : 0;
+  const totalAfterDiscount = Math.max(0, subtotal - discountValue);
+  const showDiscount = discountValue > 0;
 
   async function handleConvert() {
     setConvertState({ loading: true });
@@ -117,21 +132,33 @@ export function EstimateDocumentView({
     return chunks;
   }, [items]);
 
+  type TableFooter = {
+    totalQty: number;
+    subtotal: number;
+    showDiscount?: boolean;
+    discountLabel?: string;
+    discountValue?: number;
+    totalAfterDiscount?: number;
+    salesTaxLabel?: string;
+    totalTax?: number;
+    totalAmount?: number;
+  };
+
   const renderTable = (
     chunk: Item[],
     startIndex: number,
-    footer?: { totalQty: number; subtotal: number }
+    footer?: TableFooter
   ) => (
     <div className="mt-8 overflow-hidden rounded-xl border doc-border">
-      <table className="w-full text-left text-sm">
+      <table className="w-full text-left text-sm tabular-nums">
         <thead>
           <tr className="border-b doc-border doc-head">
-            <th className="w-12 border-r doc-border p-3 font-medium">#</th>
-            <th className="w-20 border-r doc-border p-3 font-medium">Item #</th>
-            <th className="border-r doc-border p-3 font-medium">Item & Description</th>
-            <th className="w-14 border-r doc-border p-3 font-medium text-right">Qty</th>
-            <th className="w-24 border-r doc-border p-3 font-medium text-right">Rate</th>
-            <th className="w-24 p-3 font-medium text-right">Amount</th>
+            <th className="w-12 border-r doc-border p-2 font-medium">#</th>
+            <th className="w-20 border-r doc-border p-2 font-medium">Item #</th>
+            <th className="border-r doc-border p-2 font-medium">Item & Description</th>
+            <th className="w-14 border-r doc-border p-2 font-medium text-right">Qty</th>
+            <th className="w-24 border-r doc-border p-2 font-medium text-right">Rate</th>
+            <th className="w-24 p-2 font-medium text-right">Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -140,30 +167,62 @@ export function EstimateDocumentView({
               key={startIndex + i}
               className={i === 0 ? "doc-cell" : "border-t doc-border doc-cell"}
             >
-              <td className="border-r doc-border p-3 doc-muted">{startIndex + i + 1}</td>
-              <td className="w-20 border-r doc-border p-3">{row.item_number ?? ""}</td>
-              <td className="border-r doc-border p-3">
+              <td className="border-r doc-border p-2 doc-muted">{startIndex + i + 1}</td>
+              <td className="w-20 border-r doc-border p-2">{row.item_number ?? ""}</td>
+              <td className="border-r doc-border p-2">
                 {row.product_description}
                 {row.uom && row.uom !== "Nos" && (
                   <span className="ml-1 doc-muted">({row.uom})</span>
                 )}
               </td>
-              <td className="w-14 border-r doc-border p-3 text-right">{Number(row.quantity).toLocaleString()}</td>
-              <td className="w-24 border-r doc-border p-3 text-right">{Number(row.unit_price).toLocaleString()}</td>
-              <td className="w-24 p-3 text-right font-medium">{Number(row.total_values).toLocaleString()}</td>
+              <td className="w-14 border-r doc-border p-2 text-right">{Number(row.quantity).toLocaleString()}</td>
+              <td className="w-24 border-r doc-border p-2 text-right">{Number(row.unit_price).toLocaleString()}</td>
+              <td className="w-24 p-2 text-right font-medium">{Number(row.total_values).toLocaleString()}</td>
             </tr>
           ))}
         </tbody>
         {footer != null && (
           <tfoot>
-            <tr className="border-t-2 doc-border doc-head">
-              <td className="border-r doc-border p-3" colSpan={3}>
+            <tr className="border-t doc-border doc-head">
+              <td className="p-2" colSpan={3}>
                 <span className="font-medium">Total</span>
               </td>
-              <td className="w-14 border-r doc-border p-3 text-right font-medium">{footer.totalQty.toLocaleString()}</td>
-              <td className="w-24 border-r doc-border p-3"></td>
-              <td className="w-24 p-3 text-right font-medium">{footer.subtotal.toLocaleString()}</td>
+              <td className="w-14 p-2 text-right font-medium">{footer.totalQty.toLocaleString()}</td>
+              <td className="w-24 p-2"></td>
+              <td className="w-24 p-2 text-right font-medium">{footer.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
             </tr>
+            {footer.showDiscount && footer.discountValue != null && (
+              <tr className="border-t doc-border doc-cell">
+                <td className="p-2 doc-muted" colSpan={3}>{footer.discountLabel ?? "Discount"}</td>
+                <td className="w-14 p-2"></td>
+                <td className="w-24 p-2"></td>
+                <td className="w-24 p-2 text-right font-medium">-{footer.discountValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+              </tr>
+            )}
+            {footer.showDiscount && footer.totalAfterDiscount != null && (
+              <tr className="border-t doc-border doc-cell">
+                <td className="p-2 doc-muted" colSpan={3}>Total after discount</td>
+                <td className="w-14 p-2"></td>
+                <td className="w-24 p-2"></td>
+                <td className="w-24 p-2 text-right font-medium">{footer.totalAfterDiscount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+              </tr>
+            )}
+            {footer.totalTax != null && (
+              <tr className="border-t doc-border doc-cell">
+                <td className="p-2 doc-muted" colSpan={3}>{footer.salesTaxLabel ?? "Sales tax"}</td>
+                <td className="w-14 p-2"></td>
+                <td className="w-24 p-2"></td>
+                <td className="w-24 p-2 text-right font-medium">{Number(footer.totalTax).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+              </tr>
+            )}
+            {footer.totalAmount != null && (
+              <tr className="border-t doc-border doc-head">
+                <td className="p-2 font-semibold" colSpan={3}>G.Total</td>
+                <td className="w-14 p-2"></td>
+                <td className="w-24 p-2"></td>
+                <td className="w-24 p-2 text-right text-base font-semibold">{Number(footer.totalAmount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+              </tr>
+            )}
           </tfoot>
         )}
       </table>
@@ -173,37 +232,55 @@ export function EstimateDocumentView({
   return (
     <>
       <div className="flex h-full min-h-0 w-full flex-col">
-        {/* Action bar */}
-        <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-divider)] bg-[var(--color-surface)] px-4 py-3">
-          <Link
-            href={`/dashboard/estimates/${estimateId}/edit`}
-            className="btn btn-edit btn-icon"
-            aria-label="Edit"
-            title="Edit"
-          >
-            <Pencil className="w-4 h-4" />
-          </Link>
-          <IconButton
-            variant="danger"
-            icon={<Trash2 className="w-4 h-4" />}
-            label="Delete"
-            onClick={() => setDeleteState({ loading: false })}
-          />
-          {canConvert && (
+        {/* Action bar — estimate name left, options right (match edit estimate top bar) */}
+        <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-[var(--color-surface)] px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href="/dashboard/estimates"
+              className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
+              aria-label="Back to estimates"
+            >
+              <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+            <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
+              Estimate {estimateNumber}
+            </h2>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Link
+              href={`/dashboard/estimates/${estimateId}/edit`}
+              className="btn btn-edit btn-icon"
+              aria-label="Edit"
+              title="Edit"
+            >
+              <Pencil className="w-4 h-4" />
+            </Link>
             <IconButton
-              variant="primary"
-              icon={<FileOutput className="w-4 h-4" />}
-              label="Convert to invoice"
-              onClick={() => setConvertState({ loading: false })}
+              variant="danger"
+              icon={<Trash2 className="w-4 h-4" />}
+              label="Delete"
+              onClick={() => setDeleteState({ loading: false })}
             />
-          )}
-          <span className="ml-2 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
-            {status}
-          </span>
+            {canConvert && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm inline-flex items-center gap-2"
+                onClick={() => setConvertState({ loading: false })}
+              >
+                <FileOutput className="w-4 h-4 shrink-0" />
+                Convert to invoice
+              </button>
+            )}
+            <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
+              {status}
+            </span>
+          </div>
         </div>
 
         {/* Document body: grey area + one or more A4 pages with shadow */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[#9ca3af]/25 py-8 px-4">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-outline)]/20 py-8 px-4">
           <div className="space-y-8">
             {pageChunks.map((chunk, pageIndex) => {
               const startIndex = pageIndex * ROWS_PER_PAGE;
@@ -221,7 +298,7 @@ export function EstimateDocumentView({
                           aria-hidden
                         />
                       ) : (
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg font-semibold text-blue-800">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)] text-lg font-semibold text-[var(--color-on-primary-container)]">
                           {company.name.slice(0, 2).toUpperCase()}
                         </div>
                       )}
@@ -287,35 +364,36 @@ export function EstimateDocumentView({
                     </>
                   )}
 
-                  {renderTable(chunk, startIndex, isLastPage ? { totalQty, subtotal } : undefined)}
+                  {renderTable(
+                    chunk,
+                    startIndex,
+                    isLastPage
+                      ? {
+                          totalQty,
+                          subtotal,
+                          showDiscount,
+                          discountLabel:
+                            showDiscount && discountType && discountAmount != null
+                              ? discountType === "percentage"
+                                ? `Discount (${Number(discountAmount)}%)`
+                                : `Discount (${discountValue.toLocaleString(undefined, { minimumFractionDigits: 2 })})`
+                              : undefined,
+                          discountValue,
+                          totalAfterDiscount,
+                          salesTaxLabel: salesTaxLabel ?? undefined,
+                          totalTax,
+                          totalAmount,
+                        }
+                      : undefined
+                  )}
 
-                  {isLastPage && (
-                    <>
-                      {/* Totals */}
-                      <div className="mt-6 flex justify-end">
-                        <table className="w-full max-w-xs text-sm">
-                          <tbody>
-                            <tr>
-                              <td className="py-1 pr-4 doc-muted">Tax</td>
-                              <td className="py-1 text-right font-medium">{Number(totalTax).toLocaleString()}</td>
-                            </tr>
-                            <tr className="border-t-2 doc-border">
-                              <td className="py-2 pr-4 font-semibold">Total</td>
-                              <td className="py-2 text-right text-lg font-semibold">{Number(totalAmount).toLocaleString()}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-
-                      {notes && (
-                        <div className="mt-8 rounded-xl border doc-notes-bg p-4">
-                          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider doc-muted">
-                            Notes
-                          </h3>
-                          <p className="text-sm whitespace-pre-wrap">{notes}</p>
-                        </div>
-                      )}
-                    </>
+                  {isLastPage && notes && (
+                    <div className="mt-8 rounded-xl border doc-notes-bg p-4">
+                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider doc-muted">
+                        Notes
+                      </h3>
+                      <p className="text-sm whitespace-pre-wrap">{notes}</p>
+                    </div>
                   )}
 
                   {/* Page number - bottom right */}
