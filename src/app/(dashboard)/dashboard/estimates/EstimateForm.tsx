@@ -9,7 +9,7 @@ import {
   getEstimateWithItems,
   type EstimateFormState,
 } from "./actions";
-import { Save, Loader2, Plus, Pencil, Search, X } from "lucide-react";
+import { Save, Loader2, Plus, Pencil, Search, X, ChevronLeft } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
 import { Modal } from "@/components/Modal";
@@ -300,24 +300,20 @@ export function EstimateForm({
           {isEdit ? (
             <Link
               href={`/dashboard/estimates/${estimateId}`}
-              className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
+              className="btn btn-secondary btn-icon shrink-0"
               aria-label="Back to estimate"
+              title="Back to estimate"
             >
-              <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft className="size-4" />
             </Link>
           ) : onCancel ? (
-            <button
+            <IconButton
               type="button"
+              variant="secondary"
+              icon={<X className="size-4" />}
+              label="Close"
               onClick={onCancel}
-              className="flex shrink-0 rounded-xl p-2 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)] transition-colors"
-              aria-label="Close"
-            >
-              <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            />
           ) : null}
           <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
             {isEdit ? (initialEstimateNumber ? `Estimate ${initialEstimateNumber}` : "Edit estimate") : "New estimate"}

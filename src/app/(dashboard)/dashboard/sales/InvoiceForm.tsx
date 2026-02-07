@@ -9,7 +9,7 @@ import {
   getInvoiceWithItems,
   type InvoiceFormState,
 } from "./actions";
-import { Save, Loader2 } from "lucide-react";
+import { Save, Loader2, ChevronLeft, X } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
 import { showMessage } from "@/components/MessageBar";
@@ -209,24 +209,20 @@ export function InvoiceForm({
           {isEdit ? (
             <Link
               href={`/dashboard/sales/${invoiceId}`}
-              className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
+              className="btn btn-secondary btn-icon shrink-0"
               aria-label="Back to invoice"
+              title="Back to invoice"
             >
-              <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft className="size-4" />
             </Link>
           ) : onCancel ? (
-            <button
+            <IconButton
               type="button"
+              variant="secondary"
+              icon={<X className="size-4" />}
+              label="Close"
               onClick={onCancel}
-              className="flex shrink-0 rounded-xl p-2 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)] transition-colors"
-              aria-label="Close"
-            >
-              <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            />
           ) : null}
           <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
             {isEdit ? (initialInvoiceNumber ? `Invoice ${initialInvoiceNumber}` : "Edit invoice") : "New invoice"}
@@ -242,9 +238,11 @@ export function InvoiceForm({
           />
           <Link
             href={invoiceId ? `/dashboard/sales/${invoiceId}` : "/dashboard/sales"}
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-icon"
+            aria-label="Cancel"
+            title="Cancel"
           >
-            Cancel
+            <X className="size-4" />
           </Link>
         </div>
       </div>

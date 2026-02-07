@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
-import { Pencil, Trash2, FileOutput } from "lucide-react";
+import { Pencil, Trash2, FileOutput, ChevronLeft } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { convertEstimateToInvoice, deleteEstimate } from "./actions";
@@ -237,12 +237,11 @@ export function EstimateDocumentView({
           <div className="flex min-w-0 items-center gap-3">
             <Link
               href="/dashboard/estimates"
-              className="flex shrink-0 items-center gap-1.5 text-sm font-medium text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
+              className="btn btn-secondary btn-icon shrink-0"
               aria-label="Back to estimates"
+              title="Back to estimates"
             >
-              <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeft className="size-4" />
             </Link>
             <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
               Estimate {estimateNumber}
