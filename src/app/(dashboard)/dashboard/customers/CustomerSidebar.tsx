@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, X } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { deleteCustomers } from "./actions";
@@ -29,6 +29,7 @@ export function CustomerSidebar({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const selectionMode = selectedIds !== undefined && onSelectionChange !== undefined;
@@ -54,14 +55,16 @@ export function CustomerSidebar({
 
   const activeItemRef = useRef<HTMLLIElement>(null);
   useEffect(() => {
-    if (!activeId) return;
+    const fromSpreadsheet = searchParams.get("from") === "spreadsheet";
+    if (!activeId || !fromSpreadsheet) return;
     const el = activeItemRef.current;
     if (!el) return;
     const id = requestAnimationFrame(() => {
       el.scrollIntoView({ block: "start", behavior: "auto" });
     });
+    router.replace(pathname, { scroll: false });
     return () => cancelAnimationFrame(id);
-  }, [activeId]);
+  }, [activeId, pathname, router, searchParams]);
 
   const inputClass =
     "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
@@ -218,8 +221,14 @@ export function CustomerSidebar({
               return (
                 <li key={c.id} ref={isActive ? activeItemRef : undefined}>
                   {selectionMode ? (
-                    <div className={cardClass}>
-                      <label className="flex shrink-0 cursor-pointer items-center pt-0.5" onClick={(e) => e.stopPropagation()}>
+                    <Link href={`/dashboard/customers/${c.id}`} className={cardClass}>
+                      <label
+                        className="flex shrink-0 cursor-pointer items-center pt-0.5"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -228,13 +237,8 @@ export function CustomerSidebar({
                           aria-label={`Select ${c.name}`}
                         />
                       </label>
-                      <Link
-                        href={`/dashboard/customers/${c.id}`}
-                        className="min-w-0 flex-1"
-                      >
-                        {content}
-                      </Link>
-                    </div>
+                      <span className="min-w-0 flex-1 block">{content}</span>
+                    </Link>
                   ) : (
                     <Link href={`/dashboard/customers/${c.id}`} className={cardClass}>
                       {content}

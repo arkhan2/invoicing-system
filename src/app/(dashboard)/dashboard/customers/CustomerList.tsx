@@ -286,7 +286,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                       }`}
                       onClick={
                         hideToolbar
-                          ? () => router.push(`/dashboard/customers/${c.id}`)
+                          ? () => router.push(`/dashboard/customers/${c.id}?from=spreadsheet`)
                           : undefined
                       }
                       role={hideToolbar ? "button" : undefined}
@@ -296,7 +296,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                           ? (e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
-                                router.push(`/dashboard/customers/${c.id}`);
+                                router.push(`/dashboard/customers/${c.id}?from=spreadsheet`);
                               }
                             }
                           : undefined
