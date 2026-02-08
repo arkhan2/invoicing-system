@@ -32,7 +32,7 @@ export default async function DashboardLayout({
   const allNavItems: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
     { href: "/dashboard/company", label: "Company", icon: "company" },
-    { href: "/dashboard/customers", label: "Customers", icon: "customers" },
+    { href: "/dashboard/customers?view=spreadsheet", label: "Customers", icon: "customers" },
     { href: "/dashboard/estimates", label: "Estimates", icon: "estimates" },
     { href: "/dashboard/sales", label: "Sales Invoices", icon: "sales" },
     { href: "/dashboard/items", label: "Items", icon: "items" },
