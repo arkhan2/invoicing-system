@@ -20,9 +20,11 @@ type Company = {
 
 type Customer = {
   name: string;
+  contact_person_name?: string | null;
   address?: string | null;
   city?: string | null;
   province?: string | null;
+  country?: string | null;
   ntn_cnic?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -63,7 +65,7 @@ export function InvoiceDocumentView({
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
   const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const addressLine = [company.address, company.city, company.province].filter(Boolean).join(", ");
-  const customerAddress = [customer.address, customer.city, customer.province].filter(Boolean).join(", ");
+  const customerAddress = [customer.address, customer.city, customer.province, customer.country].filter(Boolean).join(", ");
 
   const pageChunks = useMemo(() => {
     if (items.length === 0) return [[]];
@@ -203,6 +205,9 @@ export function InvoiceDocumentView({
                       Bill To
                     </h2>
                     <p className="font-semibold">{customer.name}</p>
+                    {customer.contact_person_name && (
+                      <p className="mt-0.5 text-sm doc-muted">Attn: {customer.contact_person_name}</p>
+                    )}
                     {customerAddress && (
                       <p className="mt-0.5 text-sm doc-muted">{customerAddress}</p>
                     )}

@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Plus, Trash2, Copy, GripVertical } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 
 const MIN_DESC_HEIGHT_PX = 38;
@@ -90,6 +91,23 @@ export function LineItemsEditor({
   onChange: (items: LineItemRow[]) => void;
   disabled?: boolean;
 }) {
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  /** Visual row index (0-based from top) where cursor is; drives live reorder and highlight. */
+  const [dropVisualIndex, setDropVisualIndex] = useState<number | null>(null);
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+
+  /** Display order: while dragging, show list with dragged row at dropVisualIndex so user sees movement. */
+  const displayIndices =
+    dragIndex !== null && dropVisualIndex !== null
+      ? (() => {
+          const without = items.map((_, j) => j).filter((j) => j !== dragIndex);
+          const insertAt = Math.max(0, Math.min(dropVisualIndex, without.length));
+          return [...without.slice(0, insertAt), dragIndex, ...without.slice(insertAt)];
+        })()
+      : null;
+
+  const indices = displayIndices ?? items.map((_, i) => i);
+
   function updateRow(index: number, patch: Partial<LineItemRow>) {
     const next = [...items];
     next[index] = computeRow({ ...next[index], ...patch });
@@ -104,40 +122,127 @@ export function LineItemsEditor({
     onChange(items.filter((_, i) => i !== index));
   }
 
+  function cloneRow(index: number) {
+    const row = items[index];
+    const copy = { ...row };
+    const next = [...items];
+    next.splice(index + 1, 0, copy);
+    onChange(next);
+  }
+
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, index: number) => {
+      if (disabled) return;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+      e.dataTransfer.setDragImage(e.currentTarget, 0, 0);
+      setDragIndex(index);
+      setDropVisualIndex(index); // start with "no move" so list doesn't jump
+    },
+    [disabled]
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null);
+    setDropVisualIndex(null);
+  }, []);
+
+  const handleDragOverTbody = useCallback(
+    (e: React.DragEvent) => {
+      if (disabled || dragIndex === null || items.length === 0) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const tbody = tbodyRef.current;
+      if (!tbody) return;
+      const rect = tbody.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const rowHeight = rect.height / items.length;
+      const visual = Math.floor(y / rowHeight);
+      const clamped = Math.max(0, Math.min(visual, items.length - 1));
+      setDropVisualIndex(clamped);
+    },
+    [disabled, dragIndex, items.length]
+  );
+
+  const handleDropTbody = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      if (disabled || dragIndex === null || dropVisualIndex === null) return;
+      const without = items.filter((_, j) => j !== dragIndex);
+      const insertAt = Math.max(0, Math.min(dropVisualIndex, without.length));
+      const next = [...without.slice(0, insertAt), items[dragIndex], ...without.slice(insertAt)];
+      onChange(next);
+      setDragIndex(null);
+      setDropVisualIndex(null);
+    },
+    [disabled, dragIndex, dropVisualIndex, items, onChange]
+  );
+
   return (
     <div className="space-y-2">
       <div className="overflow-x-auto border border-[var(--color-outline)] rounded-xl overflow-hidden">
-        <table className="w-full min-w-[700px] text-left text-sm">
+        <table className="line-items-table w-full min-w-[700px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)]">
+              {!disabled && <th className="w-9 p-2.5 text-left text-[var(--color-on-surface-variant)]" aria-label="Drag to reorder" />}
               <th className="w-12 p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">#</th>
               <th className="w-28 p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Item #</th>
               <th className="min-w-[380px] p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Description</th>
               <th className="w-20 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Qty</th>
               <th className="w-32 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Unit price</th>
               <th className="w-24 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Total</th>
-              {!disabled && <th className="w-12 p-2.5" aria-label="Remove" />}
+              {!disabled && <th className="w-20 p-2.5" aria-label="Actions" />}
             </tr>
           </thead>
-          <tbody>
-            {items.map((row, i) => (
-              <tr key={i} className="border-b border-[var(--color-divider)] last:border-b-0 hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150 align-top">
-                <td className="w-12 p-2.5 align-top text-[var(--color-on-surface-variant)] tabular-nums">{i + 1}</td>
-                <td className="w-28 p-2.5 align-top">
+          <tbody
+            ref={tbodyRef}
+            onDragOver={handleDragOverTbody}
+            onDrop={handleDropTbody}
+          >
+            {indices.map((dataIndex, displayPos) => {
+              const row = items[dataIndex];
+              const isDragging = dragIndex === dataIndex;
+              const isDropTarget = dropVisualIndex === displayPos;
+              const cellBg =
+                isDragging
+                  ? "bg-[var(--color-primary-container)]"
+                  : isDropTarget
+                    ? "bg-[var(--color-secondary-container)]/60"
+                    : "";
+              return (
+              <tr
+                key={dataIndex}
+                className={`line-items-row border-b border-[var(--color-divider)] last:border-b-0 transition-[background-color,box-shadow] duration-150 align-top ${isDragging ? "line-items-row-dragging line-items-row-dragging-lift" : ""} ${isDropTarget ? "line-items-row-drop" : ""}`}
+              >
+                {!disabled && (
+                  <td className={`w-9 p-2.5 align-top ${cellBg}`}>
+                    <span
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, dataIndex)}
+                      onDragEnd={handleDragEnd}
+                      className="inline-flex cursor-grab active:cursor-grabbing text-[var(--color-on-surface-variant)] hover:text-[var(--color-on-surface)] touch-none"
+                      aria-label="Drag to reorder row"
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </span>
+                  </td>
+                )}
+                <td className={`w-12 p-2.5 align-top text-[var(--color-on-surface-variant)] tabular-nums ${cellBg}`}>{displayPos + 1}</td>
+                <td className={`w-28 p-2.5 align-top ${cellBg}`}>
                   <input
                     type="text"
                     value={row.item_number}
-                    onChange={(e) => updateRow(i, { item_number: e.target.value })}
+                    onChange={(e) => updateRow(dataIndex, { item_number: e.target.value })}
                     disabled={disabled}
                     className={inputClass}
                     placeholder="Item #"
                   />
                 </td>
-                <td className="min-w-[380px] p-2.5 align-top">
+                <td className={`min-w-[380px] p-2.5 align-top ${cellBg}`}>
                   <textarea
                     value={row.product_description}
                     onChange={(e) => {
-                      updateRow(i, { product_description: e.target.value });
+                      updateRow(dataIndex, { product_description: e.target.value });
                       resizeDescriptionTextarea(e.currentTarget);
                     }}
                     ref={(el) => {
@@ -149,42 +254,62 @@ export function LineItemsEditor({
                     placeholder="Product or service"
                   />
                 </td>
-                <td className="w-20 p-2.5 align-top text-right">
+                <td className={`w-20 p-2.5 align-top text-right ${cellBg}`}>
                   <input
                     type="number"
                     min={0}
                     step="any"
                     value={row.quantity || ""}
                     onChange={(e) =>
-                      updateRow(i, { quantity: parseFloat(e.target.value) || 0 })
+                      updateRow(dataIndex, { quantity: parseFloat(e.target.value) || 0 })
                     }
                     disabled={disabled}
-                    className={inputClassRight}
+                    className={inputClassRight + " input-no-spinner"}
                   />
                 </td>
-                <td className="w-32 p-2.5 align-top text-right">
+                <td className={`w-32 p-2.5 align-top text-right ${cellBg}`}>
                   <input
                     type="number"
                     min={0}
                     step="0.01"
                     value={row.unit_price || ""}
                     onChange={(e) =>
-                      updateRow(i, { unit_price: parseFloat(e.target.value) || 0 })
+                      updateRow(dataIndex, { unit_price: parseFloat(e.target.value) || 0 })
                     }
                     disabled={disabled}
                     className={inputClassRight + " input-no-spinner"}
                   />
                 </td>
-                <td className="w-24 p-2.5 align-top text-right tabular-nums text-[var(--color-on-surface-variant)]">
+                <td className={`w-24 p-2.5 align-top text-right tabular-nums text-[var(--color-on-surface-variant)] ${cellBg}`}>
                   {row.total_values.toFixed(2)}
                 </td>
                 {!disabled && (
-                  <td className="w-12 p-2.5 align-top">
-                    <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Remove row" onClick={() => removeRow(i)} />
+                  <td className={`w-20 p-2.5 align-top ${cellBg}`}>
+                    <span className="flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => cloneRow(dataIndex)}
+                        className="shrink-0 rounded p-0.5 text-[var(--color-on-surface-variant)] transition-colors hover:bg-[var(--color-secondary-bg)] hover:text-[var(--color-secondary)]"
+                        aria-label="Clone row"
+                        title="Clone to next row"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeRow(dataIndex)}
+                        className="shrink-0 rounded p-0.5 text-[var(--color-error)] transition-colors hover:bg-[var(--color-error-bg)]"
+                        aria-label="Remove row"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
                   </td>
                 )}
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
         {!disabled && (

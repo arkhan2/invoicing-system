@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { InvoiceForm, type InvoiceListItem } from "./InvoiceForm";
 import { deleteInvoice } from "./actions";
-import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
 export function InvoiceList({
   invoices: initialInvoices,
@@ -65,14 +65,19 @@ export function InvoiceList({
   async function confirmDelete() {
     if (!deleteState) return;
     setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
-    const result = await deleteInvoice(deleteState.invoiceId);
-    setDeleteState(null);
-    if (result?.error) {
-      showMessage(result.error, "error");
-      return;
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteInvoice(deleteState.invoiceId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice deleted." });
+      router.refresh();
+    } finally {
+      endGlobalProcessing();
     }
-    router.refresh();
-    showMessage("Invoice deleted.", "success");
   }
 
   const inputClass =

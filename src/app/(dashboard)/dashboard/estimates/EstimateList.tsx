@@ -7,11 +7,12 @@ import { Modal } from "@/components/Modal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { EstimateForm, type EstimateListItem } from "./EstimateForm";
+import { EstimateStatusBadge } from "./EstimateStatusBadge";
 import {
   deleteEstimate,
   convertEstimateToInvoice,
 } from "./actions";
-import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
 export function EstimateList({
   estimates: initialEstimates,
@@ -45,7 +46,7 @@ export function EstimateList({
   }, [initialEstimates, search]);
 
   const canConvert = (status: string) =>
-    status !== "Converted" && status !== "Declined" && status !== "Expired";
+    status !== "Converted" && status !== "Expired";
 
   function openAdd() {
     setEditingEstimateId(null);
@@ -70,14 +71,19 @@ export function EstimateList({
   async function confirmDelete() {
     if (!deleteState) return;
     setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
-    const result = await deleteEstimate(deleteState.estimateId);
-    setDeleteState(null);
-    if (result?.error) {
-      showMessage(result.error, "error");
-      return;
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteEstimate(deleteState.estimateId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Estimate deleted." });
+      router.refresh();
+    } finally {
+      endGlobalProcessing();
     }
-    router.refresh();
-    showMessage("Estimate deleted.", "success");
   }
 
   function openConvert(estimateId: string) {
@@ -87,16 +93,19 @@ export function EstimateList({
   async function confirmConvert() {
     if (!convertState) return;
     setConvertState((prev) => (prev ? { ...prev, loading: true } : null));
-    const result = await convertEstimateToInvoice(convertState.estimateId);
-    setConvertState(null);
-    if (result?.error) {
-      showMessage(result.error, "error");
-      return;
-    }
-    router.refresh();
-    showMessage("Invoice created from estimate.", "success");
-    if (result.invoiceId) {
-      router.push(`/dashboard/sales?created=${result.invoiceId}`);
+    startGlobalProcessing("Converting to invoice…");
+    try {
+      const result = await convertEstimateToInvoice(convertState.estimateId);
+      setConvertState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice created." });
+      router.refresh();
+      if (result.invoiceId) router.push(`/dashboard/sales?created=${result.invoiceId}`);
+    } finally {
+      endGlobalProcessing();
     }
   }
 
@@ -151,7 +160,7 @@ export function EstimateList({
                     <div>
                       <span className="text-xs font-medium uppercase tracking-wider text-[var(--color-on-surface-variant)]">Status</span>
                       <p>
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${e.status === "Converted" ? "bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]" : e.status === "Accepted" || e.status === "Sent" ? "bg-[var(--color-primary-container)] text-[var(--color-on-primary-container)]" : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"}`}>{e.status}</span>
+                        <EstimateStatusBadge status={e.status} />
                       </p>
                     </div>
                     <div>

@@ -31,9 +31,11 @@ export default async function EstimateEditPage({
   let initialCustomer: {
     id: string;
     name: string;
+    contact_person_name?: string | null;
     address?: string | null;
     city?: string | null;
     province?: string | null;
+    country?: string | null;
     ntn_cnic?: string | null;
     phone?: string | null;
     email?: string | null;
@@ -42,7 +44,7 @@ export default async function EstimateEditPage({
   if (estimate.customer_id) {
     const { data: customer } = await supabase
       .from("customers")
-      .select("id, name, address, city, province, ntn_cnic, phone, email, registration_type")
+      .select("id, name, contact_person_name, address, city, province, country, ntn_cnic, phone, email, registration_type")
       .eq("id", estimate.customer_id)
       .eq("company_id", company.id)
       .maybeSingle();

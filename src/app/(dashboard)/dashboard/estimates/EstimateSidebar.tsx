@@ -2,14 +2,16 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Trash2, Copy } from "lucide-react";
+import { EstimateStatusBadge } from "./EstimateStatusBadge";
 import { usePathname, useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   deleteEstimate,
   convertEstimateToInvoice,
+  cloneEstimate,
 } from "./actions";
-import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { formatEstimateDate } from "@/lib/formatDate";
 import type { EstimateListItem } from "./EstimateForm";
 
@@ -25,6 +27,7 @@ export function EstimateSidebar({
   const [search, setSearch] = useState("");
   const [deleteState, setDeleteState] = useState<{ estimateId: string; loading: boolean } | null>(null);
   const [convertState, setConvertState] = useState<{ estimateId: string; loading: boolean } | null>(null);
+  const [cloneLoadingId, setCloneLoadingId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -43,7 +46,7 @@ export function EstimateSidebar({
     : null;
 
   const canConvert = (status: string) =>
-    status !== "Converted" && status !== "Declined" && status !== "Expired";
+    status !== "Converted" && status !== "Expired";
 
   function openDelete(e: React.MouseEvent, estimateId: string) {
     e.preventDefault();
@@ -60,30 +63,58 @@ export function EstimateSidebar({
   async function confirmDelete() {
     if (!deleteState) return;
     setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
-    const result = await deleteEstimate(deleteState.estimateId);
-    setDeleteState(null);
-    if (result?.error) {
-      showMessage(result.error, "error");
-      return;
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteEstimate(deleteState.estimateId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Estimate deleted." });
+      router.refresh();
+      router.push("/dashboard/estimates");
+    } finally {
+      endGlobalProcessing();
     }
-    router.refresh();
-    router.push("/dashboard/estimates");
-    showMessage("Estimate deleted.", "success");
   }
 
   async function confirmConvert() {
     if (!convertState) return;
     setConvertState((prev) => (prev ? { ...prev, loading: true } : null));
-    const result = await convertEstimateToInvoice(convertState.estimateId);
-    setConvertState(null);
-    if (result?.error) {
-      showMessage(result.error, "error");
-      return;
+    startGlobalProcessing("Converting to invoice…");
+    try {
+      const result = await convertEstimateToInvoice(convertState.estimateId);
+      setConvertState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice created." });
+      router.refresh();
+      if (result.invoiceId) router.push(`/dashboard/sales/${result.invoiceId}`);
+    } finally {
+      endGlobalProcessing();
     }
-    router.refresh();
-    showMessage("Invoice created from estimate.", "success");
-    if (result.invoiceId) {
-      router.push(`/dashboard/sales/${result.invoiceId}`);
+  }
+
+  async function handleClone(e: React.MouseEvent, estimateId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    setCloneLoadingId(estimateId);
+    startGlobalProcessing("Cloning estimate…");
+    try {
+      const result = await cloneEstimate(estimateId);
+      setCloneLoadingId(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Estimate cloned." });
+      router.refresh();
+      if (result.estimateId) router.push(`/dashboard/estimates/${result.estimateId}/edit`);
+    } finally {
+      endGlobalProcessing();
     }
   }
 
@@ -149,15 +180,7 @@ export function EstimateSidebar({
                         </span>
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            e.status === "Converted"
-                              ? "bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]"
-                              : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"
-                          }`}
-                        >
-                          {e.status}
-                        </span>
+                        <EstimateStatusBadge status={e.status} className="px-2 py-0.5 text-[10px]" />
                         <span className="flex items-center gap-1">
                           {canConvert(e.status) && (
                             <button
@@ -170,10 +193,22 @@ export function EstimateSidebar({
                           )}
                           <button
                             type="button"
-                            onClick={(ev) => openDelete(ev, e.id)}
-                            className="text-[10px] text-[var(--color-error)] hover:underline"
+                            onClick={(ev) => handleClone(ev, e.id)}
+                            disabled={cloneLoadingId === e.id}
+                            className={`shrink-0 rounded p-0.5 transition-colors ${isActive ? "text-[var(--color-on-primary-container)] hover:bg-[var(--color-on-primary-container)]/10 hover:text-[var(--color-on-primary-container)]" : "text-[var(--color-on-surface-variant)] hover:bg-[var(--color-secondary-bg)] hover:text-[var(--color-secondary)]"} ${cloneLoadingId === e.id ? "opacity-50" : ""}`}
+                            aria-label="Clone estimate"
+                            title="Clone to next estimate number"
                           >
-                            Delete
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(ev) => openDelete(ev, e.id)}
+                            className={`shrink-0 rounded p-0.5 ${isActive ? "text-[var(--color-on-primary-container)] hover:bg-[var(--color-on-primary-container)]/10" : "text-[var(--color-error)] hover:bg-[var(--color-error-bg)]"}`}
+                            aria-label="Delete"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </span>
                       </div>

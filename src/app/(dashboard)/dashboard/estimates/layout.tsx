@@ -25,6 +25,7 @@ export default async function EstimatesLayout({
       estimate_number,
       estimate_date,
       status,
+      valid_until,
       total_amount,
       total_tax,
       created_at,
@@ -33,17 +34,21 @@ export default async function EstimatesLayout({
     .eq("company_id", company.id)
     .order("estimate_date", { ascending: false });
 
-  const list = (estimates ?? []).map((e) => ({
-    id: e.id,
-    estimate_number: e.estimate_number,
-    estimate_date: e.estimate_date,
-    status: e.status,
-    total_amount: e.total_amount,
-    total_tax: e.total_tax,
-    created_at: e.created_at,
-    customer_name: (e.customer as { name?: string } | null)?.name ?? "",
-    customer_id: (e.customer as { id?: string } | null)?.id ?? "",
-  }));
+  const today = new Date().toISOString().slice(0, 10);
+  const list = (estimates ?? []).map((e) => {
+    const effectiveStatus = e.status === "Sent" && e.valid_until && e.valid_until < today ? "Expired" : e.status;
+    return {
+      id: e.id,
+      estimate_number: e.estimate_number,
+      estimate_date: e.estimate_date,
+      status: effectiveStatus,
+      total_amount: e.total_amount,
+      total_tax: e.total_tax,
+      created_at: e.created_at,
+      customer_name: (e.customer as { name?: string } | null)?.name ?? "",
+      customer_id: (e.customer as { id?: string } | null)?.id ?? "",
+    };
+  });
 
   return (
     <div className="-m-6 flex min-h-0 min-w-0 flex-1 flex-shrink-0 overflow-hidden border-r border-b border-[var(--color-outline)] bg-[var(--color-card-bg)]">

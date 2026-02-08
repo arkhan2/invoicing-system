@@ -30,7 +30,9 @@ export async function middleware(request: NextRequest) {
     await supabase.auth.getUser();
   } catch (e) {
     const code = e && typeof e === "object" && "code" in e ? (e as { code: string }).code : undefined;
-    if (code === "refresh_token_not_found") {
+    const isFetchFailed =
+      e instanceof Error && (e.message === "fetch failed" || e.cause?.toString?.().includes("fetch"));
+    if (code === "refresh_token_not_found" || isFetchFailed) {
       response.cookies.set(SUPABASE_AUTH_COOKIE_NAME, "", { maxAge: 0, path: "/" });
     }
     // Continue: layout/page will treat as no user or use getUserSafe

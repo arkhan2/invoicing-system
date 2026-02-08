@@ -11,13 +11,16 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
+    "country-state-city": "^3.2.1",
     "lucide-react": "^0.563.0",
     "next": "^16.1.6",
+    "papaparse": "^5.5.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "autoprefixer": "^10.4.20",

@@ -7,13 +7,17 @@ import {
   createEstimate,
   updateEstimate,
   getEstimateWithItems,
+  deleteEstimate,
+  setEstimateStatus,
+  convertEstimateToInvoice,
   type EstimateFormState,
 } from "./actions";
-import { Save, Loader2, Plus, Pencil, Search, X, ChevronLeft } from "lucide-react";
+import { Save, Loader2, Plus, Pencil, Search, X, ChevronLeft, Trash2, Send, FileOutput } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
 import { Modal } from "@/components/Modal";
-import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { CustomerForm, type Customer } from "@/app/(dashboard)/dashboard/customers/CustomerForm";
 import {
   searchCustomers,
@@ -21,12 +25,13 @@ import {
   type CustomerSearchResult,
 } from "@/app/(dashboard)/dashboard/customers/actions";
 import { formatEstimateDate } from "@/lib/formatDate";
+import { EstimateStatusBadge } from "./EstimateStatusBadge";
 
 const inputClass =
   "w-full min-h-[2.5rem] border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
-const STATUS_OPTIONS = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"];
+const DELIVERY_TIME_UNITS = ["days", "weeks", "months"] as const;
 
 function defaultItems(): LineItemRow[] {
   return [
@@ -53,9 +58,11 @@ function defaultItems(): LineItemRow[] {
 export type CustomerOption = {
   id: string;
   name: string;
+  contact_person_name?: string | null;
   address?: string | null;
   city?: string | null;
   province?: string | null;
+  country?: string | null;
   ntn_cnic?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -126,9 +133,15 @@ export function EstimateForm({
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<LineItemRow[]>(defaultItems());
   const [customerModal, setCustomerModal] = useState<"add" | "edit" | null>(null);
+  const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
+  const [convertState, setConvertState] = useState<{ loading: boolean } | null>(null);
+  const [sendLoading, setSendLoading] = useState(false);
   const [discountAmount, setDiscountAmount] = useState("");
   const [discountType, setDiscountType] = useState<"amount" | "percentage">("amount");
   const [salesTaxRateId, setSalesTaxRateId] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState("");
+  const [deliveryTimeAmount, setDeliveryTimeAmount] = useState("");
+  const [deliveryTimeUnit, setDeliveryTimeUnit] = useState<"days" | "weeks" | "months">("days");
 
   const runSearch = useCallback(
     async (q: string) => {
@@ -202,6 +215,11 @@ export function EstimateForm({
       setDiscountAmount(est.discount_amount != null ? String(est.discount_amount) : "");
       setDiscountType(est.discount_type === "percentage" ? "percentage" : "amount");
       setSalesTaxRateId(est.sales_tax_rate_id ?? "");
+      setPaymentTerms((data.estimate as { payment_terms?: string | null }).payment_terms ?? "");
+      const dta = (data.estimate as { delivery_time_amount?: number | null }).delivery_time_amount;
+      const dtu = (data.estimate as { delivery_time_unit?: string | null }).delivery_time_unit;
+      setDeliveryTimeAmount(dta != null ? String(dta) : "");
+      setDeliveryTimeUnit(dtu === "weeks" || dtu === "months" ? dtu : "days");
       setLoadState("done");
     })();
     return () => {
@@ -219,6 +237,9 @@ export function EstimateForm({
     formData.set("customer_id", customerId);
     formData.set("estimate_date", estimateDate);
     formData.set("valid_until", validUntil);
+    formData.set("payment_terms", paymentTerms);
+    formData.set("delivery_time_amount", deliveryTimeAmount);
+    formData.set("delivery_time_unit", deliveryTimeUnit);
     formData.set("status", sendNow ? "Sent" : status);
     formData.set("project_name", projectName);
     formData.set("subject", subject);
@@ -227,30 +248,36 @@ export function EstimateForm({
     formData.set("discount_type", discountType);
     formData.set("sales_tax_rate_id", salesTaxRateId);
     formData.set("items", JSON.stringify(items));
+    startGlobalProcessing(isEdit ? (sendNow ? "Saving and sending…" : "Saving…") : "Creating estimate…");
     try {
       if (isEdit) {
         const result = await updateEstimate(estimateId, companyId, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
           return;
         }
-        showMessage(sendNow ? "Estimate saved and sent." : "Estimate updated.", "success");
+        const msg = sendNow ? "Estimate saved and sent." : "Estimate updated.";
+        endGlobalProcessing({ success: msg });
         router.push(`/dashboard/estimates/${estimateId}`);
+        setLoading(false);
         return;
       } else {
         const result = await createEstimate(companyId, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
           return;
         }
-        showMessage(sendNow ? "Estimate saved and sent." : "Estimate created.", "success");
-        if (result?.estimateId) {
-          router.push(`/dashboard/estimates/${result.estimateId}`);
-          return;
-        }
+        const msg = sendNow ? "Estimate saved and sent." : "Estimate created.";
+        endGlobalProcessing({ success: msg });
+        if (result?.estimateId) router.push(`/dashboard/estimates/${result.estimateId}`);
+        setLoading(false);
+        return;
       }
       onSuccess?.();
     } finally {
+      endGlobalProcessing();
       setLoading(false);
     }
   }
@@ -287,6 +314,68 @@ export function EstimateForm({
     handleSubmit(fd, sendNow);
   }
 
+  async function handleDelete() {
+    if (!estimateId) return;
+    setDeleteState({ loading: true });
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteEstimate(estimateId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Estimate deleted." });
+      router.push("/dashboard/estimates");
+      router.refresh();
+    } finally {
+      endGlobalProcessing();
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const displayStatus = status === "Sent" && validUntil && validUntil < today ? "Expired" : status;
+  const canSend = isEdit && displayStatus === "Draft";
+  const canConvert = isEdit && displayStatus !== "Converted" && displayStatus !== "Expired";
+
+  async function handleSend() {
+    if (!estimateId) return;
+    setSendLoading(true);
+    startGlobalProcessing("Marking as sent…");
+    try {
+      const result = await setEstimateStatus(estimateId, "Sent");
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      setStatus("Sent");
+      endGlobalProcessing({ success: "Estimate marked as sent." });
+      router.refresh();
+    } finally {
+      setSendLoading(false);
+      endGlobalProcessing();
+    }
+  }
+
+  async function handleConvert() {
+    if (!estimateId) return;
+    setConvertState({ loading: true });
+    startGlobalProcessing("Converting to invoice…");
+    try {
+      const result = await convertEstimateToInvoice(estimateId);
+      setConvertState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice created." });
+      if (result?.invoiceId) router.push(`/dashboard/sales/${result.invoiceId}`);
+      else router.refresh();
+    } finally {
+      endGlobalProcessing();
+    }
+  }
+
   return (
     <>
     <form
@@ -318,15 +407,30 @@ export function EstimateForm({
           <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
             {isEdit ? (initialEstimateNumber ? `Estimate ${initialEstimateNumber}` : "Edit estimate") : "New estimate"}
           </h2>
+          <EstimateStatusBadge status={displayStatus} className="shrink-0" />
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <IconButton
-            type="submit"
-            variant="primary"
-            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            label={loading ? "Saving…" : "Save"}
-            disabled={loading}
-          />
+          {canSend && (
+            <button
+              type="button"
+              disabled={sendLoading}
+              onClick={handleSend}
+              className="btn btn-primary btn-sm inline-flex items-center gap-2"
+            >
+              <Send className="w-4 h-4 shrink-0" />
+              Send
+            </button>
+          )}
+          {canConvert && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm inline-flex items-center gap-2"
+              onClick={() => setConvertState({ loading: false })}
+            >
+              <FileOutput className="w-4 h-4 shrink-0" />
+              Convert
+            </button>
+          )}
           <button
             type="button"
             disabled={loading}
@@ -343,11 +447,29 @@ export function EstimateForm({
           >
             Save and Send
           </button>
+          <IconButton
+            type="submit"
+            variant="primary"
+            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            label={loading ? "Saving…" : "Save"}
+            disabled={loading}
+          />
+          {isEdit && (
+            <IconButton
+              type="button"
+              variant="danger"
+              icon={<Trash2 className="w-4 h-4" />}
+              label="Delete"
+              onClick={() => setDeleteState({ loading: false })}
+            />
+          )}
           <Link
             href={estimateId ? `/dashboard/estimates/${estimateId}` : "/dashboard/estimates"}
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-icon shrink-0"
+            aria-label="Cancel"
+            title="Cancel"
           >
-            Cancel
+            <X className="w-4 h-4" />
           </Link>
         </div>
       </div>
@@ -551,23 +673,48 @@ export function EstimateForm({
                   </p>
                 )}
               </div>
-              <div>
-                <label htmlFor="estimate-status" className={labelClass}>
-                  Status
+              <div className="col-span-2">
+                <label htmlFor="estimate-payment-terms" className={labelClass}>
+                  Payment terms
                 </label>
-                <select
-                  id="estimate-status"
-                  name="status"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className={inputClass + " h-[2.5rem] min-h-0 cursor-pointer"}
-                >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                <textarea
+                  id="estimate-payment-terms"
+                  name="payment_terms"
+                  value={paymentTerms}
+                  onChange={(e) => setPaymentTerms(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. 50% advance, 50% on delivery"
+                  className={inputClass + " min-h-0 resize-y"}
+                />
+              </div>
+              <div>
+                <label htmlFor="estimate-delivery-time" className={labelClass}>
+                  Delivery time
+                </label>
+                <div className="flex flex-nowrap items-center gap-2">
+                  <input
+                    id="estimate-delivery-time"
+                    name="delivery_time_amount"
+                    type="number"
+                    min={0}
+                    value={deliveryTimeAmount}
+                    onChange={(e) => setDeliveryTimeAmount(e.target.value)}
+                    placeholder="0"
+                    className={inputClass + " input-no-spinner h-[2.5rem] min-h-0 w-20 shrink-0"}
+                  />
+                  <select
+                    name="delivery_time_unit"
+                    value={deliveryTimeUnit}
+                    onChange={(e) => setDeliveryTimeUnit(e.target.value as "days" | "weeks" | "months")}
+                    className={inputClass + " h-[2.5rem] min-h-0 w-28 shrink-0 cursor-pointer"}
+                  >
+                    {DELIVERY_TIME_UNITS.map((u) => (
+                      <option key={u} value={u}>
+                        {u.charAt(0).toUpperCase() + u.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </section>
@@ -705,6 +852,34 @@ export function EstimateForm({
         </p>
       </div>
     </form>
+
+    {isEdit && (
+      <ConfirmDialog
+        open={!!deleteState}
+        title="Delete estimate?"
+        message="This estimate will be removed. This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        loadingLabel="Deleting…"
+        loading={deleteState?.loading ?? false}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteState(null)}
+      />
+    )}
+
+    {isEdit && (
+      <ConfirmDialog
+        open={!!convertState}
+        title="Convert to invoice?"
+        message="A new draft sales invoice will be created from this estimate."
+        confirmLabel="Convert"
+        variant="primary"
+        loadingLabel="Converting…"
+        loading={convertState?.loading ?? false}
+        onConfirm={handleConvert}
+        onCancel={() => setConvertState(null)}
+      />
+    )}
 
     <Modal
       open={customerModal !== null}

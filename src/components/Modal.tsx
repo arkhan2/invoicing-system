@@ -7,11 +7,13 @@ export function Modal({
   onClose,
   title,
   children,
+  contentClassName,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  contentClassName?: string;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -37,7 +39,7 @@ export function Modal({
         onClick={onClose}
       />
       <div
-        className="relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl overflow-hidden bg-[var(--color-card-bg)] shadow-lg"
+        className={`relative z-10 flex max-h-[90vh] w-full ${contentClassName ?? "max-w-lg"} flex-col rounded-2xl overflow-hidden bg-[var(--color-card-bg)] shadow-lg`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-divider)] bg-[var(--color-card-bg)] px-6 py-4">

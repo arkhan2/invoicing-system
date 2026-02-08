@@ -7,17 +7,20 @@ import {
   updateCustomer,
   type CustomerFormState,
 } from "./actions";
-import { PAKISTAN_PROVINCES, getCitiesForProvince } from "@/lib/pakistan";
+import { getCountries, getStates, getCities } from "@/lib/location";
 import { IconButton } from "@/components/IconButton";
 import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
 export type Customer = {
   id: string;
   name: string;
+  contact_person_name: string | null;
   ntn_cnic: string | null;
   address: string | null;
   city: string | null;
   province: string | null;
+  country: string | null;
   registration_type: string | null;
   phone: string | null;
   email: string | null;
@@ -60,34 +63,41 @@ export function CustomerForm({
 }) {
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState<CustomerFormState>({});
+  const [selectedCountry, setSelectedCountry] = useState(customer?.country ?? "Pakistan");
   const [selectedProvince, setSelectedProvince] = useState(customer?.province ?? "");
   const [selectedCity, setSelectedCity] = useState(customer?.city ?? "");
   const isCreate = !customer;
 
-  const cityOptions = getCitiesForProvince(selectedProvince);
+  const countryOptions = getCountries();
+  const stateOptions = getStates(selectedCountry);
+  const cityOptions = getCities(selectedCountry, selectedProvince);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setState({});
+    startGlobalProcessing(isCreate ? "Creating customer…" : "Saving customer…");
     try {
       if (isCreate) {
         const result = await createCustomer(companyId, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
           return;
         }
-        showMessage("Customer added.", "success");
+        endGlobalProcessing({ success: "Customer added." });
         onSuccess((result as { customerId?: string }).customerId);
       } else {
         const result = await updateCustomer(customer.id, companyId, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
           return;
         }
-        showMessage("Customer saved.", "success");
+        endGlobalProcessing({ success: "Customer saved." });
         onSuccess();
       }
     } finally {
+      endGlobalProcessing();
       setLoading(false);
     }
   }
@@ -116,6 +126,19 @@ export function CustomerForm({
             defaultValue={customer?.name ?? ""}
             className={inputClass}
             placeholder="e.g. Acme Corp"
+          />
+        </div>
+        <div>
+          <label htmlFor="customer-contact_person_name" className={labelClass}>
+            Contact person name
+          </label>
+          <input
+            id="customer-contact_person_name"
+            name="contact_person_name"
+            type="text"
+            defaultValue={customer?.contact_person_name ?? ""}
+            className={inputClass}
+            placeholder="e.g. John Smith"
           />
         </div>
         <div>
@@ -162,45 +185,65 @@ export function CustomerForm({
             placeholder="Street, area"
           />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="customer-province" className={labelClass}>
-              Province
-            </label>
-            <select
-              id="customer-province"
-              name="province"
-              value={selectedProvince}
-              onChange={(e) => {
-                setSelectedProvince(e.target.value);
-                setSelectedCity("");
-              }}
-              className={inputClass + " min-h-[42px] cursor-pointer"}
-            >
-              <option value="">— Select —</option>
-              {PAKISTAN_PROVINCES.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="customer-city" className={labelClass}>
-              City
-            </label>
-            <select
-              id="customer-city"
-              name="city"
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className={inputClass + " min-h-[42px] cursor-pointer"}
-              disabled={!selectedProvince}
-            >
-              <option value="">— Select —</option>
-              {cityOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label htmlFor="customer-country" className={labelClass}>
+            Country
+          </label>
+          <select
+            id="customer-country"
+            name="country"
+            value={selectedCountry}
+            onChange={(e) => {
+              setSelectedCountry(e.target.value);
+              setSelectedProvince("");
+              setSelectedCity("");
+            }}
+            className={inputClass + " min-h-[42px] cursor-pointer"}
+          >
+            <option value="">— Select —</option>
+            {countryOptions.map((c) => (
+              <option key={c.isoCode} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="customer-province" className={labelClass}>
+            Province / State
+          </label>
+          <select
+            id="customer-province"
+            name="province"
+            value={selectedProvince}
+            onChange={(e) => {
+              setSelectedProvince(e.target.value);
+              setSelectedCity("");
+            }}
+            className={inputClass + " min-h-[42px] cursor-pointer"}
+            disabled={!selectedCountry}
+          >
+            <option value="">— Select —</option>
+            {stateOptions.map((s) => (
+              <option key={s.isoCode} value={s.name}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="customer-city" className={labelClass}>
+            City
+          </label>
+          <select
+            id="customer-city"
+            name="city"
+            value={selectedCity}
+            onChange={(e) => setSelectedCity(e.target.value)}
+            className={inputClass + " min-h-[42px] cursor-pointer"}
+            disabled={!selectedProvince}
+          >
+            <option value="">— Select —</option>
+            {cityOptions.map((c) => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
+          </select>
         </div>
       </Section>
 

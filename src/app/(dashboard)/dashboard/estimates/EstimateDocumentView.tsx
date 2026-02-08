@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
-import { Pencil, Trash2, FileOutput, ChevronLeft } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Pencil, Trash2, FileOutput, ChevronLeft, X, Send } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
-import { convertEstimateToInvoice, deleteEstimate } from "./actions";
-import { showMessage } from "@/components/MessageBar";
+import { convertEstimateToInvoice, deleteEstimate, setEstimateStatus } from "./actions";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { formatEstimateDate } from "@/lib/formatDate";
-import { useState } from "react";
+import { EstimateStatusBadge } from "./EstimateStatusBadge";
+
+function effectiveStatus(status: string, validUntil: string | null): string {
+  const today = new Date().toISOString().slice(0, 10);
+  if (status === "Sent" && validUntil && validUntil < today) return "Expired";
+  return status;
+}
 
 const ROWS_PER_PAGE = 14;
 
@@ -27,9 +33,11 @@ type Company = {
 
 type Customer = {
   name: string;
+  contact_person_name?: string | null;
   address?: string | null;
   city?: string | null;
   province?: string | null;
+  country?: string | null;
   ntn_cnic?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -49,9 +57,13 @@ export function EstimateDocumentView({
   estimateNumber,
   estimateDate,
   status,
+  validUntil = null,
   notes,
   projectName,
   subject,
+  paymentTerms = null,
+  deliveryTimeAmount = null,
+  deliveryTimeUnit = null,
   totalAmount,
   totalTax,
   discountAmount,
@@ -65,9 +77,13 @@ export function EstimateDocumentView({
   estimateNumber: string;
   estimateDate: string;
   status: string;
+  validUntil?: string | null;
   notes: string | null;
   projectName: string | null;
   subject: string | null;
+  paymentTerms?: string | null;
+  deliveryTimeAmount?: number | null;
+  deliveryTimeUnit?: string | null;
   totalAmount: number;
   totalTax: number;
   discountAmount?: number | null;
@@ -80,8 +96,11 @@ export function EstimateDocumentView({
   const router = useRouter();
   const [convertState, setConvertState] = useState<{ loading: boolean } | null>(null);
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
+  const [sendLoading, setSendLoading] = useState(false);
 
-  const canConvert = status !== "Converted" && status !== "Declined" && status !== "Expired";
+  const displayStatus = effectiveStatus(status, validUntil ?? null);
+  const canConvert = displayStatus !== "Converted" && displayStatus !== "Expired";
+  const canSend = displayStatus === "Draft";
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
   const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
 
@@ -96,32 +115,42 @@ export function EstimateDocumentView({
 
   async function handleConvert() {
     setConvertState({ loading: true });
-    const result = await convertEstimateToInvoice(estimateId);
-    setConvertState(null);
-    if (result?.error) {
-      showMessage(result.error, "error");
-      return;
+    startGlobalProcessing("Converting to invoice…");
+    try {
+      const result = await convertEstimateToInvoice(estimateId);
+      setConvertState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice created." });
+      if (result?.invoiceId) router.push(`/dashboard/sales/${result.invoiceId}`);
+      else router.refresh();
+    } finally {
+      endGlobalProcessing();
     }
-    showMessage("Invoice created from estimate.", "success");
-    if (result?.invoiceId) router.push(`/dashboard/sales/${result.invoiceId}`);
-    else router.refresh();
   }
 
   async function handleDelete() {
     setDeleteState({ loading: true });
-    const result = await deleteEstimate(estimateId);
-    setDeleteState(null);
-    if (result?.error) {
-      showMessage(result.error, "error");
-      return;
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteEstimate(estimateId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Estimate deleted." });
+      router.push("/dashboard/estimates");
+      router.refresh();
+    } finally {
+      endGlobalProcessing();
     }
-    showMessage("Estimate deleted.", "success");
-    router.push("/dashboard/estimates");
-    router.refresh();
   }
 
   const addressLine = [company.address, company.city, company.province].filter(Boolean).join(", ");
-  const customerAddress = [customer.address, customer.city, customer.province].filter(Boolean).join(", ");
+  const customerAddress = [customer.address, customer.city, customer.province, customer.country].filter(Boolean).join(", ");
 
   const pageChunks = useMemo(() => {
     if (items.length === 0) return [[]];
@@ -149,7 +178,7 @@ export function EstimateDocumentView({
     startIndex: number,
     footer?: TableFooter
   ) => (
-    <div className="mt-8 overflow-hidden rounded-xl border doc-border">
+    <div className="mt-5 overflow-hidden rounded-xl border doc-border">
       <table className="w-full text-left text-sm tabular-nums">
         <thead>
           <tr className="border-b doc-border doc-head">
@@ -246,11 +275,48 @@ export function EstimateDocumentView({
             <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
               Estimate {estimateNumber}
             </h2>
+            <EstimateStatusBadge status={displayStatus} className="shrink-0" />
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {canSend && (
+              <button
+                type="button"
+                disabled={sendLoading}
+                className="btn btn-primary btn-sm inline-flex items-center gap-2"
+                onClick={async () => {
+                  setSendLoading(true);
+                  startGlobalProcessing("Marking as sent…");
+                  try {
+                    const result = await setEstimateStatus(estimateId, "Sent");
+                    if (result?.error) {
+                      endGlobalProcessing({ error: result.error });
+                      return;
+                    }
+                    endGlobalProcessing({ success: "Estimate marked as sent." });
+                    router.refresh();
+                  } finally {
+                    setSendLoading(false);
+                    endGlobalProcessing();
+                  }
+                }}
+              >
+                <Send className="w-4 h-4 shrink-0" />
+                Send
+              </button>
+            )}
+            {canConvert && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm inline-flex items-center gap-2"
+                onClick={() => setConvertState({ loading: false })}
+              >
+                <FileOutput className="w-4 h-4 shrink-0" />
+                Convert
+              </button>
+            )}
             <Link
               href={`/dashboard/estimates/${estimateId}/edit`}
-              className="btn btn-edit btn-icon"
+              className="btn btn-edit btn-icon shrink-0"
               aria-label="Edit"
               title="Edit"
             >
@@ -262,19 +328,14 @@ export function EstimateDocumentView({
               label="Delete"
               onClick={() => setDeleteState({ loading: false })}
             />
-            {canConvert && (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm inline-flex items-center gap-2"
-                onClick={() => setConvertState({ loading: false })}
-              >
-                <FileOutput className="w-4 h-4 shrink-0" />
-                Convert to invoice
-              </button>
-            )}
-            <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
-              {status}
-            </span>
+            <Link
+              href="/dashboard/estimates"
+              className="btn btn-secondary btn-icon shrink-0"
+              aria-label="Cancel"
+              title="Cancel"
+            >
+              <X className="w-4 h-4" />
+            </Link>
           </div>
         </div>
 
@@ -285,9 +346,9 @@ export function EstimateDocumentView({
               const startIndex = pageIndex * ROWS_PER_PAGE;
               const isLastPage = pageIndex === pageChunks.length - 1;
               return (
-                <div key={pageIndex} className="document-page document-page-spaced mx-auto flex flex-col p-8">
+                <div key={pageIndex} className="document-page document-page-spaced mx-auto flex flex-col p-8 pl-10">
                   {/* Header on every page */}
-                  <div className="flex flex-col gap-8 border-b doc-border pb-8 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-4">
                       {company.logo_url ? (
                         <img
@@ -327,39 +388,76 @@ export function EstimateDocumentView({
 
                   {pageIndex === 0 && (
                     <>
-                      {/* Bill To - first page only */}
-                      <div className="mt-8">
-                        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider doc-muted">
-                          Bill To
-                        </h2>
-                        <p className="font-semibold">{customer.name}</p>
-                        {customerAddress && (
-                          <p className="mt-0.5 text-sm doc-muted">{customerAddress}</p>
-                        )}
-                        {customer.ntn_cnic && (
-                          <p className="mt-0.5 text-sm doc-muted">NTN: {customer.ntn_cnic}</p>
-                        )}
-                        {(customer.phone || customer.email) && (
-                          <p className="mt-0.5 text-sm doc-muted">
-                            {[customer.phone, customer.email].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
-                      </div>
-
-                      {(projectName || subject) && (
-                        <div className="mt-6 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-                          {projectName && (
-                            <p className="doc-muted">
-                              <span className="font-medium">Project:</span> {projectName}
+                      {/* Left card: Bill To + Project + Subject | Right card: Expiry, Payment terms, Delivery time */}
+                      <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-stretch sm:justify-between">
+                        {/* Left card — slightly wider */}
+                        <div className="min-w-0 flex-[1.2] rounded-xl border doc-border doc-notes-bg p-3">
+                          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider doc-muted">
+                            Bill To
+                          </h2>
+                          <p className="font-semibold">{customer.name}</p>
+                          {customer.contact_person_name && (
+                            <p className="mt-0.5 text-sm doc-muted">Attn: {customer.contact_person_name}</p>
+                          )}
+                          {customerAddress && (
+                            <p className="mt-0.5 text-sm doc-muted">{customerAddress}</p>
+                          )}
+                          {customer.ntn_cnic && (
+                            <p className="mt-0.5 text-sm doc-muted">NTN: {customer.ntn_cnic}</p>
+                          )}
+                          {(customer.phone || customer.email) && (
+                            <p className="mt-0.5 text-sm doc-muted">
+                              {[customer.phone, customer.email].filter(Boolean).join(" · ")}
                             </p>
                           )}
-                          {subject && (
-                            <p className="doc-muted">
-                              <span className="font-medium">Subject:</span> {subject}
-                            </p>
+                          {(projectName || subject) && (
+                            <div className="mt-3 space-y-1 border-t doc-border pt-2 text-sm">
+                              {projectName && (
+                                <p className="doc-muted">
+                                  <span className="font-semibold">Project:</span> {projectName}
+                                </p>
+                              )}
+                              {subject && (
+                                <p className="doc-muted">
+                                  <span className="font-semibold">Subject:</span> {subject}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
+
+                        {/* Right card — labels left, values right */}
+                        <div className="min-w-0 flex-1 rounded-xl border doc-border doc-notes-bg p-3 sm:max-w-[17rem]">
+                          <table className="w-full border-collapse text-sm" style={{ border: "none" }}>
+                            <tbody>
+                              {validUntil && (
+                                <tr>
+                                  <td className="align-top pr-3 font-semibold doc-muted" style={{ border: "none", verticalAlign: "top" }}>Expiry date:</td>
+                                  <td className="align-top doc-muted text-left" style={{ border: "none", verticalAlign: "top" }}>{formatEstimateDate(validUntil)}</td>
+                                </tr>
+                              )}
+                              {paymentTerms && (
+                                <tr>
+                                  <td className="align-top pr-3 font-semibold doc-muted" style={{ border: "none", verticalAlign: "top" }}>Payment terms:</td>
+                                  <td className="align-top doc-muted whitespace-pre-line text-left" style={{ border: "none", verticalAlign: "top" }}>{paymentTerms}</td>
+                                </tr>
+                              )}
+                              {deliveryTimeAmount != null && deliveryTimeAmount > 0 && deliveryTimeUnit && (
+                                <tr>
+                                  <td className="align-top pr-3 font-semibold doc-muted" style={{ border: "none", verticalAlign: "top" }}>Delivery time:</td>
+                                  <td className="align-top doc-muted text-left" style={{ border: "none", verticalAlign: "top" }}>{deliveryTimeAmount} {deliveryTimeUnit}</td>
+                                </tr>
+                              )}
+                              {!validUntil && !paymentTerms && (!deliveryTimeAmount || deliveryTimeAmount <= 0 || !deliveryTimeUnit) && (
+                                <tr>
+                                  <td className="doc-muted" style={{ border: "none" }}>—</td>
+                                  <td style={{ border: "none" }} />
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </>
                   )}
 
@@ -387,7 +485,7 @@ export function EstimateDocumentView({
                   )}
 
                   {isLastPage && notes && (
-                    <div className="mt-8 rounded-xl border doc-notes-bg p-4">
+                    <div className="mt-5 rounded-xl border doc-notes-bg p-3">
                       <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider doc-muted">
                         Notes
                       </h3>

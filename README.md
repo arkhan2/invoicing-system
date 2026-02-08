@@ -38,7 +38,15 @@ invoicing-system/
 │   │       ├── client.ts    # Browser client
 │   │       └── server.ts    # Server client (RSC / API)
 │   └── middleware.ts        # Supabase auth cookie refresh
+├── docs/
+│   ├── DESIGN_SYSTEM.md     # UI/design tokens
+│   └── PRAL_DI_API_Technical_Specification.md  # FBR Digital Invoicing API reference
 ```
+
+## Documentation
+
+- **[docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md)** — Design system and UI tokens.
+- **[docs/PRAL_DI_API_Technical_Specification.md](docs/PRAL_DI_API_Technical_Specification.md)** — PRAL/FBR Digital Invoicing (DI) API reference (endpoints, request/response, error codes, sandbox scenarios). Sourced from PRAL Technical Specification for DI API v1.12.
 
 ## Setup
 

@@ -17,6 +17,11 @@ alter table if exists public.companies
 alter table if exists public.customers
   add column if not exists city text;
 
+-- Customers: contact_person_name, country (form defaults Pakistan when adding, no DB default)
+alter table if exists public.customers
+  add column if not exists contact_person_name text,
+  add column if not exists country text;
+
 -- Vendors: city (if missing)
 alter table if exists public.vendors
   add column if not exists city text;

@@ -29,7 +29,7 @@ export default async function InvoiceViewPage({
 
   const { data: customer } = await supabase
     .from("customers")
-    .select("id, name, address, city, province, ntn_cnic, phone, email")
+    .select("id, name, contact_person_name, address, city, province, country, ntn_cnic, phone, email")
     .eq("id", invoice.customer_id)
     .single();
 

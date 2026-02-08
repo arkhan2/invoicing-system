@@ -55,30 +55,41 @@
   --color-tertiary: #8b6fa8;
   --color-tertiary-container: #ddd0e8;
 
-  --color-error: #b87268;
-  --color-error-bg: #f5e6e4;
+  --color-error: #a85a50;
+  --color-error-bg: #ecd8d6;
+  --color-secondary-bg: #c8e4e0;
 
   --color-card-bg: #efedea;
   --color-card-text: #3a3734;
 
-  /* Buttons: same hue family, readable on soft bg */
-  --color-btn-primary-bg: #5c8bc4;
-  --color-btn-primary-bg-hover: #4c7ab4;
+  /* Buttons: more prominent, readable on soft bg (not document view) */
+  --color-btn-primary-bg: #4a7ab8;
+  --color-btn-primary-bg-hover: #3d6aa6;
   --color-btn-primary-text: #f0f4f8;
-  --color-btn-secondary-bg: #d4d1ce;
-  --color-btn-secondary-bg-hover: #c4c0bd;
-  --color-btn-secondary-text: #3a3734;
-  --color-btn-danger-bg: #b87268;
-  --color-btn-danger-bg-hover: #a8645a;
+  --color-btn-secondary-bg: #b8b4af;
+  --color-btn-secondary-bg-hover: #a8a39d;
+  --color-btn-secondary-text: #2d2a28;
+  --color-btn-danger-bg: #a85a50;
+  --color-btn-danger-bg-hover: #984a40;
   --color-btn-danger-text: #f8f2f0;
-  --color-btn-edit-bg: #c49868;
-  --color-btn-edit-bg-hover: #b48858;
+  --color-btn-edit-bg: #b08050;
+  --color-btn-edit-bg-hover: #9c7040;
   --color-btn-edit-text: #2d2018;
-  --color-btn-add-bg: #5a9d96;
-  --color-btn-add-bg-hover: #4a8d86;
+  --color-btn-add-bg: #4a8d86;
+  --color-btn-add-bg-hover: #3d7d76;
   --color-btn-add-text: #f0f8f6;
-  --color-badge-success-bg: #6cb8a8;
-  --color-badge-success-text: #234a45;
+  --color-badge-success-bg: #5aa894;
+  --color-badge-success-text: #1a3830;
+
+  /* Estimate status badges — more prominent (not document view) */
+  --color-estimate-draft-bg: #b5b2ad;
+  --color-estimate-draft-text: #383532;
+  --color-estimate-sent-bg: #b0cce8;
+  --color-estimate-sent-text: #1e3a52;
+  --color-estimate-expired-bg: #e8d4d2;
+  --color-estimate-expired-text: #703830;
+  --color-estimate-converted-bg: #5aa894;
+  --color-estimate-converted-text: #1a3830;
 
   --header-height: 56px;
   --radius: 8px;
@@ -123,28 +134,37 @@
     --color-tertiary: #9b7eb8;
     --color-tertiary-container: #3d3250;
 
-    --color-error: #c88278;
-    --color-error-bg: rgba(200, 130, 120, 0.18);
+    --color-error: #d49088;
+    --color-error-bg: rgba(200, 130, 120, 0.32);
+    --color-secondary-bg: rgba(106, 173, 166, 0.32);
 
     --color-card-text: #e2e0dd;
 
-    --color-btn-primary-bg: #5c8bc4;
-    --color-btn-primary-bg-hover: #6c9cd4;
+    --color-btn-primary-bg: #5c9ce0;
+    --color-btn-primary-bg-hover: #70ace8;
     --color-btn-primary-text: #f0f4f8;
-    --color-btn-secondary-bg: #3e4146;
-    --color-btn-secondary-bg-hover: #4e5156;
-    --color-btn-secondary-text: #e2e0dd;
-    --color-btn-danger-bg: #b87268;
-    --color-btn-danger-bg-hover: #c88278;
+    --color-btn-secondary-bg: #4a4e56;
+    --color-btn-secondary-bg-hover: #5a5e68;
+    --color-btn-secondary-text: #e8e6e4;
+    --color-btn-danger-bg: #c87268;
+    --color-btn-danger-bg-hover: #d88878;
     --color-btn-danger-text: #f8f2f0;
-    --color-btn-edit-bg: #c49868;
-    --color-btn-edit-bg-hover: #d4a878;
+    --color-btn-edit-bg: #c89868;
+    --color-btn-edit-bg-hover: #d8a878;
     --color-btn-edit-text: #2d2018;
-    --color-btn-add-bg: #5a9d96;
-    --color-btn-add-bg-hover: #6aada6;
+    --color-btn-add-bg: #5aad9e;
+    --color-btn-add-bg-hover: #6abdad;
     --color-btn-add-text: #f0f8f6;
-    --color-badge-success-bg: #6cb8a8;
-    --color-badge-success-text: #234a45;
+    --color-badge-success-bg: #5ab8a4;
+    --color-badge-success-text: #e8f6f2;
+    --color-estimate-draft-bg: #32343a;
+    --color-estimate-draft-text: #b8b6b2;
+    --color-estimate-sent-bg: #1e3548;
+    --color-estimate-sent-text: #a8cce8;
+    --color-estimate-expired-bg: rgba(200, 130, 120, 0.35);
+    --color-estimate-expired-text: #e8c4bc;
+    --color-estimate-converted-bg: #2d5a50;
+    --color-estimate-converted-text: #b0e8dc;
 
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 20%), 0 1px 3px 1px rgb(0 0 0 / 14%);
     --shadow-md: 0 2px 6px 0 rgb(0 0 0 / 22%), 0 4px 12px 3px rgb(0 0 0 / 16%);
@@ -167,6 +187,14 @@
 
   --color-primary: #6c9cd4;
   --color-primary-hover: #7cacdc;
+  --color-estimate-draft-bg: #32343a;
+  --color-estimate-draft-text: #b8b6b2;
+  --color-estimate-sent-bg: #1e3548;
+  --color-estimate-sent-text: #a8cce8;
+  --color-estimate-expired-bg: rgba(200, 130, 120, 0.35);
+  --color-estimate-expired-text: #e8c4bc;
+  --color-estimate-converted-bg: #2d5a50;
+  --color-estimate-converted-text: #b0e8dc;
   --color-on-primary: #f0f4f8;
 
   --color-primary-container: #2a3d58;
@@ -180,28 +208,29 @@
   --color-tertiary: #9b7eb8;
   --color-tertiary-container: #3d3250;
 
-  --color-error: #c88278;
-  --color-error-bg: rgba(200, 130, 120, 0.18);
+  --color-error: #d49088;
+  --color-error-bg: rgba(200, 130, 120, 0.32);
+  --color-secondary-bg: rgba(106, 173, 166, 0.32);
 
   --color-card-text: #e2e0dd;
 
-  --color-btn-primary-bg: #5c8bc4;
-  --color-btn-primary-bg-hover: #6c9cd4;
+  --color-btn-primary-bg: #5c9ce0;
+  --color-btn-primary-bg-hover: #70ace8;
   --color-btn-primary-text: #f0f4f8;
-  --color-btn-secondary-bg: #3e4146;
-  --color-btn-secondary-bg-hover: #4e5156;
-  --color-btn-secondary-text: #e2e0dd;
-  --color-btn-danger-bg: #b87268;
-  --color-btn-danger-bg-hover: #c88278;
+  --color-btn-secondary-bg: #4a4e56;
+  --color-btn-secondary-bg-hover: #5a5e68;
+  --color-btn-secondary-text: #e8e6e4;
+  --color-btn-danger-bg: #c87268;
+  --color-btn-danger-bg-hover: #d88878;
   --color-btn-danger-text: #f8f2f0;
-  --color-btn-edit-bg: #c49868;
-  --color-btn-edit-bg-hover: #d4a878;
+  --color-btn-edit-bg: #c89868;
+  --color-btn-edit-bg-hover: #d8a878;
   --color-btn-edit-text: #2d2018;
-  --color-btn-add-bg: #5a9d96;
-  --color-btn-add-bg-hover: #6aada6;
+  --color-btn-add-bg: #5aad9e;
+  --color-btn-add-bg-hover: #6abdad;
   --color-btn-add-text: #f0f8f6;
-  --color-badge-success-bg: #6cb8a8;
-  --color-badge-success-text: #234a45;
+  --color-badge-success-bg: #5ab8a4;
+  --color-badge-success-text: #e8f6f2;
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 20%), 0 1px 3px 1px rgb(0 0 0 / 14%);
   --shadow-md: 0 2px 6px 0 rgb(0 0 0 / 22%), 0 4px 12px 3px rgb(0 0 0 / 16%);
@@ -228,29 +257,65 @@
   --color-secondary-container: #b8ddd8;
   --color-tertiary: #8b6fa8;
   --color-tertiary-container: #ddd0e8;
-  --color-error: #b87268;
-  --color-error-bg: #f5e6e4;
+  --color-error: #a85a50;
+  --color-error-bg: #ecd8d6;
+  --color-secondary-bg: #c8e4e0;
   --color-card-bg: #efedea;
   --color-card-text: #3a3734;
-  --color-btn-primary-bg: #5c8bc4;
-  --color-btn-primary-bg-hover: #4c7ab4;
+  --color-btn-primary-bg: #4a7ab8;
+  --color-btn-primary-bg-hover: #3d6aa6;
   --color-btn-primary-text: #f0f4f8;
-  --color-btn-secondary-bg: #d4d1ce;
-  --color-btn-secondary-bg-hover: #c4c0bd;
-  --color-btn-secondary-text: #3a3734;
-  --color-btn-danger-bg: #b87268;
-  --color-btn-danger-bg-hover: #a8645a;
+  --color-btn-secondary-bg: #b8b4af;
+  --color-btn-secondary-bg-hover: #a8a39d;
+  --color-btn-secondary-text: #2d2a28;
+  --color-btn-danger-bg: #a85a50;
+  --color-btn-danger-bg-hover: #984a40;
   --color-btn-danger-text: #f8f2f0;
-  --color-btn-edit-bg: #c49868;
-  --color-btn-edit-bg-hover: #b48858;
+  --color-btn-edit-bg: #b08050;
+  --color-btn-edit-bg-hover: #9c7040;
   --color-btn-edit-text: #2d2018;
-  --color-btn-add-bg: #5a9d96;
-  --color-btn-add-bg-hover: #4a8d86;
+  --color-btn-add-bg: #4a8d86;
+  --color-btn-add-bg-hover: #3d7d76;
   --color-btn-add-text: #f0f8f6;
-  --color-badge-success-bg: #6cb8a8;
-  --color-badge-success-text: #234a45;
+  --color-badge-success-bg: #5aa894;
+  --color-badge-success-text: #1a3830;
+  --color-estimate-draft-bg: #b5b2ad;
+  --color-estimate-draft-text: #383532;
+  --color-estimate-sent-bg: #b0cce8;
+  --color-estimate-sent-text: #1e3a52;
+  --color-estimate-expired-bg: #e8d4d2;
+  --color-estimate-expired-text: #703830;
+  --color-estimate-converted-bg: #5aa894;
+  --color-estimate-converted-text: #1a3830;
   --shadow-sm: 0 1px 2px 0 rgb(58 55 52 / 6%), 0 1px 3px 1px rgb(58 55 52 / 5%);
   --shadow-md: 0 2px 6px 0 rgb(58 55 52 / 8%), 0 4px 12px 3px rgb(58 55 52 / 6%);
+}
+
+/* Estimate status badge — use data-status="draft"|"sent"|"expired"|"converted" */
+.estimate-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill, 9999px);
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.estimate-status-badge[data-status="draft"] {
+  background-color: var(--color-estimate-draft-bg);
+  color: var(--color-estimate-draft-text);
+}
+.estimate-status-badge[data-status="sent"] {
+  background-color: var(--color-estimate-sent-bg);
+  color: var(--color-estimate-sent-text);
+}
+.estimate-status-badge[data-status="expired"] {
+  background-color: var(--color-estimate-expired-bg);
+  color: var(--color-estimate-expired-text);
+}
+.estimate-status-badge[data-status="converted"] {
+  background-color: var(--color-estimate-converted-bg);
+  color: var(--color-estimate-converted-text);
 }
 
 /* =============================================================================
@@ -480,4 +545,31 @@ input[type="time"]::placeholder {
 .input-no-spinner {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* Line items table: row hover (plain CSS so it always applies) */
+.line-items-table tbody tr.line-items-row:not(.line-items-row-dragging):not(.line-items-row-drop):hover td {
+  background-color: color-mix(in srgb, var(--color-secondary-container) 35%, transparent);
+  transition: background-color 150ms ease;
+}
+.line-items-table tbody tr.line-items-row:not(.line-items-row-dragging):not(.line-items-row-drop):hover td input,
+.line-items-table tbody tr.line-items-row:not(.line-items-row-dragging):not(.line-items-row-drop):hover td textarea {
+  background-color: color-mix(in srgb, var(--color-secondary-container) 25%, var(--color-input-bg));
+}
+
+/* Line items table: dragged row “lift” so movement is obvious */
+.line-items-table tbody tr.line-items-row-dragging-lift {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--color-primary);
+  position: relative;
+  z-index: 10;
+  border-radius: var(--radius-sm);
+}
+.line-items-table tbody tr.line-items-row-dragging-lift td {
+  background-color: var(--color-primary-container) !important;
+}
+.line-items-table tbody tr.line-items-row-dragging-lift td:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.line-items-table tbody tr.line-items-row-dragging-lift td:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }

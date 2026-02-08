@@ -14,9 +14,10 @@ import {
   type CompanyFormState,
   type TaxRateRow,
 } from "./actions";
-import { PAKISTAN_PROVINCES, getCitiesForProvince } from "@/lib/pakistan";
+import { getStates, getCities } from "@/lib/location";
 import { IconButton } from "@/components/IconButton";
 import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
 type Company = {
   id: string;
@@ -65,7 +66,8 @@ export function CompanyForm({
   const [rateSubmitting, setRateSubmitting] = useState<string | null>(null);
   const isCreate = !company;
 
-  const cityOptions = getCitiesForProvince(selectedProvince);
+  const stateOptions = getStates("Pakistan");
+  const cityOptions = getCities("Pakistan", selectedProvince);
 
   function preserveScroll(callback: () => void) {
     const main = document.querySelector("main");
@@ -79,21 +81,27 @@ export function CompanyForm({
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setState({});
+    startGlobalProcessing(isCreate ? "Creating company…" : "Saving…");
     try {
       if (isCreate) {
         const result = await createCompany(state, formData);
-        if (result?.error) setState(result);
+        if (result?.error) {
+          setState(result);
+          endGlobalProcessing({ error: result.error });
+        } else if (result?.success) endGlobalProcessing({ success: "Company created." });
       } else {
         const result = await updateCompany(company.id, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
         } else if (result?.success) {
           router.refresh();
-          showMessage("Changes saved.", "success");
+          endGlobalProcessing({ success: "Changes saved." });
           onSaved?.();
         }
       }
     } finally {
+      endGlobalProcessing();
       setLoading(false);
     }
   }
@@ -274,8 +282,8 @@ export function CompanyForm({
                     className={inputClass + " cursor-pointer"}
                   >
                     <option value="">— Select —</option>
-                    {PAKISTAN_PROVINCES.map((p) => (
-                      <option key={p} value={p}>{p}</option>
+                    {stateOptions.map((s) => (
+                      <option key={s.isoCode} value={s.name}>{s.name}</option>
                     ))}
                   </select>
                 </div>
@@ -292,9 +300,9 @@ export function CompanyForm({
                     disabled={!selectedProvince}
                   >
                     <option value="">— Select —</option>
-                    {cityOptions.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+{cityOptions.map((c) => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                  ))}
                   </select>
                 </div>
               </div>
@@ -448,10 +456,18 @@ export function CompanyForm({
                         disabled={rateSubmitting !== null}
                         onClick={async () => {
                           setRateSubmitting(r.id);
-                          const res = await deleteSalesTaxRate(r.id);
-                          setRateSubmitting(null);
-                          if (res?.error) showMessage(res.error, "error");
-                          else router.refresh();
+                          startGlobalProcessing("Removing…");
+                          try {
+                            const res = await deleteSalesTaxRate(r.id);
+                            setRateSubmitting(null);
+                            if (res?.error) endGlobalProcessing({ error: res.error });
+                            else {
+                              endGlobalProcessing({ success: "Rate removed." });
+                              router.refresh();
+                            }
+                          } finally {
+                            endGlobalProcessing();
+                          }
                         }}
                       />
                     </Fragment>
@@ -494,13 +510,19 @@ export function CompanyForm({
                         return;
                       }
                       setRateSubmitting("add-sales");
-                      const res = await addSalesTaxRate(company.id, newSalesName.trim(), rate);
-                      setRateSubmitting(null);
-                      if (res?.error) showMessage(res.error, "error");
-                      else {
-                        setNewSalesName("");
-                        setNewSalesRate("");
-                        router.refresh();
+                      startGlobalProcessing("Adding rate…");
+                      try {
+                        const res = await addSalesTaxRate(company.id, newSalesName.trim(), rate);
+                        setRateSubmitting(null);
+                        if (res?.error) endGlobalProcessing({ error: res.error });
+                        else {
+                          endGlobalProcessing({ success: "Rate added." });
+                          setNewSalesName("");
+                          setNewSalesRate("");
+                          router.refresh();
+                        }
+                      } finally {
+                        endGlobalProcessing();
                       }
                     }}
                   />
@@ -529,10 +551,18 @@ export function CompanyForm({
                         disabled={rateSubmitting !== null}
                         onClick={async () => {
                           setRateSubmitting(r.id);
-                          const res = await deleteWithholdingTaxRate(r.id);
-                          setRateSubmitting(null);
-                          if (res?.error) showMessage(res.error, "error");
-                          else router.refresh();
+                          startGlobalProcessing("Removing…");
+                          try {
+                            const res = await deleteWithholdingTaxRate(r.id);
+                            setRateSubmitting(null);
+                            if (res?.error) endGlobalProcessing({ error: res.error });
+                            else {
+                              endGlobalProcessing({ success: "Rate removed." });
+                              router.refresh();
+                            }
+                          } finally {
+                            endGlobalProcessing();
+                          }
                         }}
                       />
                     </Fragment>
@@ -575,13 +605,19 @@ export function CompanyForm({
                         return;
                       }
                       setRateSubmitting("add-withholding");
-                      const res = await addWithholdingTaxRate(company.id, newWithholdingName.trim(), rate);
-                      setRateSubmitting(null);
-                      if (res?.error) showMessage(res.error, "error");
-                      else {
-                        setNewWithholdingName("");
-                        setNewWithholdingRate("");
-                        router.refresh();
+                      startGlobalProcessing("Adding rate…");
+                      try {
+                        const res = await addWithholdingTaxRate(company.id, newWithholdingName.trim(), rate);
+                        setRateSubmitting(null);
+                        if (res?.error) endGlobalProcessing({ error: res.error });
+                        else {
+                          endGlobalProcessing({ success: "Rate added." });
+                          setNewWithholdingName("");
+                          setNewWithholdingRate("");
+                          router.refresh();
+                        }
+                      } finally {
+                        endGlobalProcessing();
                       }
                     }}
                   />

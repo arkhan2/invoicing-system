@@ -66,11 +66,16 @@ export async function createEstimate(
   const estimateNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
   const estimateDate = (formData.get("estimate_date") as string) || new Date().toISOString().slice(0, 10);
   const status = (formData.get("status") as string) || "Draft";
-  const validStatus = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"].includes(status) ? status : "Draft";
+  const validStatus = ["Draft", "Sent", "Expired", "Converted"].includes(status) ? status : "Draft";
   const validUntil = (formData.get("valid_until") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
   const projectName = (formData.get("project_name") as string)?.trim() || null;
   const subject = (formData.get("subject") as string)?.trim() || null;
+  const paymentTerms = (formData.get("payment_terms") as string)?.trim() || null;
+  const deliveryTimeAmountRaw = formData.get("delivery_time_amount") as string;
+  const deliveryTimeAmount = deliveryTimeAmountRaw != null && deliveryTimeAmountRaw !== "" ? parseInt(String(deliveryTimeAmountRaw), 10) : null;
+  const deliveryTimeUnit = (formData.get("delivery_time_unit") as string)?.trim() || null;
+  const validUnit = deliveryTimeUnit === "days" || deliveryTimeUnit === "weeks" || deliveryTimeUnit === "months" ? deliveryTimeUnit : null;
 
   const items = parseItems(formData);
   if (items.length === 0) return { error: "Add at least one line item." };
@@ -101,6 +106,9 @@ export async function createEstimate(
       notes,
       project_name: projectName,
       subject,
+      payment_terms: paymentTerms,
+      delivery_time_amount: Number.isInteger(deliveryTimeAmount) ? deliveryTimeAmount : null,
+      delivery_time_unit: validUnit,
       total_amount: totalAmount,
       total_tax: totalTax,
       discount_amount: discountAmountRaw,
@@ -171,11 +179,16 @@ export async function updateEstimate(
 
   const estimateDate = (formData.get("estimate_date") as string) || new Date().toISOString().slice(0, 10);
   const status = (formData.get("status") as string) || "Draft";
-  let validStatus = ["Draft", "Sent", "Accepted", "Declined", "Expired", "Converted"].includes(status) ? status : "Draft";
+  let validStatus = ["Draft", "Sent", "Expired", "Converted"].includes(status) ? status : "Draft";
   const validUntil = (formData.get("valid_until") as string)?.trim() || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
   const projectName = (formData.get("project_name") as string)?.trim() || null;
   const subject = (formData.get("subject") as string)?.trim() || null;
+  const paymentTerms = (formData.get("payment_terms") as string)?.trim() || null;
+  const deliveryTimeAmountRaw = formData.get("delivery_time_amount") as string;
+  const deliveryTimeAmount = deliveryTimeAmountRaw != null && deliveryTimeAmountRaw !== "" ? parseInt(String(deliveryTimeAmountRaw), 10) : null;
+  const deliveryTimeUnit = (formData.get("delivery_time_unit") as string)?.trim() || null;
+  const validUnit = deliveryTimeUnit === "days" || deliveryTimeUnit === "weeks" || deliveryTimeUnit === "months" ? deliveryTimeUnit : null;
 
   const { data: existing } = await supabase.from("estimates").select("status").eq("id", estimateId).eq("company_id", companyId).single();
   if (existing?.status === "Converted") validStatus = "Converted";
@@ -190,6 +203,9 @@ export async function updateEstimate(
       notes,
       project_name: projectName,
       subject,
+      payment_terms: paymentTerms,
+      delivery_time_amount: Number.isInteger(deliveryTimeAmount) ? deliveryTimeAmount : null,
+      delivery_time_unit: validUnit,
       total_amount: totalAmount,
       total_tax: totalTax,
       discount_amount: discountAmountRaw,
@@ -235,7 +251,7 @@ export async function getEstimateWithItems(estimateId: string) {
   if (!user) return null;
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("id, company_id, customer_id, estimate_number, estimate_date, status, valid_until, notes, project_name, subject, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id")
+    .select("id, company_id, customer_id, estimate_number, estimate_date, status, valid_until, notes, project_name, subject, payment_terms, delivery_time_amount, delivery_time_unit, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id")
     .eq("id", estimateId)
     .single();
   if (!estimate) return null;
@@ -271,6 +287,92 @@ export async function getEstimateWithItems(estimateId: string) {
   return { estimate, items };
 }
 
+export async function cloneEstimate(estimateId: string): Promise<EstimateFormState & { estimateId?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { data: estimate, error: eErr } = await supabase
+    .from("estimates")
+    .select("id, company_id, customer_id, estimate_date, valid_until, notes, project_name, subject, payment_terms, delivery_time_amount, delivery_time_unit, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id")
+    .eq("id", estimateId)
+    .single();
+  if (eErr || !estimate) return { error: "Estimate not found." };
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id, estimate_prefix, estimate_next_number")
+    .eq("id", estimate.company_id)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) return { error: "Company not found." };
+
+  const prefix = company.estimate_prefix ?? "EST";
+  const nextNum = company.estimate_next_number ?? 1;
+  const estimateNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
+  const estimateDate = new Date().toISOString().slice(0, 10);
+
+  const { data: estimateItems } = await supabase
+    .from("estimate_items")
+    .select("*")
+    .eq("estimate_id", estimateId)
+    .order("sort_order");
+  const items = estimateItems ?? [];
+
+  const { data: newEstimate, error: insErr } = await supabase
+    .from("estimates")
+    .insert({
+      company_id: estimate.company_id,
+      customer_id: estimate.customer_id,
+      estimate_number: estimateNumber,
+      estimate_date: estimateDate,
+      status: "Draft",
+      valid_until: estimate.valid_until ?? null,
+      notes: estimate.notes,
+      project_name: estimate.project_name,
+      subject: estimate.subject,
+      payment_terms: estimate.payment_terms ?? null,
+      delivery_time_amount: estimate.delivery_time_amount ?? null,
+      delivery_time_unit: estimate.delivery_time_unit ?? null,
+      total_amount: estimate.total_amount,
+      total_tax: estimate.total_tax,
+      discount_amount: estimate.discount_amount,
+      discount_type: estimate.discount_type,
+      sales_tax_rate_id: estimate.sales_tax_rate_id,
+    })
+    .select("id")
+    .single();
+  if (insErr) return { error: insErr.message };
+  if (!newEstimate) return { error: "Failed to create estimate." };
+
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i] as Record<string, unknown>;
+    await supabase.from("estimate_items").insert({
+      estimate_id: newEstimate.id,
+      item_number: it.item_number ?? "",
+      product_description: it.product_description,
+      hs_code: it.hs_code ?? "",
+      rate_label: it.rate_label ?? "",
+      uom: it.uom ?? "Nos",
+      quantity: Number(it.quantity),
+      unit_price: Number(it.unit_price),
+      value_sales_excluding_st: Number(it.value_sales_excluding_st),
+      sales_tax_applicable: Number(it.sales_tax_applicable) ?? 0,
+      sales_tax_withheld_at_source: Number(it.sales_tax_withheld_at_source) ?? 0,
+      extra_tax: Number(it.extra_tax) ?? 0,
+      further_tax: Number(it.further_tax) ?? 0,
+      discount: Number(it.discount) ?? 0,
+      total_values: Number(it.total_values),
+      sale_type: it.sale_type ?? "Goods at standard rate (default)",
+      sort_order: i,
+    });
+  }
+
+  await supabase.from("companies").update({ estimate_next_number: nextNum + 1 }).eq("id", estimate.company_id);
+  revalidatePath("/dashboard/estimates");
+  return { estimateId: newEstimate.id };
+}
+
 export async function deleteEstimate(estimateId: string): Promise<EstimateFormState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -288,13 +390,15 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Esti
 
   const { data: estimate, error: eErr } = await supabase
     .from("estimates")
-    .select("id, company_id, customer_id, estimate_date, total_amount, total_tax, status")
+    .select("id, company_id, customer_id, estimate_date, total_amount, total_tax, status, valid_until")
     .eq("id", estimateId)
     .single();
   if (eErr || !estimate) return { error: "Estimate not found." };
   if (estimate.status === "Converted") return { error: "This estimate was already converted to an invoice." };
-  if (estimate.status === "Declined" || estimate.status === "Expired") {
-    return { error: "Cannot convert a declined or expired estimate." };
+  const validUntil = (estimate as { valid_until?: string | null }).valid_until;
+  const isExpiredByDate = validUntil && validUntil < new Date().toISOString().slice(0, 10);
+  if (estimate.status === "Expired" || isExpiredByDate) {
+    return { error: "Cannot convert an expired estimate." };
   }
 
   const { data: company } = await supabase
@@ -360,4 +464,37 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Esti
   revalidatePath("/dashboard/estimates");
   revalidatePath("/dashboard/sales");
   return { invoiceId: inv.id };
+}
+
+export async function setEstimateStatus(
+  estimateId: string,
+  status: "Sent"
+): Promise<EstimateFormState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { data: estimate } = await supabase
+    .from("estimates")
+    .select("id, company_id")
+    .eq("id", estimateId)
+    .single();
+  if (!estimate) return { error: "Estimate not found." };
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("id", estimate.company_id)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) return { error: "Estimate not found." };
+
+  const { error } = await supabase
+    .from("estimates")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", estimateId)
+    .eq("company_id", estimate.company_id);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/estimates");
+  return {};
 }

@@ -16,7 +16,7 @@ export default async function NewInvoicePage() {
 
   const { data: customers } = await supabase
     .from("customers")
-    .select("id, name, address, city, province, ntn_cnic, phone, email")
+    .select("id, name, contact_person_name, address, city, province, country, ntn_cnic, phone, email")
     .eq("company_id", company.id)
     .order("name");
 

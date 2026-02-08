@@ -1,25 +1,51 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useImperativeHandle, forwardRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { CustomerForm, type Customer } from "./CustomerForm";
 import { deleteCustomer, deleteCustomers } from "./actions";
-import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
-export function CustomerList({
-  customers: initialCustomers,
-  companyId,
-}: {
+export type CustomerListRef = {
+  openAdd: () => void;
+  openDeleteSelected: () => void;
+  clearSelection: () => void;
+};
+
+type CustomerListProps = {
   customers: Customer[];
   companyId: string;
-}) {
+  hideToolbar?: boolean;
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  selectedIds?: Set<string>;
+  onSelectionChange?: React.Dispatch<React.SetStateAction<Set<string>>>;
+};
+
+export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(function CustomerList(
+  {
+    customers: initialCustomers,
+    companyId,
+    hideToolbar = false,
+    search: controlledSearch,
+    onSearchChange,
+    selectedIds: controlledSelectedIds,
+    onSelectionChange,
+  },
+  ref
+) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [internalSearch, setInternalSearch] = useState("");
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
+  const search = controlledSearch !== undefined ? controlledSearch : internalSearch;
+  const setSearch = onSearchChange ?? setInternalSearch;
+  const selectedIds = controlledSelectedIds !== undefined ? controlledSelectedIds : internalSelectedIds;
+  const setSelectedIds = onSelectionChange ?? setInternalSelectedIds;
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [deleteState, setDeleteState] = useState<
@@ -93,68 +119,119 @@ export function CustomerList({
 
   async function confirmDelete() {
     if (!deleteState) return;
+    const ids = deleteState.ids;
     setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
-    if (deleteState.ids.length === 1) {
-      await deleteCustomer(deleteState.ids[0]);
-    } else {
-      await deleteCustomers(deleteState.ids);
+    startGlobalProcessing("Deleting…");
+    try {
+      if (ids.length === 1) {
+        const result = await deleteCustomer(ids[0], companyId);
+        if (result?.error) {
+          console.error("[deleteCustomer] error:", result.error, { customerId: ids[0], companyId });
+          endGlobalProcessing({ error: result.error });
+          setDeleteState({ ids, loading: false });
+          return;
+        }
+        setDeleteState(null);
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          ids.forEach((id) => next.delete(id));
+          return next;
+        });
+        router.refresh();
+        endGlobalProcessing({ success: "Customer deleted." });
+        return;
+      }
+      const result = await deleteCustomers(companyId, ids);
+      if (result?.error) {
+        console.error("[deleteCustomers] error:", result.error, { companyId, customerIds: ids, result });
+        endGlobalProcessing({ error: result.error });
+        setDeleteState({ ids, loading: false });
+        return;
+      }
+      setDeleteState(null);
+      const deletedIds = result.deletedIds ?? [];
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        deletedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      router.refresh();
+      const deleted = result.deletedCount ?? 0;
+      const skipped = result.skippedCount ?? 0;
+      const msg =
+        skipped > 0
+          ? `${deleted} deleted, ${skipped} skipped (have estimates or invoices).`
+          : deleted === 1
+            ? "Customer deleted."
+            : "Customers deleted.";
+      endGlobalProcessing({ success: msg });
+    } finally {
+      endGlobalProcessing();
     }
-    setDeleteState(null);
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      deleteState.ids.forEach((id) => next.delete(id));
-      return next;
-    });
-    router.refresh();
-    showMessage(
-      deleteState.ids.length === 1 ? "Customer deleted." : "Customers deleted.",
-      "success"
-    );
   }
+
+  useImperativeHandle(ref, () => ({
+    openAdd,
+    openDeleteSelected,
+    clearSelection: () => setSelectedIds(new Set()),
+  }));
 
   const inputClass =
     "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
   return (
     <>
-      <div className="flex flex-col">
-        {/* Card header: filter left, primary action right */}
-        <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-5 py-4">
-          <input
-            type="search"
-            placeholder="Search customers…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={inputClass + " max-w-[240px] min-w-0"}
-            aria-label="Search customers"
-          />
-          <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add customer" onClick={openAdd} />
-        </div>
+      <div className={hideToolbar ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "flex flex-col"}>
+        {!hideToolbar && (
+          <>
+            <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-5 py-4">
+              <input
+                type="search"
+                placeholder="Search customers…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className={inputClass + " max-w-[240px] min-w-0"}
+                aria-label="Search customers"
+              />
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/dashboard/customers/import"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-btn-secondary-bg)] px-4 py-2.5 text-sm font-medium text-[var(--color-on-surface)] transition-colors hover:bg-[var(--color-btn-secondary-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Import from CSV
+                </Link>
+                <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add customer" onClick={openAdd} />
+              </div>
+            </div>
+            <div className="flex flex-col gap-4 p-5">
+              {selectedIds.size > 0 && (
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/50 px-4 py-2">
+                  <span className="text-sm text-[var(--color-on-surface-variant)]">
+                    {selectedIds.size} selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={openDeleteSelected}
+                    className="btn btn-danger btn-sm"
+                  >
+                    Delete selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds(new Set())}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Card body */}
-        <div className="flex flex-col gap-4 p-5">
-          {selectedIds.size > 0 && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/50 px-4 py-2">
-              <span className="text-sm text-[var(--color-on-surface-variant)]">
-                {selectedIds.size} selected
-              </span>
-              <button
-                type="button"
-                onClick={openDeleteSelected}
-                className="btn btn-danger btn-sm"
-              >
-                Delete selected
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedIds(new Set())}
-                className="btn btn-secondary btn-sm"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-
+        <div className={hideToolbar ? "flex min-h-0 flex-1 flex-col overflow-hidden p-5" : "flex flex-col gap-4 p-5"}>
           {filtered.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30 px-6 py-10 text-center">
               <p className="text-sm text-[var(--color-on-surface-variant)]">
@@ -165,7 +242,7 @@ export function CustomerList({
               )}
             </div>
           ) : (
-            <div className="max-h-[70vh] overflow-auto rounded-xl border border-[var(--color-outline)]">
+            <div className={`overflow-auto rounded-xl border border-[var(--color-outline)] ${hideToolbar ? "min-h-0 flex-1" : "max-h-[70vh]"}`}>
               <table className="w-full min-w-[600px] text-left text-sm">
                 <thead className="sticky top-0 z-10 bg-[var(--color-surface-variant)] shadow-[0_1px_0_0_var(--color-divider)]">
                   <tr>
@@ -190,6 +267,9 @@ export function CustomerList({
                       Address / Province
                     </th>
                     <th className="p-3 font-medium text-[var(--color-on-surface)]">
+                      NTN
+                    </th>
+                    <th className="p-3 font-medium text-[var(--color-on-surface)]">
                       Registration
                     </th>
                     <th className="w-28 shrink-0 p-3 text-right" aria-label="Actions" />
@@ -199,9 +279,30 @@ export function CustomerList({
                   {filtered.map((c) => (
                     <tr
                       key={c.id}
-                      className="border-b border-[var(--color-divider)] last:border-b-0 even:bg-[var(--color-surface-variant)]/10 hover:bg-[var(--color-primary-container)]/20 transition-colors duration-150"
+                      className={`border-b border-[var(--color-divider)] last:border-b-0 even:bg-[var(--color-surface-variant)]/10 transition-colors duration-150 ${
+                        hideToolbar
+                          ? "cursor-pointer hover:bg-[var(--color-surface-variant)]"
+                          : "hover:bg-[var(--color-primary-container)]/20"
+                      }`}
+                      onClick={
+                        hideToolbar
+                          ? () => router.push(`/dashboard/customers/${c.id}`)
+                          : undefined
+                      }
+                      role={hideToolbar ? "button" : undefined}
+                      tabIndex={hideToolbar ? 0 : undefined}
+                      onKeyDown={
+                        hideToolbar
+                          ? (e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                router.push(`/dashboard/customers/${c.id}`);
+                              }
+                            }
+                          : undefined
+                      }
                     >
-                      <td className="p-3">
+                      <td className="p-3" onClick={(e) => hideToolbar && e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selectedIds.has(c.id)}
@@ -213,19 +314,22 @@ export function CustomerList({
                       <td className="max-w-[200px] truncate p-3 font-medium text-[var(--color-on-surface)]" title={c.name}>
                         {c.name}
                       </td>
-                      <td className="max-w-[180px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[c.email, c.phone].filter(Boolean).join(" · ") || undefined}>
-                        {[c.email, c.phone].filter(Boolean).join(" · ") || "—"}
+                      <td className="max-w-[180px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[c.contact_person_name, c.email, c.phone].filter(Boolean).join(" · ") || undefined}>
+                        {[c.contact_person_name, c.email, c.phone].filter(Boolean).join(" · ") || "—"}
                       </td>
-                      <td className="max-w-[220px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[c.address, c.city, c.province].filter(Boolean).join(", ") || undefined}>
-                        {[c.address, c.city, c.province].filter(Boolean).join(", ") || "—"}
+                      <td className="max-w-[220px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[c.address, c.city, c.province, c.country].filter(Boolean).join(", ") || undefined}>
+                        {[c.address, c.city, c.province, c.country].filter(Boolean).join(", ") || "—"}
+                      </td>
+                      <td className="p-3 text-[var(--color-on-surface-variant)] whitespace-nowrap" title={c.ntn_cnic ?? undefined}>
+                        {c.ntn_cnic ?? "—"}
                       </td>
                       <td className="p-3 text-[var(--color-on-surface-variant)]">
                         {c.registration_type ?? "—"}
                       </td>
-                      <td className="w-28 shrink-0 p-3 text-right">
+                      <td className="w-28 shrink-0 p-3 text-right" onClick={(e) => hideToolbar && e.stopPropagation()}>
                         <div className="flex justify-end gap-2">
-                          <IconButton variant="edit" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={() => openEdit(c)} />
-                          <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={() => openDeleteOne(c.id)} />
+                          <IconButton variant="edit" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={(e) => { e.stopPropagation(); if (hideToolbar) router.push(`/dashboard/customers/${c.id}/edit`); else openEdit(c); }} />
+                          <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={(e) => { e.stopPropagation(); openDeleteOne(c.id); }} />
                         </div>
                       </td>
                     </tr>
@@ -266,4 +370,4 @@ export function CustomerList({
       />
     </>
   );
-}
+});

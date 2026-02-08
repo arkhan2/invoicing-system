@@ -21,7 +21,7 @@ export default async function EstimateViewPage({
 
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("id, estimate_number, estimate_date, status, notes, project_name, subject, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id, customer_id")
+    .select("id, estimate_number, estimate_date, status, valid_until, notes, project_name, subject, payment_terms, delivery_time_amount, delivery_time_unit, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id, customer_id")
     .eq("id", id)
     .eq("company_id", company.id)
     .single();
@@ -43,7 +43,7 @@ export default async function EstimateViewPage({
 
   const { data: customer } = await supabase
     .from("customers")
-    .select("id, name, address, city, province, ntn_cnic, phone, email")
+    .select("id, name, contact_person_name, address, city, province, country, ntn_cnic, phone, email")
     .eq("id", estimate.customer_id)
     .single();
 
@@ -70,9 +70,13 @@ export default async function EstimateViewPage({
           estimateNumber={estimate.estimate_number}
           estimateDate={estimate.estimate_date ?? ""}
           status={estimate.status ?? "Draft"}
+          validUntil={estimate.valid_until ?? null}
           notes={estimate.notes ?? null}
           projectName={estimate.project_name ?? null}
           subject={estimate.subject ?? null}
+          paymentTerms={estimate.payment_terms ?? null}
+          deliveryTimeAmount={estimate.delivery_time_amount ?? null}
+          deliveryTimeUnit={estimate.delivery_time_unit ?? null}
           totalAmount={Number(estimate.total_amount) ?? 0}
           totalTax={Number(estimate.total_tax) ?? 0}
           discountAmount={estimate.discount_amount != null ? Number(estimate.discount_amount) : null}

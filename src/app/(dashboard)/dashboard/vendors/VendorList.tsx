@@ -9,6 +9,7 @@ import { IconButton } from "@/components/IconButton";
 import { VendorForm, type Vendor } from "./VendorForm";
 import { deleteVendor, deleteVendors } from "./actions";
 import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
 export function VendorList({
   vendors: initialVendors,
@@ -94,22 +95,25 @@ export function VendorList({
   async function confirmDelete() {
     if (!deleteState) return;
     setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
-    if (deleteState.ids.length === 1) {
-      await deleteVendor(deleteState.ids[0]);
-    } else {
-      await deleteVendors(deleteState.ids);
+    const msg = deleteState.ids.length === 1 ? "Vendor deleted." : "Vendors deleted.";
+    startGlobalProcessing("Deleting…");
+    try {
+      if (deleteState.ids.length === 1) {
+        await deleteVendor(deleteState.ids[0]);
+      } else {
+        await deleteVendors(deleteState.ids);
+      }
+      setDeleteState(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        deleteState.ids.forEach((id) => next.delete(id));
+        return next;
+      });
+      router.refresh();
+      endGlobalProcessing({ success: msg });
+    } finally {
+      endGlobalProcessing();
     }
-    setDeleteState(null);
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      deleteState.ids.forEach((id) => next.delete(id));
-      return next;
-    });
-    router.refresh();
-    showMessage(
-      deleteState.ids.length === 1 ? "Vendor deleted." : "Vendors deleted.",
-      "success"
-    );
   }
 
   const inputClass =

@@ -13,6 +13,7 @@ import { Save, Loader2, ChevronLeft, X } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
 import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
 const inputClass =
   "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
@@ -45,9 +46,11 @@ function defaultItems(): LineItemRow[] {
 export type CustomerOption = {
   id: string;
   name: string;
+  contact_person_name?: string | null;
   address?: string | null;
   city?: string | null;
   province?: string | null;
+  country?: string | null;
   ntn_cnic?: string | null;
   phone?: string | null;
   email?: string | null;
@@ -143,30 +146,36 @@ export function InvoiceForm({
     formData.set("invoice_date", invoiceDate);
     formData.set("status", status);
     formData.set("items", JSON.stringify(items));
+    startGlobalProcessing(isEdit ? "Saving…" : "Creating invoice…");
     try {
       if (isEdit) {
         const result = await updateInvoice(invoiceId, companyId, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
           return;
         }
-        showMessage("Invoice updated.", "success");
+        endGlobalProcessing({ success: "Invoice updated." });
         router.push(`/dashboard/sales/${invoiceId}`);
+        setLoading(false);
         return;
       } else {
         const result = await createInvoice(companyId, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
           return;
         }
-        showMessage("Invoice created.", "success");
+        endGlobalProcessing({ success: "Invoice created." });
         if (result?.invoiceId) {
           router.push(`/dashboard/sales/${result.invoiceId}`);
-          return;
         }
+        setLoading(false);
+        return;
       }
       onSuccess?.();
     } finally {
+      endGlobalProcessing();
       setLoading(false);
     }
   }

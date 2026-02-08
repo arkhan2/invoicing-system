@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { deleteInvoice } from "./actions";
-import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import type { InvoiceListItem } from "./InvoiceForm";
 
 export function InvoiceSidebar({
@@ -47,15 +47,20 @@ export function InvoiceSidebar({
   async function confirmDelete() {
     if (!deleteState) return;
     setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
-    const result = await deleteInvoice(deleteState.invoiceId);
-    setDeleteState(null);
-    if (result?.error) {
-      showMessage(result.error, "error");
-      return;
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteInvoice(deleteState.invoiceId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice deleted." });
+      router.refresh();
+      router.push("/dashboard/sales");
+    } finally {
+      endGlobalProcessing();
     }
-    router.refresh();
-    router.push("/dashboard/sales");
-    showMessage("Invoice deleted.", "success");
   }
 
   const inputClass =

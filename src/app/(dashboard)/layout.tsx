@@ -5,6 +5,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { DashboardGate } from "@/components/DashboardGate";
 import { DashboardNav, SignOutButton, type NavItem } from "@/components/DashboardNav";
 import { MessageBar } from "@/components/MessageBar";
+import { GlobalProcessingIndicator } from "@/components/GlobalProcessing";
+import { NavigationLoading } from "@/components/NavigationLoading";
 
 export default async function DashboardLayout({
   children,
@@ -42,6 +44,8 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[var(--color-surface-variant)]">
       <MessageBar />
+      <GlobalProcessingIndicator />
+      <NavigationLoading />
       {/* Fixed top bar */}
       <header
         className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-[var(--color-outline)] bg-[var(--color-surface)] px-4"

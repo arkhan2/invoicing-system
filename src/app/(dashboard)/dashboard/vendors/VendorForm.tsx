@@ -7,9 +7,10 @@ import {
   updateVendor,
   type VendorFormState,
 } from "./actions";
-import { PAKISTAN_PROVINCES, getCitiesForProvince } from "@/lib/pakistan";
+import { getStates, getCities } from "@/lib/location";
 import { IconButton } from "@/components/IconButton";
 import { showMessage } from "@/components/MessageBar";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
 export type Vendor = {
   id: string;
@@ -63,28 +64,34 @@ export function VendorForm({
   const [selectedCity, setSelectedCity] = useState(vendor?.city ?? "");
   const isCreate = !vendor;
 
-  const cityOptions = getCitiesForProvince(selectedProvince);
+  const stateOptions = getStates("Pakistan");
+  const cityOptions = getCities("Pakistan", selectedProvince);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setState({});
+    startGlobalProcessing(isCreate ? "Creating vendor…" : "Saving vendor…");
     try {
       if (isCreate) {
         const result = await createVendor(companyId, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
           return;
         }
+        endGlobalProcessing({ success: "Vendor added." });
       } else {
         const result = await updateVendor(vendor.id, companyId, state, formData);
         if (result?.error) {
           setState(result);
+          endGlobalProcessing({ error: result.error });
           return;
         }
+        endGlobalProcessing({ success: "Vendor saved." });
       }
-      showMessage(isCreate ? "Vendor added." : "Vendor saved.", "success");
       onSuccess();
     } finally {
+      endGlobalProcessing();
       setLoading(false);
     }
   }
@@ -160,8 +167,8 @@ export function VendorForm({
               className={inputClass + " min-h-[42px] cursor-pointer"}
             >
               <option value="">— Select —</option>
-              {PAKISTAN_PROVINCES.map((p) => (
-                <option key={p} value={p}>{p}</option>
+              {stateOptions.map((s) => (
+                <option key={s.isoCode} value={s.name}>{s.name}</option>
               ))}
             </select>
           </div>
@@ -179,7 +186,7 @@ export function VendorForm({
             >
               <option value="">— Select —</option>
               {cityOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c.name} value={c.name}>{c.name}</option>
               ))}
             </select>
           </div>
