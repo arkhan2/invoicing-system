@@ -49,7 +49,7 @@ export function EstimateSidebar({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setSearchInput(searchQueryProp);
+    if ((searchQueryProp ?? "").trim() !== "") setSearchInput(searchQueryProp);
   }, [searchQueryProp]);
 
   const showFooter = totalCount != null && page != null && perPage != null;
@@ -65,6 +65,22 @@ export function EstimateSidebar({
     const q = params.q !== undefined ? params.q : searchQueryProp;
     if (q && q.trim()) p.set("q", q.trim());
     return `/dashboard/estimates?${p.toString()}`;
+  };
+
+  const listParams = () => {
+    const p = new URLSearchParams();
+    p.set("page", String(page ?? 1));
+    p.set("perPage", String(perPage ?? 100));
+    if (searchInput.trim()) p.set("q", searchInput.trim());
+    return p.toString();
+  };
+  const estimateHref = (estimateId: string) => {
+    const query = listParams();
+    return `/dashboard/estimates/${estimateId}${query ? `?${query}` : ""}`;
+  };
+  const estimateEditHref = (estimateId: string) => {
+    const query = listParams();
+    return `/dashboard/estimates/${estimateId}/edit${query ? `?${query}` : ""}`;
   };
 
   const activeId = pathname.startsWith("/dashboard/estimates/") && pathname !== "/dashboard/estimates" && pathname !== "/dashboard/estimates/new" && pathname !== "/dashboard/estimates/import"
@@ -186,7 +202,7 @@ export function EstimateSidebar({
       }
       endGlobalProcessing({ success: "Estimate cloned." });
       router.refresh();
-      if (result.estimateId) router.push(`/dashboard/estimates/${result.estimateId}/edit`);
+      if (result.estimateId) router.push(estimateEditHref(result.estimateId));
     } finally {
       endGlobalProcessing();
     }
@@ -199,27 +215,35 @@ export function EstimateSidebar({
     <>
       <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)]">
         <div className="flex flex-shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
-          <input
-            type="search"
-            placeholder="Search estimates… (press Enter to search)"
-            value={searchInput}
-            onChange={(e) => {
-              const v = e.target.value;
-              setSearchInput(v);
-              if (v === "" && searchQueryProp) {
-                router.push(qs({ page: 1, q: "" }));
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                const q = searchInput.trim();
-                router.push(qs({ page: 1, perPage: perPage ?? 100, q: q || undefined }));
-              }
-            }}
-            className={inputClass + " min-h-[2rem]"}
-            aria-label="Search estimates"
-          />
+          <div className="relative flex items-center">
+            <input
+              type="search"
+              placeholder="Search estimates… (press Enter to search)"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const q = searchInput.trim();
+                  router.push(qs({ page: 1, perPage: perPage ?? 100, q: q || undefined }));
+                }
+              }}
+              className={inputClass + " input-no-search-cancel min-h-[2rem] pr-9"}
+              aria-label="Search estimates"
+            />
+            {searchInput.trim() !== "" && (
+              <IconButton
+                variant="secondary"
+                icon={<X className="w-4 h-4" />}
+                label="Clear search"
+                onClick={() => {
+                  setSearchInput("");
+                  router.push(qs({ page: 1, q: "" }));
+                }}
+                className="absolute right-1 top-1/2 -translate-y-1/2 shrink-0 rounded-md p-1.5 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
+              />
+            )}
+          </div>
           {selectedIds.size > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/50 px-3 py-2">
               <div className="flex items-center gap-2">
@@ -296,7 +320,7 @@ export function EstimateSidebar({
                     }}
                     className="pb-2"
                   >
-                    <Link href={`/dashboard/estimates/${e.id}`} className={`h-full ${cardClass}`}>
+                    <Link href={estimateHref(e.id)} className={`h-full ${cardClass}`}>
                       <label
                         className="flex shrink-0 cursor-pointer items-start pt-0.5"
                         onClick={(ev) => {

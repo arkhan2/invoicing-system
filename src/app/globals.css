@@ -549,6 +549,12 @@ input[type="time"]::placeholder {
   appearance: textfield;
 }
 
+/* Hide native clear (X) on search inputs so we can use our own */
+.input-no-search-cancel::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Line items table: row hover (plain CSS so it always applies) */
 .line-items-table tbody tr.line-items-row:not(.line-items-row-dragging):not(.line-items-row-drop):hover td {
   background-color: color-mix(in srgb, var(--color-secondary-container) 35%, transparent);

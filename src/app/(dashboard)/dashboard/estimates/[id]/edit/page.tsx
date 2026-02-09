@@ -2,6 +2,7 @@ import { createClient, getUserSafe } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { EstimateForm } from "../../EstimateForm";
 import { getCompanyTaxRates } from "@/app/(dashboard)/dashboard/company/actions";
+import { getEstimateWithItems } from "../../actions";
 
 export default async function EstimateEditPage({
   params,
@@ -20,14 +21,14 @@ export default async function EstimateEditPage({
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const { data: estimate } = await supabase
-    .from("estimates")
-    .select("id, estimate_number, estimate_date, customer_id")
-    .eq("id", id)
-    .eq("company_id", company.id)
-    .single();
-  if (!estimate) notFound();
+  const [estimateWithItems, { salesTaxRates }] = await Promise.all([
+    getEstimateWithItems(id),
+    getCompanyTaxRates(company.id),
+  ]);
 
+  if (!estimateWithItems || estimateWithItems.estimate.company_id !== company.id) notFound();
+
+  const { estimate } = estimateWithItems;
   let initialCustomer: {
     id: string;
     name: string;
@@ -51,8 +52,6 @@ export default async function EstimateEditPage({
     if (customer) initialCustomer = customer;
   }
 
-  const { salesTaxRates } = await getCompanyTaxRates(company.id);
-
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full bg-[var(--color-card-bg)]">
@@ -65,6 +64,7 @@ export default async function EstimateEditPage({
             initialEstimateDate={estimate.estimate_date ?? null}
             initialCustomerId={estimate.customer_id ?? undefined}
             initialSelectedCustomer={initialCustomer ?? undefined}
+            initialEstimateWithItems={estimateWithItems}
           />
       </div>
     </div>

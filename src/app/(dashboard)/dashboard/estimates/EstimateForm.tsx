@@ -18,6 +18,7 @@ import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor"
 import { IconButton } from "@/components/IconButton";
 import { Modal } from "@/components/Modal";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
+import { EstimateLoadingFallback } from "./EstimateLoadingFallback";
 import { CustomerForm, type Customer } from "@/app/(dashboard)/dashboard/customers/CustomerForm";
 import {
   searchCustomers,
@@ -93,6 +94,7 @@ export function EstimateForm({
   initialEstimateDate,
   initialCustomerId,
   initialSelectedCustomer,
+  initialEstimateWithItems,
   onSuccess,
   onCancel,
 }: {
@@ -104,6 +106,8 @@ export function EstimateForm({
   initialEstimateDate?: string | null;
   initialCustomerId?: string | null;
   initialSelectedCustomer?: CustomerSearchResult | null;
+  /** When provided (edit mode), form skips client-side getEstimateWithItems and uses this data. */
+  initialEstimateWithItems?: Awaited<ReturnType<typeof getEstimateWithItems>> | null;
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
@@ -202,8 +206,33 @@ export function EstimateForm({
     setSearchOpen(false);
   }, []);
 
+  function applyEstimateWithItems(data: NonNullable<Awaited<ReturnType<typeof getEstimateWithItems>>>) {
+    setCustomerId(data.estimate.customer_id ?? "");
+    setEstimateDate(data.estimate.estimate_date ?? new Date().toISOString().slice(0, 10));
+    setValidUntil(data.estimate.valid_until ?? "");
+    setStatus(data.estimate.status ?? "Draft");
+    setProjectName((data.estimate as { project_name?: string | null }).project_name ?? "");
+    setSubject((data.estimate as { subject?: string | null }).subject ?? "");
+    setNotes(data.estimate.notes ?? "");
+    setItems(data.items.length > 0 ? data.items : defaultItems());
+    const est = data.estimate as { discount_amount?: number | null; discount_type?: string | null; sales_tax_rate_id?: string | null };
+    setDiscountAmount(est.discount_amount != null ? String(est.discount_amount) : "");
+    setDiscountType(est.discount_type === "percentage" ? "percentage" : "amount");
+    setSalesTaxRateId(est.sales_tax_rate_id ?? "");
+    setPaymentTerms((data.estimate as { payment_terms?: string | null }).payment_terms ?? "");
+    const dta = (data.estimate as { delivery_time_amount?: number | null }).delivery_time_amount;
+    const dtu = (data.estimate as { delivery_time_unit?: string | null }).delivery_time_unit;
+    setDeliveryTimeAmount(dta != null ? String(dta) : "");
+    setDeliveryTimeUnit(dtu === "weeks" || dtu === "months" ? dtu : "days");
+    setLoadState("done");
+  }
+
   useEffect(() => {
     if (!estimateId) return;
+    if (initialEstimateWithItems) {
+      applyEstimateWithItems(initialEstimateWithItems);
+      return;
+    }
     let cancelled = false;
     (async () => {
       const data = await getEstimateWithItems(estimateId);
@@ -212,29 +241,12 @@ export function EstimateForm({
         setLoadState("error");
         return;
       }
-      setCustomerId(data.estimate.customer_id);
-      setEstimateDate(data.estimate.estimate_date ?? new Date().toISOString().slice(0, 10));
-      setValidUntil(data.estimate.valid_until ?? "");
-      setStatus(data.estimate.status ?? "Draft");
-      setProjectName((data.estimate as { project_name?: string | null }).project_name ?? "");
-      setSubject((data.estimate as { subject?: string | null }).subject ?? "");
-      setNotes(data.estimate.notes ?? "");
-      setItems(data.items.length > 0 ? data.items : defaultItems());
-      const est = data.estimate as { discount_amount?: number | null; discount_type?: string | null; sales_tax_rate_id?: string | null };
-      setDiscountAmount(est.discount_amount != null ? String(est.discount_amount) : "");
-      setDiscountType(est.discount_type === "percentage" ? "percentage" : "amount");
-      setSalesTaxRateId(est.sales_tax_rate_id ?? "");
-      setPaymentTerms((data.estimate as { payment_terms?: string | null }).payment_terms ?? "");
-      const dta = (data.estimate as { delivery_time_amount?: number | null }).delivery_time_amount;
-      const dtu = (data.estimate as { delivery_time_unit?: string | null }).delivery_time_unit;
-      setDeliveryTimeAmount(dta != null ? String(dta) : "");
-      setDeliveryTimeUnit(dtu === "weeks" || dtu === "months" ? dtu : "days");
-      setLoadState("done");
+      applyEstimateWithItems(data);
     })();
     return () => {
       cancelled = true;
     };
-  }, [estimateId]);
+  }, [estimateId, initialEstimateWithItems]);
 
   const { setBarState } = useEstimatesTopBar();
   const formBarRef = useRef<{
@@ -399,10 +411,13 @@ export function EstimateForm({
     }
   }
 
-  if (isEdit && (loadState === "loading" || loadState === "error")) {
+  if (isEdit && loadState === "loading") {
+    return <EstimateLoadingFallback />;
+  }
+  if (isEdit && loadState === "error") {
     return (
-      <div className="py-4 text-center text-sm text-[var(--color-on-surface-variant)]">
-        {loadState === "loading" ? "Loading…" : "Estimate not found."}
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-4 text-center text-sm text-[var(--color-on-surface-variant)]">
+        Estimate not found.
       </div>
     );
   }

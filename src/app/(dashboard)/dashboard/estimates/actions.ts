@@ -397,18 +397,46 @@ export async function getEstimatesList(
   const q = searchQuery?.trim();
   if (q && q.length > 0) {
     const pattern = `%${escapeIlikePattern(q)}%`;
-    const { data: customerRows } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("company_id", companyId)
-      .ilike("name", pattern);
-    const customerIds = (customerRows ?? []).map((r) => r.id).filter(Boolean);
+    const [customerRowsRes, itemsByDescRes, itemsByNumberRes] = await Promise.all([
+      supabase
+        .from("customers")
+        .select("id")
+        .eq("company_id", companyId)
+        .ilike("name", pattern),
+      supabase
+        .from("estimate_items")
+        .select("estimate_id")
+        .ilike("product_description", pattern),
+      supabase
+        .from("estimate_items")
+        .select("estimate_id")
+        .ilike("item_number", pattern),
+    ]);
+    const customerIds = (customerRowsRes.data ?? []).map((r) => r.id).filter(Boolean);
+    const estimateIdsFromItems = [
+      ...new Set([
+        ...(itemsByDescRes.data ?? []).map((r) => r.estimate_id),
+        ...(itemsByNumberRes.data ?? []).map((r) => r.estimate_id),
+      ].filter(Boolean)),
+    ];
+    let lineItemEstimateIds: string[] = [];
+    if (estimateIdsFromItems.length > 0) {
+      const { data: companyEstimateIds } = await supabase
+        .from("estimates")
+        .select("id")
+        .eq("company_id", companyId)
+        .in("id", estimateIdsFromItems);
+      lineItemEstimateIds = (companyEstimateIds ?? []).map((r) => r.id).filter(Boolean);
+    }
     const orParts = [
       `estimate_number.ilike.${pattern}`,
       `status.ilike.${pattern}`,
     ];
     if (customerIds.length > 0) {
       orParts.push(`customer_id.in.(${customerIds.join(",")})`);
+    }
+    if (lineItemEstimateIds.length > 0) {
+      orParts.push(`id.in.(${lineItemEstimateIds.join(",")})`);
     }
     query = query.or(orParts.join(","));
   }
