@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { createClient, getUserSafe } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { CustomersTopBarProvider } from "./CustomersTopBarContext";
 import { CustomersViewSwitcher } from "./CustomersViewSwitcher";
 
 export default async function CustomersLayout({
@@ -32,10 +33,12 @@ export default async function CustomersLayout({
   }));
 
   return (
-    <Suspense fallback={<div className="-m-6 flex min-h-0 flex-1 overflow-hidden" />}>
-      <CustomersViewSwitcher sidebarList={list} companyId={company.id}>
-        {children}
-      </CustomersViewSwitcher>
-    </Suspense>
+    <CustomersTopBarProvider>
+      <Suspense fallback={<div className="-m-6 flex min-h-0 flex-1 overflow-hidden" />}>
+        <CustomersViewSwitcher sidebarList={list} companyId={company.id}>
+          {children}
+        </CustomersViewSwitcher>
+      </Suspense>
+    </CustomersTopBarProvider>
   );
 }

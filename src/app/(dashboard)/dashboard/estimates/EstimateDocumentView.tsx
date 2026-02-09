@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { Pencil, Trash2, FileOutput, ChevronLeft, X, Send } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pencil, Trash2, FileOutput, X, Send, Plus, FileSpreadsheet } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { convertEstimateToInvoice, deleteEstimate, setEstimateStatus } from "./actions";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { formatEstimateDate } from "@/lib/formatDate";
 import { EstimateStatusBadge } from "./EstimateStatusBadge";
+import { useEstimatesTopBar } from "./EstimatesTopBarContext";
 
 function effectiveStatus(status: string, validUntil: string | null): string {
   const today = new Date().toISOString().slice(0, 10);
@@ -17,7 +18,7 @@ function effectiveStatus(status: string, validUntil: string | null): string {
   return status;
 }
 
-const ROWS_PER_PAGE = 14;
+const ROWS_PER_PAGE = 22;
 
 type Company = {
   name: string;
@@ -97,6 +98,12 @@ export function EstimateDocumentView({
   const [convertState, setConvertState] = useState<{ loading: boolean } | null>(null);
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const [sendLoading, setSendLoading] = useState(false);
+  const { setBarState } = useEstimatesTopBar();
+  const docViewHandlersRef = useRef<{
+    handleSend: () => void;
+    setConvertState: (s: { loading: boolean } | null) => void;
+    setDeleteState: (s: { loading: boolean } | null) => void;
+  } | null>(null);
 
   const displayStatus = effectiveStatus(status, validUntil ?? null);
   const canConvert = displayStatus !== "Converted" && displayStatus !== "Expired";
@@ -148,6 +155,29 @@ export function EstimateDocumentView({
       endGlobalProcessing();
     }
   }
+
+  async function handleSend() {
+    setSendLoading(true);
+    startGlobalProcessing("Marking as sent…");
+    try {
+      const result = await setEstimateStatus(estimateId, "Sent");
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Estimate marked as sent." });
+      router.refresh();
+    } finally {
+      setSendLoading(false);
+      endGlobalProcessing();
+    }
+  }
+
+  docViewHandlersRef.current = {
+    handleSend,
+    setConvertState,
+    setDeleteState,
+  };
 
   const addressLine = [company.address, company.city, company.province].filter(Boolean).join(", ");
   const customerAddress = [customer.address, customer.city, customer.province, customer.country].filter(Boolean).join(", ");
@@ -258,87 +288,83 @@ export function EstimateDocumentView({
     </div>
   );
 
+  useEffect(() => {
+    const title = `Estimate ${estimateNumber}`;
+    const h = docViewHandlersRef.current;
+    setBarState({
+      title,
+      titleSuffix: h ? <EstimateStatusBadge status={displayStatus} className="shrink-0" /> : null,
+      rightSlot: h ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Link
+            href="/dashboard/estimates/import"
+            className="btn btn-secondary btn-sm inline-flex items-center gap-2"
+            aria-label="Import from CSV"
+            title="Import from CSV"
+          >
+            <FileSpreadsheet className="h-4 w-4 shrink-0" />
+            Import from CSV
+          </Link>
+          {canSend && (
+            <button
+              type="button"
+              disabled={sendLoading}
+              className="btn btn-primary btn-sm inline-flex items-center gap-2"
+              onClick={h.handleSend}
+            >
+              <Send className="w-4 h-4 shrink-0" />
+              Send
+            </button>
+          )}
+          {canConvert && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm inline-flex items-center gap-2"
+              onClick={() => h.setConvertState({ loading: false })}
+            >
+              <FileOutput className="w-4 h-4 shrink-0" />
+              Convert
+            </button>
+          )}
+          <Link
+            href="/dashboard/estimates/new"
+            className="btn btn-add btn-icon shrink-0"
+            aria-label="New estimate"
+            title="New estimate"
+          >
+            <Plus className="size-4" />
+          </Link>
+          <Link
+            href={`/dashboard/estimates/${estimateId}/edit`}
+            className="btn btn-edit btn-icon shrink-0"
+            aria-label="Edit"
+            title="Edit"
+          >
+            <Pencil className="w-4 h-4" />
+          </Link>
+          <IconButton
+            variant="danger"
+            icon={<Trash2 className="w-4 h-4" />}
+            label="Delete"
+            onClick={() => h.setDeleteState({ loading: false })}
+          />
+          <Link
+            href="/dashboard/estimates"
+            className="btn btn-secondary btn-icon shrink-0"
+            aria-label="Cancel"
+            title="Cancel"
+          >
+            <X className="w-4 h-4" />
+          </Link>
+        </div>
+      ) : undefined,
+    });
+    return () => setBarState({ title: null, titleSuffix: null, rightSlot: null });
+  }, [estimateId, estimateNumber, displayStatus, canSend, canConvert, sendLoading, setBarState]);
+
   return (
     <>
       <div className="flex h-full min-h-0 w-full flex-col">
-        {/* Action bar — estimate name left, options right (match edit estimate top bar) */}
-        <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-[var(--color-surface)] px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              href="/dashboard/estimates"
-              className="btn btn-secondary btn-icon shrink-0"
-              aria-label="Back to estimates"
-              title="Back to estimates"
-            >
-              <ChevronLeft className="size-4" />
-            </Link>
-            <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
-              Estimate {estimateNumber}
-            </h2>
-            <EstimateStatusBadge status={displayStatus} className="shrink-0" />
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {canSend && (
-              <button
-                type="button"
-                disabled={sendLoading}
-                className="btn btn-primary btn-sm inline-flex items-center gap-2"
-                onClick={async () => {
-                  setSendLoading(true);
-                  startGlobalProcessing("Marking as sent…");
-                  try {
-                    const result = await setEstimateStatus(estimateId, "Sent");
-                    if (result?.error) {
-                      endGlobalProcessing({ error: result.error });
-                      return;
-                    }
-                    endGlobalProcessing({ success: "Estimate marked as sent." });
-                    router.refresh();
-                  } finally {
-                    setSendLoading(false);
-                    endGlobalProcessing();
-                  }
-                }}
-              >
-                <Send className="w-4 h-4 shrink-0" />
-                Send
-              </button>
-            )}
-            {canConvert && (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm inline-flex items-center gap-2"
-                onClick={() => setConvertState({ loading: false })}
-              >
-                <FileOutput className="w-4 h-4 shrink-0" />
-                Convert
-              </button>
-            )}
-            <Link
-              href={`/dashboard/estimates/${estimateId}/edit`}
-              className="btn btn-edit btn-icon shrink-0"
-              aria-label="Edit"
-              title="Edit"
-            >
-              <Pencil className="w-4 h-4" />
-            </Link>
-            <IconButton
-              variant="danger"
-              icon={<Trash2 className="w-4 h-4" />}
-              label="Delete"
-              onClick={() => setDeleteState({ loading: false })}
-            />
-            <Link
-              href="/dashboard/estimates"
-              className="btn btn-secondary btn-icon shrink-0"
-              aria-label="Cancel"
-              title="Cancel"
-            >
-              <X className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-
         {/* Document body: grey area + one or more A4 pages with shadow */}
         <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-outline)]/20 py-8 px-4">
           <div className="space-y-8">
@@ -426,7 +452,7 @@ export function EstimateDocumentView({
                           )}
                         </div>
 
-                        {/* Right card — labels left, values right */}
+                        {/* Right card — labels left, values right (Expiry, Delivery time; Terms moved below Notes) */}
                         <div className="min-w-0 flex-1 rounded-xl border doc-border doc-notes-bg p-3 sm:max-w-[17rem]">
                           <table className="w-full border-collapse text-sm" style={{ border: "none" }}>
                             <tbody>
@@ -436,19 +462,13 @@ export function EstimateDocumentView({
                                   <td className="align-top doc-muted text-left" style={{ border: "none", verticalAlign: "top" }}>{formatEstimateDate(validUntil)}</td>
                                 </tr>
                               )}
-                              {paymentTerms && (
-                                <tr>
-                                  <td className="align-top pr-3 font-semibold doc-muted" style={{ border: "none", verticalAlign: "top" }}>Payment terms:</td>
-                                  <td className="align-top doc-muted whitespace-pre-line text-left" style={{ border: "none", verticalAlign: "top" }}>{paymentTerms}</td>
-                                </tr>
-                              )}
                               {deliveryTimeAmount != null && deliveryTimeAmount > 0 && deliveryTimeUnit && (
                                 <tr>
                                   <td className="align-top pr-3 font-semibold doc-muted" style={{ border: "none", verticalAlign: "top" }}>Delivery time:</td>
                                   <td className="align-top doc-muted text-left" style={{ border: "none", verticalAlign: "top" }}>{deliveryTimeAmount} {deliveryTimeUnit}</td>
                                 </tr>
                               )}
-                              {!validUntil && !paymentTerms && (!deliveryTimeAmount || deliveryTimeAmount <= 0 || !deliveryTimeUnit) && (
+                              {!validUntil && (!deliveryTimeAmount || deliveryTimeAmount <= 0 || !deliveryTimeUnit) && (
                                 <tr>
                                   <td className="doc-muted" style={{ border: "none" }}>—</td>
                                   <td style={{ border: "none" }} />
@@ -490,6 +510,15 @@ export function EstimateDocumentView({
                         Notes
                       </h3>
                       <p className="text-sm whitespace-pre-wrap">{notes}</p>
+                    </div>
+                  )}
+
+                  {isLastPage && paymentTerms && (
+                    <div className="mt-5 rounded-xl border doc-notes-bg p-3">
+                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider doc-muted">
+                        Terms and conditions
+                      </h3>
+                      <p className="text-sm whitespace-pre-line">{paymentTerms}</p>
                     </div>
                   )}
 

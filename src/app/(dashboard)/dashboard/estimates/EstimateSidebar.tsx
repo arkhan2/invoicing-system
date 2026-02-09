@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Copy } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { Trash2, Copy, X, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { EstimateStatusBadge } from "./EstimateStatusBadge";
 import { usePathname, useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { IconButton } from "@/components/IconButton";
 import {
   deleteEstimate,
+  deleteEstimates,
   convertEstimateToInvoice,
   cloneEstimate,
 } from "./actions";
@@ -15,43 +18,99 @@ import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalP
 import { formatEstimateDate } from "@/lib/formatDate";
 import type { EstimateListItem } from "./EstimateForm";
 
+type SingleDeleteState = { type: "single"; estimateId: string; loading: boolean };
+type BulkDeleteState = { type: "bulk"; loading: boolean };
+
 export function EstimateSidebar({
   estimates,
   companyId,
+  totalCount,
+  page,
+  perPage,
+  perPageOptions = [50, 100, 200],
+  searchQuery: searchQueryProp = "",
 }: {
   estimates: EstimateListItem[];
   companyId: string;
+  totalCount?: number;
+  page?: number;
+  perPage?: number;
+  perPageOptions?: readonly number[];
+  searchQuery?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [deleteState, setDeleteState] = useState<{ estimateId: string; loading: boolean } | null>(null);
+  const [searchInput, setSearchInput] = useState(searchQueryProp);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteState, setDeleteState] = useState<SingleDeleteState | BulkDeleteState | null>(null);
   const [convertState, setConvertState] = useState<{ estimateId: string; loading: boolean } | null>(null);
   const [cloneLoadingId, setCloneLoadingId] = useState<string | null>(null);
+  const [perPageOpen, setPerPageOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return estimates;
-    return estimates.filter(
-      (e) =>
-        e.estimate_number.toLowerCase().includes(q) ||
-        e.customer_name.toLowerCase().includes(q) ||
-        (e.status?.toLowerCase().includes(q) ?? false)
-    );
-  }, [estimates, search]);
+  useEffect(() => {
+    setSearchInput(searchQueryProp);
+  }, [searchQueryProp]);
 
-  const isNew = pathname === "/dashboard/estimates/new";
-  const activeId = pathname.startsWith("/dashboard/estimates/") && pathname !== "/dashboard/estimates" && !isNew
+  const showFooter = totalCount != null && page != null && perPage != null;
+  const totalPages = perPage != null && perPage > 0 ? Math.max(1, Math.ceil((totalCount ?? 0) / perPage)) : 1;
+  const startItem = (totalCount ?? 0) === 0 ? 0 : ((page ?? 1) - 1) * (perPage ?? 0) + 1;
+  const endItem = (totalCount ?? 0) === 0 ? 0 : Math.min((page ?? 1) * (perPage ?? 0), totalCount ?? 0);
+
+  const filtered = estimates;
+  const qs = (params: { page?: number; perPage?: number; q?: string }) => {
+    const p = new URLSearchParams();
+    p.set("page", String(params.page ?? page ?? 1));
+    p.set("perPage", String(params.perPage ?? perPage ?? 100));
+    const q = params.q !== undefined ? params.q : searchQueryProp;
+    if (q && q.trim()) p.set("q", q.trim());
+    return `/dashboard/estimates?${p.toString()}`;
+  };
+
+  const activeId = pathname.startsWith("/dashboard/estimates/") && pathname !== "/dashboard/estimates" && pathname !== "/dashboard/estimates/new" && pathname !== "/dashboard/estimates/import"
     ? pathname.replace("/dashboard/estimates/", "").split("/")[0]
     : null;
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((e) => selectedIds.has(e.id));
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filtered.map((e) => e.id));
+      setSelectedIds((prev) => new Set([...prev].filter((id) => !filteredIds.has(id))));
+    } else {
+      setSelectedIds((prev) => new Set([...prev, ...filtered.map((e) => e.id)]));
+    }
+  }
 
   const canConvert = (status: string) =>
     status !== "Converted" && status !== "Expired";
 
+  const ROW_HEIGHT_ESTIMATE = 92;
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ROW_HEIGHT_ESTIMATE,
+    overscan: 8,
+  });
+
   function openDelete(e: React.MouseEvent, estimateId: string) {
     e.preventDefault();
     e.stopPropagation();
-    setDeleteState({ estimateId, loading: false });
+    setDeleteState({ type: "single", estimateId, loading: false });
+  }
+
+  function openBulkDelete() {
+    setDeleteState({ type: "bulk", loading: false });
   }
 
   function openConvert(e: React.MouseEvent, estimateId: string) {
@@ -65,15 +124,30 @@ export function EstimateSidebar({
     setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
     startGlobalProcessing("Deleting…");
     try {
-      const result = await deleteEstimate(deleteState.estimateId);
-      setDeleteState(null);
-      if (result?.error) {
-        endGlobalProcessing({ error: result.error });
-        return;
+      if (deleteState.type === "single") {
+        const result = await deleteEstimate(deleteState.estimateId);
+        setDeleteState(null);
+        if (result?.error) {
+          endGlobalProcessing({ error: result.error });
+          return;
+        }
+        endGlobalProcessing({ success: "Estimate deleted." });
+        router.refresh();
+        router.push("/dashboard/estimates");
+      } else {
+        const ids = Array.from(selectedIds);
+        const result = await deleteEstimates(companyId, ids);
+        setDeleteState(null);
+        if (result?.error) {
+          endGlobalProcessing({ error: result.error });
+          return;
+        }
+        const msg = result.deletedCount === 1 ? "Estimate deleted." : "Estimates deleted.";
+        endGlobalProcessing({ success: msg });
+        setSelectedIds(new Set());
+        router.refresh();
+        if (ids.includes(activeId ?? "")) router.push("/dashboard/estimates");
       }
-      endGlobalProcessing({ success: "Estimate deleted." });
-      router.refresh();
-      router.push("/dashboard/estimates");
     } finally {
       endGlobalProcessing();
     }
@@ -124,110 +198,268 @@ export function EstimateSidebar({
   return (
     <>
       <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)]">
-        <div className="flex flex-shrink-0 items-center gap-2 px-3 pt-3 pb-2">
-          <Link
-            href="/dashboard/estimates/new"
-            className={`btn btn-icon ${isNew ? "btn-primary" : "btn-add"}`}
-            aria-label="New estimate"
-            title="New estimate"
-          >
-            <Plus className="w-4 h-4" />
-          </Link>
+        <div className="flex flex-shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
           <input
             type="search"
-            placeholder="Search estimates…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search estimates… (press Enter to search)"
+            value={searchInput}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSearchInput(v);
+              if (v === "" && searchQueryProp) {
+                router.push(qs({ page: 1, q: "" }));
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const q = searchInput.trim();
+                router.push(qs({ page: 1, perPage: perPage ?? 100, q: q || undefined }));
+              }
+            }}
             className={inputClass + " min-h-[2rem]"}
             aria-label="Search estimates"
           />
+          {selectedIds.size > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/50 px-3 py-2">
+              <div className="flex items-center gap-2">
+                {filtered.length > 0 ? (
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--color-on-surface-variant)]">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      onChange={toggleSelectAll}
+                      className="rounded-md border-[var(--color-outline)]"
+                      aria-label={allFilteredSelected ? "Deselect all" : "Select all"}
+                    />
+                    <span>Select all</span>
+                  </label>
+                ) : (
+                  <span className="text-sm text-[var(--color-on-surface-variant)]">Select all</span>
+                )}
+                <span className="text-sm text-[var(--color-on-surface-variant)]">
+                  {selectedIds.size} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <IconButton
+                  variant="danger"
+                  icon={<Trash2 className="w-4 h-4" />}
+                  label="Delete selected"
+                  onClick={openBulkDelete}
+                />
+                <IconButton
+                  variant="secondary"
+                  icon={<X className="w-4 h-4" />}
+                  label="Clear selection"
+                  onClick={() => setSelectedIds(new Set())}
+                />
+              </div>
+            </div>
+          )}
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 overflow-y-auto px-3 pb-3"
+        >
           {filtered.length === 0 ? (
             <div className="py-6 text-center text-sm text-[var(--color-on-surface-variant)]">
               {estimates.length === 0 ? "No estimates yet" : "No matches"}
             </div>
           ) : (
-            <ul className="space-y-2" role="list">
-              {filtered.map((e) => {
+            <div
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                position: "relative",
+                width: "100%",
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualRow) => {
+                const e = filtered[virtualRow.index];
                 const isActive = activeId === e.id;
+                const isSelected = selectedIds.has(e.id);
+                const cardClass = `flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors duration-200 ${
+                  isActive
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary-container)]"
+                    : "border-[var(--color-outline)] bg-[var(--color-card-bg)] hover:bg-[var(--color-surface-variant)]"
+                }`;
                 return (
-                  <li key={e.id}>
-                    <Link
-                      href={`/dashboard/estimates/${e.id}`}
-                      className={`block rounded-xl border px-3 py-2.5 text-left transition-colors duration-200 ${
-                        isActive
-                          ? "border-[var(--color-primary)] bg-[var(--color-primary-container)]"
-                          : "border-[var(--color-outline)] bg-[var(--color-card-bg)] hover:bg-[var(--color-surface-variant)]"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`truncate text-sm font-medium ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
-                          {e.estimate_number}
-                        </span>
-                        {e.estimate_date && (
-                          <span className={`shrink-0 text-[10px] ${isActive ? "text-[var(--color-on-primary-container)]/80" : "text-[var(--color-on-surface-variant)]"}`}>
-                            {formatEstimateDate(e.estimate_date)}
+                  <div
+                    key={e.id}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: `${virtualRow.size}px`,
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
+                    className="pb-2"
+                  >
+                    <Link href={`/dashboard/estimates/${e.id}`} className={`h-full ${cardClass}`}>
+                      <label
+                        className="flex shrink-0 cursor-pointer items-start pt-0.5"
+                        onClick={(ev) => {
+                          ev.preventDefault();
+                          ev.stopPropagation();
+                        }}
+                      >
+                        <input
+                          key={`${e.id}-${isSelected}`}
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(e.id)}
+                          className="rounded-md border-[var(--color-outline)]"
+                          aria-label={`Select ${e.estimate_number}`}
+                        />
+                      </label>
+                      <div className="flex flex-1 min-w-0 flex-col">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`truncate text-sm font-medium ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
+                            {e.estimate_number}
                           </span>
-                        )}
-                      </div>
-                      <div className="mt-0.5 flex items-center justify-between gap-2">
-                        <span className={`truncate text-xs ${isActive ? "text-[var(--color-on-primary-container)]/90" : "text-[var(--color-card-text)]"}`}>
-                          {e.customer_name || "—"}
-                        </span>
-                        <span className={`shrink-0 text-xs ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
-                          {e.total_amount != null ? Number(e.total_amount).toFixed(0) : "—"}
-                        </span>
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                        <EstimateStatusBadge status={e.status} className="px-2 py-0.5 text-[10px]" />
-                        <span className="flex items-center gap-1">
-                          {canConvert(e.status) && (
+                          {e.estimate_date && (
+                            <span className={`shrink-0 text-[10px] ${isActive ? "text-[var(--color-on-primary-container)]/80" : "text-[var(--color-on-surface-variant)]"}`}>
+                              {formatEstimateDate(e.estimate_date)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 flex items-center justify-between gap-2">
+                          <span className={`truncate text-xs ${isActive ? "text-[var(--color-on-primary-container)]/90" : "text-[var(--color-card-text)]"}`}>
+                            {e.customer_name || "—"}
+                          </span>
+                          <span className={`shrink-0 text-xs ${isActive ? "text-[var(--color-on-primary-container)]" : "text-[var(--color-card-text)]"}`}>
+                            {e.total_amount != null ? Number(e.total_amount).toFixed(0) : "—"}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                          <EstimateStatusBadge status={e.status} className="px-2 py-0.5 text-[10px]" />
+                          <span className="flex items-center gap-1">
+                            {canConvert(e.status) && (
+                              <button
+                                type="button"
+                                onClick={(ev) => openConvert(ev, e.id)}
+                                className="text-[10px] text-[var(--color-secondary)] hover:underline"
+                              >
+                                Convert
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={(ev) => openConvert(ev, e.id)}
-                              className="text-[10px] text-[var(--color-secondary)] hover:underline"
+                              onClick={(ev) => handleClone(ev, e.id)}
+                              disabled={cloneLoadingId === e.id}
+                              className={`shrink-0 rounded p-0.5 transition-colors ${isActive ? "text-[var(--color-on-primary-container)] hover:bg-[var(--color-on-primary-container)]/10 hover:text-[var(--color-on-primary-container)]" : "text-[var(--color-on-surface-variant)] hover:bg-[var(--color-secondary-bg)] hover:text-[var(--color-secondary)]"} ${cloneLoadingId === e.id ? "opacity-50" : ""}`}
+                              aria-label="Clone estimate"
+                              title="Clone to next estimate number"
                             >
-                              Convert
+                              <Copy className="w-3.5 h-3.5" />
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={(ev) => handleClone(ev, e.id)}
-                            disabled={cloneLoadingId === e.id}
-                            className={`shrink-0 rounded p-0.5 transition-colors ${isActive ? "text-[var(--color-on-primary-container)] hover:bg-[var(--color-on-primary-container)]/10 hover:text-[var(--color-on-primary-container)]" : "text-[var(--color-on-surface-variant)] hover:bg-[var(--color-secondary-bg)] hover:text-[var(--color-secondary)]"} ${cloneLoadingId === e.id ? "opacity-50" : ""}`}
-                            aria-label="Clone estimate"
-                            title="Clone to next estimate number"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(ev) => openDelete(ev, e.id)}
-                            className={`shrink-0 rounded p-0.5 ${isActive ? "text-[var(--color-on-primary-container)] hover:bg-[var(--color-on-primary-container)]/10" : "text-[var(--color-error)] hover:bg-[var(--color-error-bg)]"}`}
-                            aria-label="Delete"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </span>
+                            <button
+                              type="button"
+                              onClick={(ev) => openDelete(ev, e.id)}
+                              className={`shrink-0 rounded p-0.5 ${isActive ? "text-[var(--color-on-primary-container)] hover:bg-[var(--color-on-primary-container)]/10" : "text-[var(--color-error)] hover:bg-[var(--color-error-bg)]"}`}
+                              aria-label="Delete"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </span>
+                        </div>
                       </div>
                     </Link>
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
         </div>
+
+        {showFooter && (
+          <div className="flex flex-shrink-0 flex-col gap-2 border-t border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30 px-3 py-2">
+            <p className="text-xs font-medium text-[var(--color-on-surface-variant)]">
+              Total Count: {totalCount!.toLocaleString()}
+            </p>
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-1.5">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPerPageOpen((o) => !o)}
+                  className="flex items-center gap-1.5 text-sm text-[var(--color-on-surface)]"
+                  aria-expanded={perPageOpen}
+                  aria-haspopup="listbox"
+                  aria-label="Items per page"
+                >
+                  <Settings className="h-3.5 w-3.5 text-[var(--color-on-surface-variant)]" />
+                  <span>{perPage} per page</span>
+                </button>
+                {perPageOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      aria-hidden
+                      onClick={() => setPerPageOpen(false)}
+                    />
+                    <ul
+                      role="listbox"
+                      className="absolute bottom-full left-0 z-20 mb-1 min-w-[8rem] rounded-lg border border-[var(--color-outline)] bg-[var(--color-card-bg)] py-1 shadow-lg"
+                    >
+                      {perPageOptions.map((n) => (
+                        <li key={n} role="option">
+                          <button
+                            type="button"
+                            className="w-full px-3 py-1.5 text-left text-sm text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
+                            onClick={() => {
+                              setPerPageOpen(false);
+                              router.push(qs({ page: 1, perPage: n }));
+                            }}
+                          >
+                            {n} per page
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => page! > 1 && router.push(qs({ page: page! - 1 }))}
+                  disabled={page! <= 1}
+                  className="rounded p-1 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)] disabled:opacity-40 disabled:hover:bg-transparent"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="min-w-[5rem] text-center text-sm text-[var(--color-on-surface)]">
+                  {startItem} – {endItem}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => page! < totalPages && router.push(qs({ page: page! + 1 }))}
+                  disabled={page! >= totalPages}
+                  className="rounded p-1 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)] disabled:opacity-40 disabled:hover:bg-transparent"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
         open={!!deleteState}
-        title="Delete estimate?"
-        message="This estimate will be removed. This cannot be undone."
+        title={deleteState?.type === "bulk" ? "Delete estimates?" : "Delete estimate?"}
+        message={
+          deleteState?.type === "bulk"
+            ? `Delete ${selectedIds.size} estimate${selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.`
+            : "This estimate will be removed. This cannot be undone."
+        }
         confirmLabel="Delete"
         variant="danger"
-        loading={deleteState?.loading ?? false}
+        loading={deleteState?.type === "single" ? deleteState.loading : deleteState?.type === "bulk" ? deleteState.loading : false}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteState(null)}
       />

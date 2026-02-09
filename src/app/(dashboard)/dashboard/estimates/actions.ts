@@ -41,6 +41,60 @@ function parseItems(formData: FormData): LineItemInput[] {
   }
 }
 
+const ESTIMATE_NUMBER_DIGITS = 6;
+
+async function getNextEstimateNumber(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  prefix: string
+): Promise<number> {
+  const re = new RegExp(`^${escapeRegExp(prefix)}-(\\d+)$`, "i");
+  let maxNum = 0;
+  const pageSize = 1000;
+  let offset = 0;
+  let hasMore = true;
+  while (hasMore) {
+    const { data: rows } = await supabase
+      .from("estimates")
+      .select("estimate_number")
+      .eq("company_id", companyId)
+      .range(offset, offset + pageSize - 1);
+    const list = rows ?? [];
+    hasMore = list.length === pageSize;
+    offset += pageSize;
+    for (const r of list) {
+      const raw = (r.estimate_number ?? "").trim();
+      const m = raw.match(re);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (Number.isInteger(n) && n > maxNum) maxNum = n;
+      }
+    }
+  }
+  return maxNum + 1;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Returns the next estimate number (e.g. EST-001410) for display when creating a new estimate. */
+export async function getNextEstimateNumberForDisplay(companyId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data: company } = await supabase
+    .from("companies")
+    .select("estimate_prefix")
+    .eq("id", companyId)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) return null;
+  const prefix = company.estimate_prefix ?? "EST";
+  const nextNum = await getNextEstimateNumber(supabase, companyId, prefix);
+  return `${prefix}-${String(nextNum).padStart(ESTIMATE_NUMBER_DIGITS, "0")}`;
+}
+
 export async function createEstimate(
   companyId: string,
   _prev: EstimateFormState,
@@ -55,15 +109,15 @@ export async function createEstimate(
 
   const { data: company } = await supabase
     .from("companies")
-    .select("estimate_prefix, estimate_next_number")
+    .select("estimate_prefix")
     .eq("id", companyId)
     .eq("user_id", user.id)
     .single();
   if (!company) return { error: "Company not found." };
 
   const prefix = company.estimate_prefix ?? "EST";
-  const nextNum = company.estimate_next_number ?? 1;
-  const estimateNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
+  const nextNum = await getNextEstimateNumber(supabase, companyId, prefix);
+  const estimateNumber = `${prefix}-${String(nextNum).padStart(ESTIMATE_NUMBER_DIGITS, "0")}`;
   const estimateDate = (formData.get("estimate_date") as string) || new Date().toISOString().slice(0, 10);
   const status = (formData.get("status") as string) || "Draft";
   const validStatus = ["Draft", "Sent", "Expired", "Converted"].includes(status) ? status : "Draft";
@@ -142,7 +196,7 @@ export async function createEstimate(
     });
   }
 
-  await supabase.from("companies").update({ estimate_next_number: nextNum + 1 }).eq("id", companyId);
+  await supabase.from("companies").update({ estimate_next_number: nextNum + 1 }).eq("id", companyId).eq("user_id", user.id);
   revalidatePath("/dashboard/estimates");
   return { estimateId: estimate.id };
 }
@@ -287,6 +341,100 @@ export async function getEstimateWithItems(estimateId: string) {
   return { estimate, items };
 }
 
+function escapeIlikePattern(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+export async function getEstimatesList(
+  companyId: string,
+  page: number,
+  perPage: number,
+  searchQuery?: string | null
+): Promise<{ totalCount: number; list: Array<{
+  id: string;
+  estimate_number: string;
+  estimate_date: string;
+  status: string;
+  total_amount: number | null;
+  total_tax: number | null;
+  customer_name: string;
+  customer_id: string;
+}> }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { totalCount: 0, list: [] };
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("id", companyId)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) return { totalCount: 0, list: [] };
+
+  const from = (page - 1) * perPage;
+  const to = from + perPage - 1;
+
+  let query = supabase
+    .from("estimates")
+    .select(
+      `
+      id,
+      estimate_number,
+      estimate_date,
+      status,
+      valid_until,
+      total_amount,
+      total_tax,
+      created_at,
+      customer:customers(id, name)
+    `,
+      { count: "exact" }
+    )
+    .eq("company_id", companyId)
+    .order("estimate_date", { ascending: false });
+
+  const q = searchQuery?.trim();
+  if (q && q.length > 0) {
+    const pattern = `%${escapeIlikePattern(q)}%`;
+    const { data: customerRows } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("company_id", companyId)
+      .ilike("name", pattern);
+    const customerIds = (customerRows ?? []).map((r) => r.id).filter(Boolean);
+    const orParts = [
+      `estimate_number.ilike.${pattern}`,
+      `status.ilike.${pattern}`,
+    ];
+    if (customerIds.length > 0) {
+      orParts.push(`customer_id.in.(${customerIds.join(",")})`);
+    }
+    query = query.or(orParts.join(","));
+  }
+
+  const { data: estimates, error, count } = await query.range(from, to);
+
+  if (error) return { totalCount: 0, list: [] };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const list = (estimates ?? []).map((e) => {
+    const effectiveStatus = e.status === "Sent" && e.valid_until && e.valid_until < today ? "Expired" : e.status;
+    return {
+      id: e.id,
+      estimate_number: e.estimate_number,
+      estimate_date: e.estimate_date,
+      status: effectiveStatus,
+      total_amount: e.total_amount,
+      total_tax: e.total_tax,
+      customer_name: (e.customer as { name?: string } | null)?.name ?? "",
+      customer_id: (e.customer as { id?: string } | null)?.id ?? "",
+    };
+  });
+
+  return { totalCount: count ?? 0, list };
+}
+
 export async function cloneEstimate(estimateId: string): Promise<EstimateFormState & { estimateId?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -301,15 +449,15 @@ export async function cloneEstimate(estimateId: string): Promise<EstimateFormSta
 
   const { data: company } = await supabase
     .from("companies")
-    .select("id, estimate_prefix, estimate_next_number")
+    .select("id, estimate_prefix")
     .eq("id", estimate.company_id)
     .eq("user_id", user.id)
     .single();
   if (!company) return { error: "Company not found." };
 
   const prefix = company.estimate_prefix ?? "EST";
-  const nextNum = company.estimate_next_number ?? 1;
-  const estimateNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
+  const nextNum = await getNextEstimateNumber(supabase, estimate.company_id, prefix);
+  const estimateNumber = `${prefix}-${String(nextNum).padStart(ESTIMATE_NUMBER_DIGITS, "0")}`;
   const estimateDate = new Date().toISOString().slice(0, 10);
 
   const { data: estimateItems } = await supabase
@@ -368,7 +516,7 @@ export async function cloneEstimate(estimateId: string): Promise<EstimateFormSta
     });
   }
 
-  await supabase.from("companies").update({ estimate_next_number: nextNum + 1 }).eq("id", estimate.company_id);
+  await supabase.from("companies").update({ estimate_next_number: nextNum + 1 }).eq("id", estimate.company_id).eq("user_id", user.id);
   revalidatePath("/dashboard/estimates");
   return { estimateId: newEstimate.id };
 }
@@ -381,6 +529,42 @@ export async function deleteEstimate(estimateId: string): Promise<EstimateFormSt
   if (error) return { error: error.message };
   revalidatePath("/dashboard/estimates");
   return {};
+}
+
+const DELETE_ESTIMATES_CHUNK_SIZE = 80;
+
+export type DeleteEstimatesResult = {
+  error?: string;
+  deletedCount: number;
+  deletedIds: string[];
+};
+
+export async function deleteEstimates(
+  companyId: string,
+  estimateIds: string[]
+): Promise<DeleteEstimatesResult> {
+  if (estimateIds.length === 0) return { deletedCount: 0, deletedIds: [] };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in to delete estimates.", deletedCount: 0, deletedIds: [] };
+
+  const chunkSize = DELETE_ESTIMATES_CHUNK_SIZE;
+  const deletedIds: string[] = [];
+  for (let i = 0; i < estimateIds.length; i += chunkSize) {
+    const chunk = estimateIds.slice(i, i + chunkSize);
+    const { error } = await supabase
+      .from("estimates")
+      .delete()
+      .eq("company_id", companyId)
+      .in("id", chunk);
+    if (error) {
+      console.error("[deleteEstimates] error:", error.message, { companyId, chunkIndex: i / chunkSize });
+      return { error: error.message, deletedCount: deletedIds.length, deletedIds };
+    }
+    deletedIds.push(...chunk);
+  }
+  revalidatePath("/dashboard/estimates");
+  return { deletedCount: deletedIds.length, deletedIds };
 }
 
 export async function convertEstimateToInvoice(estimateId: string): Promise<EstimateFormState & { invoiceId?: string }> {
@@ -497,4 +681,327 @@ export async function setEstimateStatus(
   if (error) return { error: error.message };
   revalidatePath("/dashboard/estimates");
   return {};
+}
+
+// -----------------------------------------------------------------------------
+// Estimate CSV import (match customer by name only; skip if no match)
+// -----------------------------------------------------------------------------
+
+export type MappedEstimateItem = {
+  product_description: string;
+  quantity: number;
+  unit_price: number;
+  value_sales_excluding_st: number;
+  sales_tax_applicable: number;
+  discount: number;
+  total_values: number;
+  uom: string;
+};
+
+export type MappedEstimate = {
+  customer_name: string;
+  /** Set by client when using "Map customers" step; then server skips lookup and can batch insert */
+  customer_id?: string;
+  estimate_number: string;
+  estimate_date: string;
+  status: string;
+  valid_until: string | null;
+  notes: string | null;
+  payment_terms: string | null;
+  subject: string | null;
+  project_name: string | null;
+  total_amount: number;
+  total_tax: number;
+  discount_amount: number;
+  discount_type: "amount" | "percentage";
+  items: MappedEstimateItem[];
+};
+
+export type ImportEstimatesResult = {
+  error?: string;
+  imported: number;
+  skipped: number;
+  skippedNoCustomer: string[];
+  skippedDuplicateNumber: string[];
+  errors: string[];
+};
+
+function normalizeStatus(raw: string): "Draft" | "Sent" | "Accepted" | "Declined" | "Expired" | "Converted" {
+  const s = (raw || "").trim();
+  const lower = s.toLowerCase();
+  if (lower === "draft") return "Draft";
+  if (lower === "sent" || lower === "accepted" || lower === "declined") return "Sent";
+  if (lower === "expired") return "Expired";
+  if (lower === "converted") return "Converted";
+  return "Draft";
+}
+
+async function getCustomerIdByName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  customerName: string
+): Promise<string | null> {
+  const name = customerName.trim();
+  if (!name) return null;
+  const { data } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("company_id", companyId)
+    .ilike("name", name)
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+const ESTIMATE_IMPORT_BATCH = 50;
+const ESTIMATE_ITEMS_INSERT_BATCH = 400;
+
+export async function importEstimatesFromCsv(
+  companyId: string,
+  mappedEstimates: MappedEstimate[]
+): Promise<ImportEstimatesResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      error: "You must be signed in to import estimates.",
+      imported: 0,
+      skipped: 0,
+      skippedNoCustomer: [],
+      skippedDuplicateNumber: [],
+      errors: [],
+    };
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("id", companyId)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) {
+    return {
+      error: "Company not found.",
+      imported: 0,
+      skipped: 0,
+      skippedNoCustomer: [],
+      skippedDuplicateNumber: [],
+      errors: [],
+    };
+  }
+
+  const allHaveCustomerId = mappedEstimates.length > 0 && mappedEstimates.every((e) => e.customer_id?.trim());
+
+  if (allHaveCustomerId) {
+    return runBatchImport(supabase, companyId, mappedEstimates as (MappedEstimate & { customer_id: string })[]);
+  }
+
+  return runLegacyImport(supabase, companyId, mappedEstimates);
+}
+
+function runBatchImport(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  mappedEstimates: (MappedEstimate & { customer_id: string })[]
+): Promise<ImportEstimatesResult> {
+  let imported = 0;
+  const skippedDuplicateNumber: string[] = [];
+  const errors: string[] = [];
+
+  return (async () => {
+    for (let i = 0; i < mappedEstimates.length; i += ESTIMATE_IMPORT_BATCH) {
+      const chunk = mappedEstimates.slice(i, i + ESTIMATE_IMPORT_BATCH);
+      const estimateRows = chunk.map((est) => {
+        const validStatus = normalizeStatus(est.status);
+        const validUntil = (est.valid_until && est.valid_until.trim()) || null;
+        const discountType = est.discount_type === "percentage" ? "percentage" : "amount";
+        return {
+          company_id: companyId,
+          customer_id: est.customer_id,
+          estimate_number: est.estimate_number.trim(),
+          estimate_date: est.estimate_date,
+          status: validStatus,
+          valid_until: validUntil,
+          notes: est.notes,
+          payment_terms: est.payment_terms,
+          subject: est.subject,
+          project_name: est.project_name,
+          total_amount: est.total_amount,
+          total_tax: est.total_tax,
+          discount_amount: est.discount_amount,
+          discount_type: discountType,
+        };
+      });
+
+      const { data: insertedEstimates, error: estErr } = await supabase
+        .from("estimates")
+        .insert(estimateRows)
+        .select("id");
+
+      if (estErr) {
+        if (estErr.code === "23505") {
+          chunk.forEach((est) => skippedDuplicateNumber.push(est.estimate_number));
+        } else {
+          errors.push(chunk.map((e) => e.estimate_number).join(", ") + ": " + estErr.message);
+        }
+        continue;
+      }
+      if (!insertedEstimates || insertedEstimates.length === 0) continue;
+
+      const allItemRows: {
+        estimate_id: string;
+        item_number: string;
+        product_description: string;
+        hs_code: string;
+        rate_label: string;
+        uom: string;
+        quantity: number;
+        unit_price: number;
+        value_sales_excluding_st: number;
+        sales_tax_applicable: number;
+        sales_tax_withheld_at_source: number;
+        extra_tax: number;
+        further_tax: number;
+        discount: number;
+        total_values: number;
+        sale_type: string;
+        sort_order: number;
+      }[] = [];
+      chunk.forEach((est, idx) => {
+        const estimateId = insertedEstimates[idx]?.id;
+        if (!estimateId) return;
+        est.items.forEach((it, sortOrder) => {
+          allItemRows.push({
+            estimate_id: estimateId,
+            item_number: "",
+            product_description: it.product_description || "—",
+            hs_code: "",
+            rate_label: "",
+            uom: it.uom || "Nos",
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            value_sales_excluding_st: it.value_sales_excluding_st,
+            sales_tax_applicable: it.sales_tax_applicable ?? 0,
+            sales_tax_withheld_at_source: 0,
+            extra_tax: 0,
+            further_tax: 0,
+            discount: it.discount ?? 0,
+            total_values: it.total_values,
+            sale_type: "Goods at standard rate (default)",
+            sort_order: sortOrder,
+          });
+        });
+      });
+
+      for (let j = 0; j < allItemRows.length; j += ESTIMATE_ITEMS_INSERT_BATCH) {
+        const itemChunk = allItemRows.slice(j, j + ESTIMATE_ITEMS_INSERT_BATCH);
+        const { error: itemErr } = await supabase.from("estimate_items").insert(itemChunk);
+        if (itemErr) errors.push("Items: " + itemErr.message);
+      }
+      imported += chunk.length;
+    }
+
+    revalidatePath("/dashboard/estimates");
+    return {
+      imported,
+      skipped: skippedDuplicateNumber.length,
+      skippedNoCustomer: [],
+      skippedDuplicateNumber,
+      errors,
+    };
+  })();
+}
+
+async function runLegacyImport(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  mappedEstimates: MappedEstimate[]
+): Promise<ImportEstimatesResult> {
+  let imported = 0;
+  const skippedNoCustomer: string[] = [];
+  const skippedDuplicateNumber: string[] = [];
+  const errors: string[] = [];
+  const customerCache = new Map<string, string | null>();
+
+  for (const est of mappedEstimates) {
+    const nameKey = est.customer_name.trim().toLowerCase();
+    let customerId = est.customer_id?.trim() ?? customerCache.get(nameKey);
+    if (customerId === undefined) {
+      customerId = await getCustomerIdByName(supabase, companyId, est.customer_name);
+      customerCache.set(nameKey, customerId);
+    }
+    if (!customerId) {
+      skippedNoCustomer.push(est.customer_name || est.estimate_number || "?");
+      continue;
+    }
+
+    const validStatus = normalizeStatus(est.status);
+    const validUntil = (est.valid_until && est.valid_until.trim()) || null;
+    const discountType = est.discount_type === "percentage" ? "percentage" : "amount";
+
+    const { data: inserted, error: insErr } = await supabase
+      .from("estimates")
+      .insert({
+        company_id: companyId,
+        customer_id: customerId,
+        estimate_number: est.estimate_number.trim(),
+        estimate_date: est.estimate_date,
+        status: validStatus,
+        valid_until: validUntil,
+        notes: est.notes,
+        payment_terms: est.payment_terms,
+        subject: est.subject,
+        project_name: est.project_name,
+        total_amount: est.total_amount,
+        total_tax: est.total_tax,
+        discount_amount: est.discount_amount,
+        discount_type: discountType,
+      })
+      .select("id")
+      .single();
+
+    if (insErr) {
+      if (insErr.code === "23505") {
+        skippedDuplicateNumber.push(est.estimate_number);
+      } else {
+        errors.push(`${est.estimate_number}: ${insErr.message}`);
+      }
+      continue;
+    }
+    if (!inserted) continue;
+
+    if (est.items.length > 0) {
+      const itemRows = est.items.map((it, i) => ({
+        estimate_id: inserted.id,
+        item_number: "",
+        product_description: it.product_description || "—",
+        hs_code: "",
+        rate_label: "",
+        uom: it.uom || "Nos",
+        quantity: it.quantity,
+        unit_price: it.unit_price,
+        value_sales_excluding_st: it.value_sales_excluding_st,
+        sales_tax_applicable: it.sales_tax_applicable ?? 0,
+        sales_tax_withheld_at_source: 0,
+        extra_tax: 0,
+        further_tax: 0,
+        discount: it.discount ?? 0,
+        total_values: it.total_values,
+        sale_type: "Goods at standard rate (default)",
+        sort_order: i,
+      }));
+      await supabase.from("estimate_items").insert(itemRows);
+    }
+    imported += 1;
+  }
+
+  revalidatePath("/dashboard/estimates");
+  const skipped = skippedNoCustomer.length + skippedDuplicateNumber.length;
+  return {
+    imported,
+    skipped,
+    skippedNoCustomer,
+    skippedDuplicateNumber,
+    errors,
+  };
 }

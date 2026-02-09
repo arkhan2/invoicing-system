@@ -1,7 +1,8 @@
-import { createClient, getUserSafe } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { EstimateForm } from "../EstimateForm";
 import { getCompanyTaxRates } from "@/app/(dashboard)/dashboard/company/actions";
+import { getNextEstimateNumberForDisplay } from "../actions";
 
 export default async function NewEstimatePage() {
   const supabase = await createClient();
@@ -15,7 +16,10 @@ export default async function NewEstimatePage() {
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const { salesTaxRates } = await getCompanyTaxRates(company.id);
+  const [nextEstimateNumber, { salesTaxRates }] = await Promise.all([
+    getNextEstimateNumberForDisplay(company.id),
+    getCompanyTaxRates(company.id),
+  ]);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
@@ -26,6 +30,7 @@ export default async function NewEstimatePage() {
             companyId={company.id}
             company={{ name: company.name }}
             salesTaxRates={salesTaxRates}
+            initialEstimateNumber={nextEstimateNumber ?? undefined}
           />
         </div>
       </div>

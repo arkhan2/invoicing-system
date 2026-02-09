@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { Save, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Save, Loader2, X, Trash2 } from "lucide-react";
 import {
   createCustomer,
   updateCustomer,
+  deleteCustomer,
   type CustomerFormState,
 } from "./actions";
 import { getCountries, getStates, getCities } from "@/lib/location";
 import { IconButton } from "@/components/IconButton";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { showMessage } from "@/components/MessageBar";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
+import { useCustomersTopBar } from "./CustomersTopBarContext";
 
 export type Customer = {
   id: string;
@@ -67,6 +71,10 @@ export function CustomerForm({
   const [selectedProvince, setSelectedProvince] = useState(customer?.province ?? "");
   const [selectedCity, setSelectedCity] = useState(customer?.city ?? "");
   const isCreate = !customer;
+  const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+  const { setBarState } = useCustomersTopBar();
+  const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
 
   const countryOptions = getCountries();
   const stateOptions = getStates(selectedCountry);
@@ -102,8 +110,63 @@ export function CustomerForm({
     }
   }
 
+  async function handleDelete() {
+    if (!customer) return;
+    setDeleteState({ loading: true });
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteCustomer(customer.id, companyId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Customer deleted." });
+      router.push("/dashboard/customers?view=spreadsheet");
+      router.refresh();
+    } finally {
+      endGlobalProcessing();
+    }
+  }
+
+  useEffect(() => {
+    setBarState({
+      rightSlot: (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <IconButton
+            type="button"
+            variant="primary"
+            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            label={loading ? "Saving…" : isCreate ? "Add customer" : "Save"}
+            disabled={loading}
+            onClick={() => formRef.current?.requestSubmit()}
+          />
+          {!isCreate && (
+            <IconButton
+              variant="danger"
+              icon={<Trash2 className="w-4 h-4" />}
+              label="Delete"
+              onClick={() => setDeleteState({ loading: false })}
+            />
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn btn-secondary btn-icon shrink-0"
+            aria-label="Cancel"
+            title="Cancel"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    });
+    return () => setBarState({ rightSlot: null });
+  }, [loading, isCreate, onCancel, setBarState]);
+
   return (
-    <form action={handleSubmit} className="space-y-6">
+    <>
+      <form ref={formRef} action={handleSubmit} className="space-y-6">
       {state?.error && (
         <div
           className="rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] px-4 py-3 text-sm text-[var(--color-error)]"
@@ -276,23 +339,19 @@ export function CustomerForm({
           </div>
         </div>
       </Section>
-
-      <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-outline)] pt-4">
-        <IconButton
-          type="submit"
-          variant="primary"
-          icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          label={loading ? "Saving…" : isCreate ? "Add customer" : "Save changes"}
-          disabled={loading}
+      </form>
+      {!isCreate && (
+        <ConfirmDialog
+          open={!!deleteState}
+          title="Delete customer?"
+          message="This customer will be removed. This cannot be undone. Customers with estimates or invoices cannot be deleted."
+          confirmLabel="Delete"
+          variant="danger"
+          loading={deleteState?.loading ?? false}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteState(null)}
         />
-        <button
-          type="button"
-          onClick={onCancel}
-          className="btn btn-secondary btn-sm"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
+      )}
+    </>
   );
 }

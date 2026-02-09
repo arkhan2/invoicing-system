@@ -72,7 +72,7 @@ export function InvoiceSidebar({
         <div className="flex-shrink-0 p-3">
           <Link
             href="/dashboard/sales/new"
-            className={`btn btn-icon ${isNew ? "btn-primary" : "btn-add"}`}
+            className="btn btn-add btn-icon"
             aria-label="New invoice"
             title="New invoice"
           >

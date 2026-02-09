@@ -35,7 +35,7 @@ export default async function DashboardPage() {
               You need a company to add customers, vendors, and invoices.
             </p>
             <div className="mt-auto pt-4 flex justify-end">
-              <Link href="/dashboard/company" className="btn btn-primary btn-icon" aria-label="Create company" title="Create company">
+              <Link href="/dashboard/company" className="btn btn-add btn-icon" aria-label="Create company" title="Create company">
                 <Plus className="w-4 h-4" />
               </Link>
             </div>

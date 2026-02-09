@@ -126,7 +126,7 @@ export function CustomerSidebar({
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard/customers/new"
-            className={`btn btn-icon ${isNew ? "btn-primary" : "btn-add"}`}
+            className="btn btn-add btn-icon"
             aria-label="New customer"
             title="New customer"
           >

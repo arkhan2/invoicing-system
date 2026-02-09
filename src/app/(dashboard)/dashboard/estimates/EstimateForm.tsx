@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,7 +12,7 @@ import {
   convertEstimateToInvoice,
   type EstimateFormState,
 } from "./actions";
-import { Save, Loader2, Plus, Pencil, Search, X, ChevronLeft, Trash2, Send, FileOutput } from "lucide-react";
+import { Save, Loader2, Plus, Pencil, Search, X, Trash2, Send, FileOutput, FileSpreadsheet } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
@@ -26,6 +26,7 @@ import {
 } from "@/app/(dashboard)/dashboard/customers/actions";
 import { formatEstimateDate } from "@/lib/formatDate";
 import { EstimateStatusBadge } from "./EstimateStatusBadge";
+import { useEstimatesTopBar } from "./EstimatesTopBarContext";
 
 const inputClass =
   "w-full min-h-[2.5rem] border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
@@ -123,6 +124,7 @@ export function EstimateForm({
   const [searchLoading, setSearchLoading] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paymentTermsRef = useRef<HTMLTextAreaElement>(null);
   const [estimateDate, setEstimateDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
@@ -177,6 +179,13 @@ export function EstimateForm({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useLayoutEffect(() => {
+    const el = paymentTermsRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(el.scrollHeight, 60)}px`;
+  }, [paymentTerms]);
+
   const handleSelectCustomer = useCallback((c: CustomerSearchResult) => {
     setCustomerId(c.id);
     setSelectedCustomer(c);
@@ -226,6 +235,114 @@ export function EstimateForm({
       cancelled = true;
     };
   }, [estimateId]);
+
+  const { setBarState } = useEstimatesTopBar();
+  const formBarRef = useRef<{
+    handleSend: () => void;
+    setConvertState: (s: { loading: boolean } | null) => void;
+    setDeleteState: (s: { loading: boolean } | null) => void;
+    requestSave: () => void;
+  } | null>(null);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const displayStatus = status === "Sent" && validUntil && validUntil < today ? "Expired" : status;
+  const canSend = isEdit && displayStatus === "Draft";
+  const canConvert = isEdit && displayStatus !== "Converted" && displayStatus !== "Expired";
+
+  async function handleSend() {
+    if (!estimateId) return;
+    setSendLoading(true);
+    startGlobalProcessing("Marking as sent…");
+    try {
+      const result = await setEstimateStatus(estimateId, "Sent");
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      setStatus("Sent");
+      endGlobalProcessing({ success: "Estimate marked as sent." });
+      router.refresh();
+    } finally {
+      setSendLoading(false);
+      endGlobalProcessing();
+    }
+  }
+
+  async function handleConvert() {
+    if (!estimateId) return;
+    setConvertState({ loading: true });
+    startGlobalProcessing("Converting to invoice…");
+    try {
+      const result = await convertEstimateToInvoice(estimateId);
+      setConvertState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice created." });
+      if (result?.invoiceId) router.push(`/dashboard/sales/${result.invoiceId}`);
+      else router.refresh();
+    } finally {
+      endGlobalProcessing();
+    }
+  }
+
+  formBarRef.current = {
+    handleSend,
+    setConvertState: (s) => setConvertState(s),
+    setDeleteState: (s) => setDeleteState(s),
+    requestSave: () => (document.getElementById("estimate-form") as HTMLFormElement | null)?.requestSubmit(),
+  };
+
+  useEffect(() => {
+    const title = isEdit
+      ? (initialEstimateNumber ? `Estimate ${initialEstimateNumber}` : "Edit estimate")
+      : "New estimate";
+    const h = formBarRef.current;
+    setBarState({
+      title,
+      titleSuffix: h && !onCancel ? <EstimateStatusBadge status={displayStatus} className="shrink-0" /> : null,
+      rightSlot:
+        h && !onCancel ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <IconButton
+              type="button"
+              variant="primary"
+              icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              label={loading ? "Saving…" : "Save"}
+              disabled={loading}
+              onClick={h.requestSave}
+            />
+            {isEdit && (
+              <IconButton
+                type="button"
+                variant="danger"
+                icon={<Trash2 className="w-4 h-4" />}
+                label="Delete"
+                onClick={() => h.setDeleteState({ loading: false })}
+              />
+            )}
+            <Link
+              href={estimateId ? `/dashboard/estimates/${estimateId}` : "/dashboard/estimates"}
+              className="btn btn-secondary btn-icon shrink-0"
+              aria-label="Cancel"
+              title="Cancel"
+            >
+              <X className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : undefined,
+    });
+    return () => setBarState({ title: null, titleSuffix: null, rightSlot: null });
+  }, [
+    isEdit,
+    initialEstimateNumber,
+    estimateId,
+    displayStatus,
+    loading,
+    onCancel,
+    setBarState,
+  ]);
 
   async function handleSubmit(formData: FormData, sendNow = false) {
     if (!customerId) {
@@ -333,49 +450,6 @@ export function EstimateForm({
     }
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const displayStatus = status === "Sent" && validUntil && validUntil < today ? "Expired" : status;
-  const canSend = isEdit && displayStatus === "Draft";
-  const canConvert = isEdit && displayStatus !== "Converted" && displayStatus !== "Expired";
-
-  async function handleSend() {
-    if (!estimateId) return;
-    setSendLoading(true);
-    startGlobalProcessing("Marking as sent…");
-    try {
-      const result = await setEstimateStatus(estimateId, "Sent");
-      if (result?.error) {
-        endGlobalProcessing({ error: result.error });
-        return;
-      }
-      setStatus("Sent");
-      endGlobalProcessing({ success: "Estimate marked as sent." });
-      router.refresh();
-    } finally {
-      setSendLoading(false);
-      endGlobalProcessing();
-    }
-  }
-
-  async function handleConvert() {
-    if (!estimateId) return;
-    setConvertState({ loading: true });
-    startGlobalProcessing("Converting to invoice…");
-    try {
-      const result = await convertEstimateToInvoice(estimateId);
-      setConvertState(null);
-      if (result?.error) {
-        endGlobalProcessing({ error: result.error });
-        return;
-      }
-      endGlobalProcessing({ success: "Invoice created." });
-      if (result?.invoiceId) router.push(`/dashboard/sales/${result.invoiceId}`);
-      else router.refresh();
-    } finally {
-      endGlobalProcessing();
-    }
-  }
-
   return (
     <>
     <form
@@ -383,19 +457,10 @@ export function EstimateForm({
       onSubmit={(e) => doSubmit(e, false)}
       className="flex h-full flex-col"
     >
-      {/* Header: title + actions */}
-      <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          {isEdit ? (
-            <Link
-              href={`/dashboard/estimates/${estimateId}`}
-              className="btn btn-secondary btn-icon shrink-0"
-              aria-label="Back to estimate"
-              title="Back to estimate"
-            >
-              <ChevronLeft className="size-4" />
-            </Link>
-          ) : onCancel ? (
+      {/* When used with onCancel (e.g. modal), show own header; otherwise layout top bar is used */}
+      {onCancel && (
+        <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
             <IconButton
               type="button"
               variant="secondary"
@@ -403,76 +468,60 @@ export function EstimateForm({
               label="Close"
               onClick={onCancel}
             />
-          ) : null}
-          <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
-            {isEdit ? (initialEstimateNumber ? `Estimate ${initialEstimateNumber}` : "Edit estimate") : "New estimate"}
-          </h2>
-          <EstimateStatusBadge status={displayStatus} className="shrink-0" />
-        </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {canSend && (
-            <button
-              type="button"
-              disabled={sendLoading}
-              onClick={handleSend}
-              className="btn btn-primary btn-sm inline-flex items-center gap-2"
-            >
-              <Send className="w-4 h-4 shrink-0" />
-              Send
-            </button>
-          )}
-          {canConvert && (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm inline-flex items-center gap-2"
-              onClick={() => setConvertState({ loading: false })}
-            >
-              <FileOutput className="w-4 h-4 shrink-0" />
-              Convert
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => {
-              const form = document.getElementById("estimate-form") as HTMLFormElement;
-              if (form) {
-                const fd = new FormData(form);
-                fd.set("items", JSON.stringify(items));
-                fd.set("status", "Sent");
-                handleSubmit(fd, true);
-              }
-            }}
-            className="btn btn-secondary btn-sm"
-          >
-            Save and Send
-          </button>
-          <IconButton
-            type="submit"
-            variant="primary"
-            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            label={loading ? "Saving…" : "Save"}
-            disabled={loading}
-          />
-          {isEdit && (
+            <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
+              {isEdit ? (initialEstimateNumber ? `Estimate ${initialEstimateNumber}` : "Edit estimate") : "New estimate"}
+            </h2>
+            <EstimateStatusBadge status={displayStatus} className="shrink-0" />
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {canSend && (
+              <button
+                type="button"
+                disabled={sendLoading}
+                onClick={handleSend}
+                className="btn btn-primary btn-sm inline-flex items-center gap-2"
+              >
+                <Send className="w-4 h-4 shrink-0" />
+                Send
+              </button>
+            )}
+            {canConvert && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm inline-flex items-center gap-2"
+                onClick={() => setConvertState({ loading: false })}
+              >
+                <FileOutput className="w-4 h-4 shrink-0" />
+                Convert
+              </button>
+            )}
             <IconButton
-              type="button"
-              variant="danger"
-              icon={<Trash2 className="w-4 h-4" />}
-              label="Delete"
-              onClick={() => setDeleteState({ loading: false })}
+              type="submit"
+              variant="primary"
+              icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              label={loading ? "Saving…" : "Save"}
+              disabled={loading}
             />
-          )}
-          <Link
-            href={estimateId ? `/dashboard/estimates/${estimateId}` : "/dashboard/estimates"}
-            className="btn btn-secondary btn-icon shrink-0"
-            aria-label="Cancel"
-            title="Cancel"
-          >
-            <X className="w-4 h-4" />
-          </Link>
+            {isEdit && (
+              <IconButton
+                type="button"
+                variant="danger"
+                icon={<Trash2 className="w-4 h-4" />}
+                label="Delete"
+                onClick={() => setDeleteState({ loading: false })}
+              />
+            )}
+            <Link
+              href={estimateId ? `/dashboard/estimates/${estimateId}` : "/dashboard/estimates"}
+              className="btn btn-secondary btn-icon shrink-0"
+              aria-label="Cancel"
+              title="Cancel"
+            >
+              <X className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
 
       {state?.error && (
         <div
@@ -623,11 +672,11 @@ export function EstimateForm({
           </section>
 
           {/* Quote details card */}
-          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+          <section className="min-w-0 rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
               Quote details
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="estimate-date" className={labelClass}>
                   Quote date <span className="text-[var(--color-error)]">*</span>
@@ -652,7 +701,7 @@ export function EstimateForm({
                   Quote # <span className="text-[var(--color-error)]">*</span>
                 </label>
                 <div className="flex h-[2.5rem] items-center rounded-xl border border-[var(--color-input-border)] bg-[var(--color-input-bg)] px-3 py-2.5 text-sm font-medium text-[var(--color-on-surface)]">
-                  {isEdit ? (initialEstimateNumber ?? "—") : "Auto-generated"}
+                  {isEdit ? (initialEstimateNumber ?? "—") : (initialEstimateNumber ?? "Auto-generated")}
                 </div>
               </div>
               <div>
@@ -673,25 +722,11 @@ export function EstimateForm({
                   </p>
                 )}
               </div>
-              <div className="col-span-2">
-                <label htmlFor="estimate-payment-terms" className={labelClass}>
-                  Payment terms
-                </label>
-                <textarea
-                  id="estimate-payment-terms"
-                  name="payment_terms"
-                  value={paymentTerms}
-                  onChange={(e) => setPaymentTerms(e.target.value)}
-                  rows={3}
-                  placeholder="e.g. 50% advance, 50% on delivery"
-                  className={inputClass + " min-h-0 resize-y"}
-                />
-              </div>
-              <div>
+              <div className="min-w-0">
                 <label htmlFor="estimate-delivery-time" className={labelClass}>
                   Delivery time
                 </label>
-                <div className="flex flex-nowrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <input
                     id="estimate-delivery-time"
                     name="delivery_time_amount"
@@ -706,13 +741,15 @@ export function EstimateForm({
                     name="delivery_time_unit"
                     value={deliveryTimeUnit}
                     onChange={(e) => setDeliveryTimeUnit(e.target.value as "days" | "weeks" | "months")}
-                    className={inputClass + " h-[2.5rem] min-h-0 w-28 shrink-0 cursor-pointer"}
+                    className={inputClass + " h-[2.5rem] min-h-0 shrink-0 cursor-pointer sm:min-w-0 sm:w-28"}
                   >
-                    {DELIVERY_TIME_UNITS.map((u) => (
-                      <option key={u} value={u}>
-                        {u.charAt(0).toUpperCase() + u.slice(1)}
-                      </option>
-                    ))}
+                    {DELIVERY_TIME_UNITS.map((u) => {
+                      return (
+                        <option key={u} value={u}>
+                          {u.charAt(0).toUpperCase() + u.slice(1)}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
@@ -836,6 +873,26 @@ export function EstimateForm({
               rows={2}
               className={inputClass + " resize-y min-h-[60px]"}
               placeholder="Optional notes for the customer"
+            />
+          </section>
+
+          {/* Terms and conditions card — below Notes */}
+          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+              Terms and conditions
+            </h3>
+            <label htmlFor="estimate-payment-terms" className="sr-only">
+              Terms and conditions
+            </label>
+            <textarea
+              ref={paymentTermsRef}
+              id="estimate-payment-terms"
+              name="payment_terms"
+              value={paymentTerms}
+              onChange={(e) => setPaymentTerms(e.target.value)}
+              rows={1}
+              placeholder="e.g. 50% advance, 50% on delivery"
+              className={inputClass + " min-h-[60px] overflow-hidden resize-none"}
             />
           </section>
         </div>

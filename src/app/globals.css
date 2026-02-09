@@ -339,7 +339,9 @@
     min-height: 2rem; /* 32px */
   }
 
-  /* Circular icon-only buttons (same semantics as .btn, use with .btn-primary etc.) */
+  /* Circular icon-only buttons: use one semantic class per action for consistent color.
+     + Add/New → .btn-add (teal); X Back/Cancel → .btn-secondary (gray);
+     Pencil Edit → .btn-edit (amber); Trash Delete → .btn-danger (red). */
   .btn-icon {
     width: 2rem;
     height: 2rem;
