@@ -8,11 +8,25 @@ A **page-by-page and component-by-component** specification using the app’s ex
 
 All UI must use **semantic CSS variables** from `src/app/globals.css`. No raw hex in components.
 
+### Elevation layers (60-30-10 rule)
+
+| Layer | Token | Tailwind | Use | Luminosity |
+|-------|-------|----------|-----|------------|
+| **Base** | `--color-bg-base` | `bg-base` | Page background, main content area (60%) | Deepest |
+| **Surface** | `--color-bg-surface` | `bg-surface` | Cards, sidebars, primary containers (30%) | Mid |
+| **Elevated** | `--color-bg-elevated` | `bg-elevated` | Modals, dropdowns, popovers (10%) | Lightest + shadow |
+
+**Luminosity shifting:** Each layer rises in elevation (slightly lighter in light mode, lighter in dark mode). Elevated uses `shadow-elevated` for depth in light mode and soft lift in dark mode.
+
+**WCAG AA:** All `--color-on-base`, `--color-on-surface`, `--color-on-elevated` text meets 4.5:1 contrast.
+
+### Other tokens
+
 | Token | Use |
 |-------|-----|
-| `--color-surface` | Page background (sidebar, main when needed) |
-| `--color-surface-variant` | Page background (main content area), table header, alternating row tint |
-| `--color-card-bg` | Card background |
+| `--color-surface` | Alias for surface layer (sidebar, cards) |
+| `--color-surface-variant` | Table header, alternating row tint, selection bars |
+| `--color-card-bg` | Legacy; prefer `--color-bg-surface` |
 | `--color-card-text` | Card body text |
 | `--color-on-surface` | Primary text, headings |
 | `--color-on-surface-variant` | Secondary text, labels, hints |
@@ -71,7 +85,7 @@ All UI must use **semantic CSS variables** from `src/app/globals.css`. No raw he
 
 ---
 
-### B. List / table page (Customers, Vendors, Estimates, Invoices)
+### B. List / table page (Customers, Estimates, Invoices)
 
 **Purpose:** Scan and manage lists; efficient density without clutter.
 
@@ -185,7 +199,7 @@ All UI must use **semantic CSS variables** from `src/app/globals.css`. No raw he
 
 ---
 
-### F. Customer / vendor list separator fix (summary)
+### F. Customer list separator fix (summary)
 
 - **Row lines:** Use `border-[var(--color-divider)]`, not `--color-outline` at full opacity.
 - **Header bottom:** `shadow-[0_1px_0_0_var(--color-divider)]`.
@@ -199,7 +213,10 @@ All UI must use **semantic CSS variables** from `src/app/globals.css`. No raw he
 
 | Component | Background | Text / border | Accent / notes |
 |-----------|------------|----------------|----------------|
-| Card | `--color-card-bg` | `--color-card-text` | Selected: left bar `--color-primary` or tint `--color-primary-container` |
+| Page / main area | `bg-base` | `--color-on-base` | — |
+| Card | `bg-surface` / `--color-bg-surface` | `--color-on-surface` | Selected: left bar `--color-primary` or tint `--color-primary-container` |
+| Sidebar | `bg-surface` | `--color-on-surface` | — |
+| Modal / dropdown | `bg-elevated` + `shadow-elevated` | `--color-on-elevated` | — |
 | Primary button | `--color-btn-primary-bg` | `--color-btn-primary-text` | Hover: `--color-btn-primary-bg-hover` |
 | Secondary button | `--color-btn-secondary-bg` | `--color-btn-secondary-text` | Hover: `--color-btn-secondary-bg-hover` |
 | Danger button | `--color-btn-danger-bg` | `--color-btn-danger-text` | Hover: `--color-btn-danger-bg-hover` |

@@ -7,6 +7,7 @@ import { DashboardNav, SignOutButton, type NavItem } from "@/components/Dashboar
 import { MessageBar } from "@/components/MessageBar";
 import { GlobalProcessingIndicator } from "@/components/GlobalProcessing";
 import { NavigationLoading } from "@/components/NavigationLoading";
+import { ConnectionUnavailable } from "@/components/ConnectionUnavailable";
 
 export default async function DashboardLayout({
   children,
@@ -14,9 +15,12 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await getUserSafe(supabase);
+  const result = await getUserSafe(supabase);
+  const { data: { user }, connectionError } = result;
+
+  if (connectionError) {
+    return <ConnectionUnavailable />;
+  }
 
   if (!user) {
     redirect("/login");
@@ -36,19 +40,19 @@ export default async function DashboardLayout({
     { href: "/dashboard/estimates", label: "Estimates", icon: "estimates" },
     { href: "/dashboard/sales", label: "Sales Invoices", icon: "sales" },
     { href: "/dashboard/items", label: "Items", icon: "items" },
-    { href: "/dashboard/vendors", label: "Vendors", icon: "vendors" },
+    { href: "/dashboard/vendors?view=spreadsheet", label: "Vendors", icon: "vendors" },
     { href: "/dashboard/purchases", label: "Purchase Invoices", icon: "purchases" },
   ];
   const navItems = hasCompany ? allNavItems : [{ href: "/dashboard/company", label: "Company", icon: "company" as const }];
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[var(--color-surface-variant)]">
+    <div className="flex h-screen flex-col overflow-hidden bg-base">
       <MessageBar />
       <GlobalProcessingIndicator />
       <NavigationLoading />
       {/* Fixed top bar */}
       <header
-        className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-[var(--color-outline)] bg-[var(--color-surface)] px-4"
+        className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-[var(--color-outline)] bg-base px-4"
         style={{ minHeight: "var(--header-height, 56px)" }}
       >
         <Link
@@ -78,7 +82,7 @@ export default async function DashboardLayout({
 
       {/* Fixed nav + single scroll container (main) */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)] overflow-hidden">
+        <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[var(--color-outline)] bg-base overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
             <DashboardNav items={navItems} />
             <SignOutButton />
@@ -86,7 +90,7 @@ export default async function DashboardLayout({
         </aside>
 
         <DashboardGate hasCompany={hasCompany}>
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-[var(--color-surface-variant)] p-6">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden bg-base p-6">
             {children}
           </main>
         </DashboardGate>

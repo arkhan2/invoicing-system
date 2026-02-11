@@ -20,6 +20,7 @@ export function EstimateSidebarWithData({ companyId }: { companyId: string }) {
       : 100;
   })();
   const searchQuery = searchParams.get("q") ?? "";
+  const customerId = searchParams.get("customerId") ?? "";
 
   const [data, setData] = useState<{
     totalCount: number;
@@ -28,17 +29,17 @@ export function EstimateSidebarWithData({ companyId }: { companyId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    getEstimatesList(companyId, page, perPage, searchQuery || undefined).then((res) => {
+    getEstimatesList(companyId, page, perPage, searchQuery || undefined, customerId || undefined).then((res) => {
       if (!cancelled) setData(res);
     });
     return () => {
       cancelled = true;
     };
-  }, [companyId, page, perPage, searchQuery, pathname]);
+  }, [companyId, page, perPage, searchQuery, customerId, pathname]);
 
   if (!data) {
     return (
-      <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)]">
+      <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-base">
         <div className="flex flex-1 items-center justify-center p-4 text-sm text-[var(--color-on-surface-variant)]">
           Loading…
         </div>
@@ -55,6 +56,7 @@ export function EstimateSidebarWithData({ companyId }: { companyId: string }) {
       perPage={perPage}
       perPageOptions={PER_PAGE_OPTIONS}
       searchQuery={searchQuery}
+      filterCustomerId={customerId || undefined}
     />
   );
 }

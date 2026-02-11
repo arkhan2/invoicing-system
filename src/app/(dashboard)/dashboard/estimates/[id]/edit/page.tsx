@@ -54,7 +54,7 @@ export default async function EstimateEditPage({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full bg-[var(--color-card-bg)]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full bg-surface">
         <EstimateForm
             estimateId={id}
             companyId={company.id}

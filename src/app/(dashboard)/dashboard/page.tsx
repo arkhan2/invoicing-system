@@ -20,7 +20,7 @@ export default async function DashboardPage() {
         </h1>
         <p className="max-w-xl text-sm text-[var(--color-on-surface-variant)]">
           {hasCompany
-            ? `Company: ${company?.name}. Use the sidebar to manage customers, vendors, items, and invoices.`
+            ? `Company: ${company?.name}. Use the sidebar to manage customers, items, and invoices.`
             : "Create your company to get started."}
         </p>
       </header>
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
               Create your company first
             </h3>
             <p className="mt-1 text-sm text-[var(--color-on-surface-variant)]">
-              You need a company to add customers, vendors, and invoices.
+              You need a company to add customers and invoices.
             </p>
             <div className="mt-auto pt-4 flex justify-end">
               <Link href="/dashboard/company" className="btn btn-add btn-icon" aria-label="Create company" title="Create company">

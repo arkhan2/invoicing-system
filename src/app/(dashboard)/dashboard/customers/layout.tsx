@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { createClient, getUserSafe } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { CustomersTopBarProvider } from "./CustomersTopBarContext";
-import { CustomersViewSwitcher } from "./CustomersViewSwitcher";
+import { CustomersDataLoader } from "./CustomersDataLoader";
 
 export default async function CustomersLayout({
   children,
@@ -20,24 +20,12 @@ export default async function CustomersLayout({
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name, ntn_cnic")
-    .eq("company_id", company.id)
-    .order("name");
-
-  const list = (customers ?? []).map((c) => ({
-    id: c.id,
-    name: c.name,
-    ntn_cnic: c.ntn_cnic ?? "",
-  }));
-
   return (
     <CustomersTopBarProvider>
       <Suspense fallback={<div className="-m-6 flex min-h-0 flex-1 overflow-hidden" />}>
-        <CustomersViewSwitcher sidebarList={list} companyId={company.id}>
+        <CustomersDataLoader companyId={company.id}>
           {children}
-        </CustomersViewSwitcher>
+        </CustomersDataLoader>
       </Suspense>
     </CustomersTopBarProvider>
   );

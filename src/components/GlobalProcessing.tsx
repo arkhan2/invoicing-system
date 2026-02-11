@@ -109,7 +109,7 @@ export function GlobalProcessingIndicator() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 right-4 z-[100] flex items-center gap-2 rounded-full border border-[var(--color-outline)] bg-[var(--color-card-bg)] px-4 py-2.5 text-sm font-medium text-[var(--color-on-surface)] shadow-lg"
+      className="fixed bottom-4 right-4 z-[100] flex items-center gap-2 rounded-full border border-[var(--color-outline)] bg-elevated px-4 py-2.5 text-sm font-medium text-[var(--color-on-surface)] shadow-elevated"
     >
       <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--color-primary)]" aria-hidden />
       <span>{label}</span>

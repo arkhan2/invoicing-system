@@ -1,24 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { Save, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Save, Loader2, X, Trash2 } from "lucide-react";
 import {
   createVendor,
   updateVendor,
+  deleteVendor,
+  checkDuplicateVendor,
   type VendorFormState,
 } from "./actions";
-import { getStates, getCities } from "@/lib/location";
+import { getCountries, getStates, getCities } from "@/lib/location";
 import { IconButton } from "@/components/IconButton";
-import { showMessage } from "@/components/MessageBar";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
+import { useVendorsTopBar } from "./VendorsTopBarContext";
 
 export type Vendor = {
   id: string;
   name: string;
+  contact_person_name: string | null;
   ntn_cnic: string | null;
   address: string | null;
   city: string | null;
   province: string | null;
+  country: string | null;
+  registration_type: string | null;
   phone: string | null;
   email: string | null;
   created_at?: string;
@@ -52,22 +59,35 @@ export function VendorForm({
   companyId,
   onSuccess,
   onCancel,
+  listHref,
+  returnToSpreadsheet,
 }: {
   vendor: Vendor | null;
   companyId: string;
-  onSuccess: () => void;
+  onSuccess: (vendorId?: string) => void;
   onCancel: () => void;
+  /** URL for list view; used for redirect after delete. */
+  listHref?: string;
+  /** When true, after delete navigate to spreadsheet view instead of list. */
+  returnToSpreadsheet?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState<VendorFormState>({});
+  const [selectedCountry, setSelectedCountry] = useState(vendor?.country ?? "Pakistan");
   const [selectedProvince, setSelectedProvince] = useState(vendor?.province ?? "");
   const [selectedCity, setSelectedCity] = useState(vendor?.city ?? "");
   const isCreate = !vendor;
+  const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+  const { setBarState } = useVendorsTopBar();
+  const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
+  const [duplicateConfirm, setDuplicateConfirm] = useState<FormData | null>(null);
 
-  const stateOptions = getStates("Pakistan");
-  const cityOptions = getCities("Pakistan", selectedProvince);
+  const countryOptions = getCountries();
+  const stateOptions = getStates(selectedCountry);
+  const cityOptions = getCities(selectedCountry, selectedProvince);
 
-  async function handleSubmit(formData: FormData) {
+  async function doSubmit(formData: FormData) {
     setLoading(true);
     setState({});
     startGlobalProcessing(isCreate ? "Creating vendor…" : "Saving vendor…");
@@ -80,6 +100,7 @@ export function VendorForm({
           return;
         }
         endGlobalProcessing({ success: "Vendor added." });
+        onSuccess((result as { vendorId?: string }).vendorId);
       } else {
         const result = await updateVendor(vendor.id, companyId, state, formData);
         if (result?.error) {
@@ -88,16 +109,91 @@ export function VendorForm({
           return;
         }
         endGlobalProcessing({ success: "Vendor saved." });
+        onSuccess();
       }
-      onSuccess();
     } finally {
       endGlobalProcessing();
       setLoading(false);
     }
   }
 
+  async function handleSubmit(formData: FormData) {
+    const name = (formData.get("name") as string)?.trim();
+    if (!name) {
+      setState({ error: "Vendor name is required." });
+      return;
+    }
+    const ntn_cnic = (formData.get("ntn_cnic") as string)?.trim() || null;
+    const { duplicate } = await checkDuplicateVendor(
+      companyId,
+      name,
+      ntn_cnic,
+      vendor?.id
+    );
+    if (duplicate) {
+      setDuplicateConfirm(formData);
+      return;
+    }
+    await doSubmit(formData);
+  }
+
+  async function handleDelete() {
+    if (!vendor) return;
+    setDeleteState({ loading: true });
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteVendor(vendor.id, companyId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Vendor deleted." });
+      router.push(listHref ?? (returnToSpreadsheet ? "/dashboard/vendors?view=spreadsheet" : "/dashboard/vendors"));
+      router.refresh();
+    } finally {
+      endGlobalProcessing();
+    }
+  }
+
+  useEffect(() => {
+    setBarState({
+      rightSlot: (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <IconButton
+            type="button"
+            variant="primary"
+            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            label={loading ? "Saving…" : isCreate ? "Add vendor" : "Save"}
+            disabled={loading}
+            onClick={() => formRef.current?.requestSubmit()}
+          />
+          {!isCreate && (
+            <IconButton
+              variant="danger"
+              icon={<Trash2 className="w-4 h-4" />}
+              label="Delete"
+              onClick={() => setDeleteState({ loading: false })}
+            />
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn btn-secondary btn-icon shrink-0"
+            aria-label="Cancel"
+            title="Cancel"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ),
+    });
+    return () => setBarState({ rightSlot: null });
+  }, [loading, isCreate, onCancel, setBarState]);
+
   return (
-    <form action={handleSubmit} className="space-y-6">
+    <>
+      <form ref={formRef} action={handleSubmit} className="space-y-6">
       {state?.error && (
         <div
           className="rounded-xl border border-[var(--color-error)] bg-[var(--color-error-bg)] px-4 py-3 text-sm text-[var(--color-error)]"
@@ -119,7 +215,20 @@ export function VendorForm({
             required
             defaultValue={vendor?.name ?? ""}
             className={inputClass}
-            placeholder="e.g. Acme Supplies"
+            placeholder="e.g. Acme Corp"
+          />
+        </div>
+        <div>
+          <label htmlFor="vendor-contact_person_name" className={labelClass}>
+            Contact person name
+          </label>
+          <input
+            id="vendor-contact_person_name"
+            name="contact_person_name"
+            type="text"
+            defaultValue={vendor?.contact_person_name ?? ""}
+            className={inputClass}
+            placeholder="e.g. John Smith"
           />
         </div>
         <div>
@@ -134,6 +243,21 @@ export function VendorForm({
             className={inputClass}
             placeholder="e.g. 6708002-5"
           />
+        </div>
+        <div>
+          <label htmlFor="vendor-registration_type" className={labelClass}>
+            Registration type
+          </label>
+          <select
+            id="vendor-registration_type"
+            name="registration_type"
+            defaultValue={vendor?.registration_type ?? ""}
+            className={inputClass + " min-h-[42px] cursor-pointer"}
+          >
+            <option value="">— Select —</option>
+            <option value="Registered">Registered</option>
+            <option value="Unregistered">Unregistered</option>
+          </select>
         </div>
       </Section>
 
@@ -151,45 +275,65 @@ export function VendorForm({
             placeholder="Street, area"
           />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="vendor-province" className={labelClass}>
-              Province
-            </label>
-            <select
-              id="vendor-province"
-              name="province"
-              value={selectedProvince}
-              onChange={(e) => {
-                setSelectedProvince(e.target.value);
-                setSelectedCity("");
-              }}
-              className={inputClass + " min-h-[42px] cursor-pointer"}
-            >
-              <option value="">— Select —</option>
-              {stateOptions.map((s) => (
-                <option key={s.isoCode} value={s.name}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="vendor-city" className={labelClass}>
-              City
-            </label>
-            <select
-              id="vendor-city"
-              name="city"
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className={inputClass + " min-h-[42px] cursor-pointer"}
-              disabled={!selectedProvince}
-            >
-              <option value="">— Select —</option>
-              {cityOptions.map((c) => (
-                <option key={c.name} value={c.name}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label htmlFor="vendor-country" className={labelClass}>
+            Country
+          </label>
+          <select
+            id="vendor-country"
+            name="country"
+            value={selectedCountry}
+            onChange={(e) => {
+              setSelectedCountry(e.target.value);
+              setSelectedProvince("");
+              setSelectedCity("");
+            }}
+            className={inputClass + " min-h-[42px] cursor-pointer"}
+          >
+            <option value="">— Select —</option>
+            {countryOptions.map((c) => (
+              <option key={c.isoCode} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="vendor-province" className={labelClass}>
+            Province / State
+          </label>
+          <select
+            id="vendor-province"
+            name="province"
+            value={selectedProvince}
+            onChange={(e) => {
+              setSelectedProvince(e.target.value);
+              setSelectedCity("");
+            }}
+            className={inputClass + " min-h-[42px] cursor-pointer"}
+            disabled={!selectedCountry}
+          >
+            <option value="">— Select —</option>
+            {stateOptions.map((s) => (
+              <option key={s.isoCode} value={s.name}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="vendor-city" className={labelClass}>
+            City
+          </label>
+          <select
+            id="vendor-city"
+            name="city"
+            value={selectedCity}
+            onChange={(e) => setSelectedCity(e.target.value)}
+            className={inputClass + " min-h-[42px] cursor-pointer"}
+            disabled={!selectedProvince}
+          >
+            <option value="">— Select —</option>
+            {cityOptions.map((c) => (
+              <option key={c.name} value={c.name}>{c.name}</option>
+            ))}
+          </select>
         </div>
       </Section>
 
@@ -222,23 +366,34 @@ export function VendorForm({
           </div>
         </div>
       </Section>
-
-      <div className="flex flex-wrap items-center gap-3 border-t border-[var(--color-outline)] pt-4">
-        <IconButton
-          type="submit"
-          variant="primary"
-          icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          label={loading ? "Saving…" : isCreate ? "Add vendor" : "Save changes"}
-          disabled={loading}
+      </form>
+      {!isCreate && (
+        <ConfirmDialog
+          open={!!deleteState}
+          title="Delete vendor?"
+          message="This vendor will be removed. This cannot be undone. Vendors with purchase invoices cannot be deleted."
+          confirmLabel="Delete"
+          variant="danger"
+          loading={deleteState?.loading ?? false}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteState(null)}
         />
-        <button
-          type="button"
-          onClick={onCancel}
-          className="btn btn-secondary btn-sm"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
+      )}
+      <ConfirmDialog
+        open={!!duplicateConfirm}
+        title="Duplicate vendor?"
+        message="A vendor with this name or NTN already exists. Save anyway?"
+        confirmLabel="Save anyway"
+        variant="primary"
+        onConfirm={async () => {
+          if (duplicateConfirm) {
+            const fd = duplicateConfirm;
+            setDuplicateConfirm(null);
+            await doSubmit(fd);
+          }
+        }}
+        onCancel={() => setDuplicateConfirm(null)}
+      />
+    </>
   );
 }

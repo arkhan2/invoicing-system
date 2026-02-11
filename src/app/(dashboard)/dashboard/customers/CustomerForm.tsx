@@ -7,6 +7,7 @@ import {
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  checkDuplicateCustomer,
   type CustomerFormState,
 } from "./actions";
 import { getCountries, getStates, getCities } from "@/lib/location";
@@ -59,11 +60,17 @@ export function CustomerForm({
   companyId,
   onSuccess,
   onCancel,
+  listHref,
+  returnToSpreadsheet,
 }: {
   customer: Customer | null;
   companyId: string;
   onSuccess: (customerId?: string) => void;
   onCancel: () => void;
+  /** URL for list view; used for redirect after delete. */
+  listHref?: string;
+  /** When true, after delete navigate to spreadsheet view instead of list. */
+  returnToSpreadsheet?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState<CustomerFormState>({});
@@ -75,12 +82,13 @@ export function CustomerForm({
   const router = useRouter();
   const { setBarState } = useCustomersTopBar();
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
+  const [duplicateConfirm, setDuplicateConfirm] = useState<FormData | null>(null);
 
   const countryOptions = getCountries();
   const stateOptions = getStates(selectedCountry);
   const cityOptions = getCities(selectedCountry, selectedProvince);
 
-  async function handleSubmit(formData: FormData) {
+  async function doSubmit(formData: FormData) {
     setLoading(true);
     setState({});
     startGlobalProcessing(isCreate ? "Creating customer…" : "Saving customer…");
@@ -110,6 +118,26 @@ export function CustomerForm({
     }
   }
 
+  async function handleSubmit(formData: FormData) {
+    const name = (formData.get("name") as string)?.trim();
+    if (!name) {
+      setState({ error: "Customer name is required." });
+      return;
+    }
+    const ntn_cnic = (formData.get("ntn_cnic") as string)?.trim() || null;
+    const { duplicate } = await checkDuplicateCustomer(
+      companyId,
+      name,
+      ntn_cnic,
+      customer?.id
+    );
+    if (duplicate) {
+      setDuplicateConfirm(formData);
+      return;
+    }
+    await doSubmit(formData);
+  }
+
   async function handleDelete() {
     if (!customer) return;
     setDeleteState({ loading: true });
@@ -122,7 +150,7 @@ export function CustomerForm({
         return;
       }
       endGlobalProcessing({ success: "Customer deleted." });
-      router.push("/dashboard/customers?view=spreadsheet");
+      router.push(listHref ?? (returnToSpreadsheet ? "/dashboard/customers?view=spreadsheet" : "/dashboard/customers"));
       router.refresh();
     } finally {
       endGlobalProcessing();
@@ -352,6 +380,21 @@ export function CustomerForm({
           onCancel={() => setDeleteState(null)}
         />
       )}
+      <ConfirmDialog
+        open={!!duplicateConfirm}
+        title="Duplicate customer?"
+        message="A customer with this name or NTN already exists. Save anyway?"
+        confirmLabel="Save anyway"
+        variant="primary"
+        onConfirm={async () => {
+          if (duplicateConfirm) {
+            const fd = duplicateConfirm;
+            setDuplicateConfirm(null);
+            await doSubmit(fd);
+          }
+        }}
+        onCancel={() => setDuplicateConfirm(null)}
+      />
     </>
   );
 }

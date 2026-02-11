@@ -4,10 +4,27 @@ import { CustomerFormPage } from "../../CustomerFormPage";
 
 export default async function EditCustomerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string; q?: string; page?: string; perPage?: string }>;
 }) {
   const { id } = await params;
+  const { from, q, page = "1", perPage = "100" } = await searchParams;
+  const listParams = new URLSearchParams();
+  listParams.set("page", page);
+  listParams.set("perPage", perPage);
+  if (q?.trim()) listParams.set("q", q.trim());
+  if (from === "spreadsheet") listParams.set("view", "spreadsheet");
+  const listQs = listParams.toString();
+  const listHref = listQs ? `/dashboard/customers?${listQs}` : "/dashboard/customers";
+
+  const detailParams = new URLSearchParams();
+  detailParams.set("page", page);
+  detailParams.set("perPage", perPage);
+  if (q?.trim()) detailParams.set("q", q.trim());
+  if (from === "spreadsheet") detailParams.set("from", "spreadsheet");
+  const detailQs = detailParams.toString();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -30,7 +47,7 @@ export default async function EditCustomerPage({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--color-card-bg)]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-base">
         <CustomerFormPage
           customer={{
             id: customer.id,
@@ -47,7 +64,9 @@ export default async function EditCustomerPage({
           }}
           companyId={company.id}
           title="Edit customer"
-          backHref={`/dashboard/customers/${id}`}
+          backHref={detailQs ? `/dashboard/customers/${id}?${detailQs}` : `/dashboard/customers/${id}`}
+          listHref={listHref}
+          returnToSpreadsheet={from === "spreadsheet"}
         />
       </div>
     </div>

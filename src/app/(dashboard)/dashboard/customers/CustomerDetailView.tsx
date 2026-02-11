@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronLeft, Pencil, Trash2, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft, Copy, Pencil, Plus, Trash2, X } from "lucide-react";
 import { CustomersTopBar } from "./CustomersTopBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
@@ -29,12 +29,48 @@ export type CustomerDetailData = {
 export function CustomerDetailView({
   customer,
   companyId,
+  estimatesCount = 0,
+  invoicesCount = 0,
 }: {
   customer: CustomerDetailData;
   companyId: string;
+  estimatesCount?: number;
+  invoicesCount?: number;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
+  const [copyLoading, setCopyLoading] = useState(false);
+
+  function handleCopy() {
+    const lines = [
+      customer.name,
+      customer.contact_person_name ? `Contact: ${customer.contact_person_name}` : null,
+      customer.email ? `Email: ${customer.email}` : null,
+      customer.phone ? `Phone: ${customer.phone}` : null,
+      customer.address ? `Address: ${customer.address}` : null,
+      [customer.city, customer.province, customer.country].filter(Boolean).length > 0
+        ? [customer.city, customer.province, customer.country].filter(Boolean).join(", ")
+        : null,
+      customer.ntn_cnic ? `NTN/CNIC: ${customer.ntn_cnic}` : null,
+      customer.registration_type ? `Registration: ${customer.registration_type}` : null,
+    ].filter(Boolean) as string[];
+    const text = lines.join("\n");
+    setCopyLoading(true);
+    navigator.clipboard.writeText(text).then(
+      () => {
+        setCopyLoading(false);
+        startGlobalProcessing("Copied to clipboard.");
+        setTimeout(() => endGlobalProcessing(), 1500);
+      },
+      () => {
+        setCopyLoading(false);
+        endGlobalProcessing({ error: "Could not copy to clipboard." });
+      }
+    );
+  }
+
+  const fromSpreadsheet = searchParams.get("from") === "spreadsheet";
 
   async function handleDelete() {
     setDeleteState({ loading: true });
@@ -47,7 +83,12 @@ export function CustomerDetailView({
         return;
       }
       endGlobalProcessing({ success: "Customer deleted." });
-      router.push("/dashboard/customers?view=spreadsheet");
+      const p = new URLSearchParams();
+      p.set("view", "spreadsheet");
+      p.set("page", backPage);
+      p.set("perPage", backPerPage);
+      if (backQ.trim()) p.set("q", backQ.trim());
+      router.push(`/dashboard/customers?${p.toString()}`);
       router.refresh();
     } finally {
       endGlobalProcessing();
@@ -57,6 +98,18 @@ export function CustomerDetailView({
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : null;
 
+  const backPage = searchParams.get("page") ?? "1";
+  const backPerPage = searchParams.get("perPage") ?? "100";
+  const backQ = searchParams.get("q") ?? "";
+  const backParams = new URLSearchParams();
+  backParams.set("view", "spreadsheet");
+  backParams.set("highlight", customer.id);
+  backParams.set("page", backPage);
+  backParams.set("perPage", backPerPage);
+  if (backQ.trim()) backParams.set("q", backQ.trim());
+  const backHref = `/dashboard/customers?${backParams.toString()}`;
+  const backLabel = "Back to spreadsheet";
+
   return (
     <>
       <div className="flex h-full min-h-0 w-full flex-col">
@@ -64,22 +117,46 @@ export function CustomerDetailView({
           left={
             <>
               <Link
-                href="/dashboard/customers?view=spreadsheet"
+                href={backHref}
                 className="btn btn-secondary btn-icon shrink-0"
-                aria-label="Back to spreadsheet"
-                title="Back to spreadsheet"
+                aria-label={backLabel}
+                title={backLabel}
               >
                 <ChevronLeft className="size-4" />
               </Link>
               <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
                 {customer.name}
               </h2>
+              <IconButton
+                variant="secondary"
+                icon={<Copy className="w-4 h-4" />}
+                label="Copy to clipboard"
+                onClick={handleCopy}
+                disabled={copyLoading}
+                className="shrink-0"
+              />
             </>
           }
           right={
             <>
               <Link
-                href={`/dashboard/customers/${customer.id}/edit`}
+                href={backParams.toString() ? `/dashboard/customers/new?${backParams.toString()}` : "/dashboard/customers/new"}
+                className="btn btn-add btn-icon shrink-0"
+                aria-label="New customer"
+                title="New customer"
+              >
+                <Plus className="size-4" />
+              </Link>
+              <Link
+                href={(() => {
+                  const p = new URLSearchParams();
+                  p.set("page", backPage);
+                  p.set("perPage", backPerPage);
+                  if (backQ.trim()) p.set("q", backQ.trim());
+                  if (fromSpreadsheet) p.set("from", "spreadsheet");
+                  const qs = p.toString();
+                  return qs ? `/dashboard/customers/${customer.id}/edit?${qs}` : `/dashboard/customers/${customer.id}/edit`;
+                })()}
                 className="btn btn-edit btn-icon shrink-0"
                 aria-label="Edit customer"
                 title="Edit customer"
@@ -93,10 +170,10 @@ export function CustomerDetailView({
                 onClick={() => setDeleteState({ loading: false })}
               />
               <Link
-                href="/dashboard/customers?view=spreadsheet"
+                href={backHref}
                 className="btn btn-secondary btn-icon shrink-0"
-                aria-label="Switch to spreadsheet view"
-                title="Spreadsheet view"
+                aria-label={backLabel}
+                title={backLabel}
               >
                 <X className="size-4" />
               </Link>
@@ -104,9 +181,29 @@ export function CustomerDetailView({
           }
         />
 
-        {/* Detail body — all DB fields separately */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-card-bg)] p-6">
-          <div className="card max-w-2xl p-6">
+        {/* Detail body — documents + all DB fields */}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-base p-6">
+          <div className="card max-w-2xl p-6 space-y-6">
+            {(estimatesCount > 0 || invoicesCount > 0) && (
+              <div className="flex flex-wrap items-center gap-3 border-b border-[var(--color-outline)] pb-4">
+                {estimatesCount > 0 && (
+                  <Link
+                    href={`/dashboard/estimates?customerId=${customer.id}`}
+                    className="text-sm font-medium text-[var(--color-primary)] hover:underline"
+                  >
+                    Estimates ({estimatesCount})
+                  </Link>
+                )}
+                {invoicesCount > 0 && (
+                  <Link
+                    href={`/dashboard/sales?customerId=${customer.id}`}
+                    className="text-sm font-medium text-[var(--color-primary)] hover:underline"
+                  >
+                    Invoices ({invoicesCount})
+                  </Link>
+                )}
+              </div>
+            )}
             <dl className="grid gap-4 sm:grid-cols-[auto_1fr]">
               <DetailRow label="Name" value={customer.name} />
               <DetailRow label="Contact person name" value={customer.contact_person_name} />

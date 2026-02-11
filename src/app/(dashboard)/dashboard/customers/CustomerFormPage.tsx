@@ -11,11 +11,17 @@ export function CustomerFormPage({
   companyId,
   title,
   backHref,
+  listHref,
+  returnToSpreadsheet,
 }: {
   customer: Customer | null;
   companyId: string;
   title: string;
   backHref: string;
+  /** URL for list view; used for redirect after create or delete. */
+  listHref?: string;
+  /** When true, after delete navigate to spreadsheet view. */
+  returnToSpreadsheet?: boolean;
 }) {
   const router = useRouter();
 
@@ -38,19 +44,29 @@ export function CustomerFormPage({
           </>
         }
       />
-      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-card-bg)] p-6">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-base p-6">
         <div className="card max-w-2xl p-6">
           <CustomerForm
             customer={customer}
             companyId={companyId}
+            listHref={listHref}
+            returnToSpreadsheet={returnToSpreadsheet}
             onSuccess={(customerId) => {
-              if (customerId) router.push(`/dashboard/customers/${customerId}`);
-              else router.push("/dashboard/customers");
+              const base = listHref ?? "/dashboard/customers";
+              const qs = base.includes("?") ? base.split("?")[1] : "";
+              const query = qs ? `?${qs}` : "";
+              if (customerId) {
+                router.push(`/dashboard/customers/${customerId}${query}`);
+              } else if (customer?.id) {
+                router.push(`/dashboard/customers/${customer.id}${query}`);
+              } else {
+                router.push(base);
+              }
               router.refresh();
             }}
             onCancel={() => {
-              if (customer?.id) router.push(`/dashboard/customers/${customer.id}`);
-              else router.push("/dashboard/customers");
+              if (customer?.id) router.push(backHref);
+              else router.push(listHref ?? "/dashboard/customers");
             }}
           />
         </div>

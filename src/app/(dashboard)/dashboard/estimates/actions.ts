@@ -349,7 +349,8 @@ export async function getEstimatesList(
   companyId: string,
   page: number,
   perPage: number,
-  searchQuery?: string | null
+  searchQuery?: string | null,
+  customerId?: string | null
 ): Promise<{ totalCount: number; list: Array<{
   id: string;
   estimate_number: string;
@@ -393,6 +394,10 @@ export async function getEstimatesList(
     )
     .eq("company_id", companyId)
     .order("estimate_date", { ascending: false });
+
+  if (customerId?.trim()) {
+    query = query.eq("customer_id", customerId.trim());
+  }
 
   const q = searchQuery?.trim();
   if (q && q.length > 0) {

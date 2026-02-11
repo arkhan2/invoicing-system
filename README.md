@@ -27,7 +27,6 @@ invoicing-system/
 │   │   │   ├── page.tsx     # Dashboard home
 │   │   │   ├── company/page.tsx
 │   │   │   ├── customers/page.tsx
-│   │   │   ├── vendors/page.tsx
 │   │   │   ├── items/page.tsx
 │   │   │   ├── sales/page.tsx
 │   │   │   └── purchases/page.tsx
@@ -85,7 +84,7 @@ invoicing-system/
 ## Phases
 
 - **Phase 1** (this repo): DB schema, auth, dashboard shell, placeholder pages.
-- **Phase 2**: Company, customers, vendors, tax rates, items (CRUD).
+- **Phase 2**: Company, customers, tax rates, items (CRUD).
 - **Phase 3**: Sales invoices + items + payments.
 - **Phase 4**: Purchase invoices + items + payments.
 - **Phase 5**: Polish and navigation.

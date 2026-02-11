@@ -12,9 +12,11 @@ import type { InvoiceListItem } from "./InvoiceForm";
 export function InvoiceSidebar({
   invoices,
   companyId,
+  filterCustomerId,
 }: {
   invoices: InvoiceListItem[];
   companyId: string;
+  filterCustomerId?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -68,7 +70,7 @@ export function InvoiceSidebar({
 
   return (
     <>
-      <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)]">
+      <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-base">
         <div className="flex-shrink-0 p-3">
           <Link
             href="/dashboard/sales/new"
@@ -79,7 +81,7 @@ export function InvoiceSidebar({
             <Plus className="w-4 h-4" />
           </Link>
         </div>
-        <div className="flex-shrink-0 px-3 pb-2">
+        <div className="flex flex-shrink-0 flex-col gap-2 px-3 pb-2">
           <input
             type="search"
             placeholder="Search invoices…"
@@ -88,6 +90,17 @@ export function InvoiceSidebar({
             className={inputClass}
             aria-label="Search invoices"
           />
+          {filterCustomerId && (
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface-variant)]/50 px-2 py-1.5 text-sm">
+              <span className="truncate text-[var(--color-on-surface-variant)]">Filter: customer</span>
+              <Link
+                href="/dashboard/sales"
+                className="shrink-0 font-medium text-[var(--color-primary)] hover:underline"
+              >
+                Clear
+              </Link>
+            </div>
+          )}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto pr-2">
           {filtered.length === 0 ? (
@@ -105,7 +118,7 @@ export function InvoiceSidebar({
                       className={`block rounded-xl border px-3 py-2.5 text-left transition-colors duration-200 ${
                         isActive
                           ? "border-[var(--color-primary)] bg-[var(--color-primary-container)]"
-                          : "border-[var(--color-outline)] bg-[var(--color-card-bg)] hover:bg-[var(--color-surface-variant)]"
+                          : "border-[var(--color-outline)] bg-surface hover:bg-[var(--color-surface-variant)]"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Papa from "papaparse";
 import { Upload, Loader2, ChevronLeft } from "lucide-react";
 import { importCustomersFromCsv, type ImportCustomersResult } from "./actions";
@@ -54,8 +54,20 @@ function buildDefaultMapping(headers: string[]): ColumnMapping {
 const inputClass =
   "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
+function customersListQs(searchParams: URLSearchParams) {
+  const p = new URLSearchParams();
+  p.set("page", searchParams.get("page") ?? "1");
+  p.set("perPage", searchParams.get("perPage") ?? "100");
+  const q = searchParams.get("q")?.trim();
+  if (q) p.set("q", q);
+  return p.toString();
+}
+
 export function CustomerImportPage({ companyId }: { companyId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const listQs = customersListQs(searchParams);
+  const listHref = listQs ? `/dashboard/customers?${listQs}` : "/dashboard/customers";
   const [step, setStep] = useState<"upload" | "mapping" | "preview">("upload");
   const [parseError, setParseError] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -196,7 +208,7 @@ export function CustomerImportPage({ companyId }: { companyId: string }) {
       if (totalSkipped > 0) {
         showMessage(`Skipped ${totalSkipped} rows (no name).`, "info");
       }
-      router.push("/dashboard/customers");
+      router.push(listHref);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Import failed.";
       endGlobalProcessing({ error: msg });
@@ -237,7 +249,7 @@ export function CustomerImportPage({ companyId }: { companyId: string }) {
       <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <Link
-            href="/dashboard/customers"
+            href={listHref}
             className="btn btn-secondary btn-icon shrink-0"
             aria-label="Back to customers"
             title="Back to customers"

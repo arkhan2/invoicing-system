@@ -40,7 +40,7 @@ export function ConfirmDialog({
     >
       <div className="absolute inset-0" aria-hidden onClick={onCancel} />
       <div
-        className="relative z-10 w-full max-w-sm rounded-2xl bg-[var(--color-card-bg)] p-8 shadow-lg"
+        className="relative z-10 w-full max-w-sm rounded-2xl bg-elevated p-8 shadow-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-title" className="text-lg font-semibold text-[var(--color-on-surface)]">

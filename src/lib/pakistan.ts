@@ -1,5 +1,5 @@
 /**
- * Provinces and major cities of Pakistan for dropdowns in company, customer, and vendor forms.
+ * Provinces and major cities of Pakistan for dropdowns in company and customer forms.
  */
 
 export const PAKISTAN_PROVINCES = [

@@ -6,7 +6,7 @@ import { Plus, FileSpreadsheet, ChevronLeft } from "lucide-react";
 import { useEstimatesTopBar } from "./EstimatesTopBarContext";
 
 const topBarClass =
-  "flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-[var(--color-surface)] px-4 py-3";
+  "flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3";
 
 export function EstimatesTopBar() {
   const pathname = usePathname();

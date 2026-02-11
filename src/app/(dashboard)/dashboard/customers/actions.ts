@@ -5,6 +5,56 @@ import { revalidatePath } from "next/cache";
 
 export type CustomerFormState = { error?: string; customerId?: string };
 
+function validateEmail(email: string | null): string | null {
+  if (!email || !email.trim()) return null;
+  if (!/.+@.+\..+/.test(email.trim())) return "Please enter a valid email address.";
+  return null;
+}
+
+function validatePhone(phone: string | null): string | null {
+  if (!phone || !phone.trim()) return null;
+  const cleaned = phone.replace(/[\s\-+()]/g, "");
+  if (!/^\d+$/.test(cleaned) || cleaned.length < 7 || cleaned.length > 20) {
+    return "Please enter a valid phone number (7–20 digits).";
+  }
+  return null;
+}
+
+export async function checkDuplicateCustomer(
+  companyId: string,
+  name: string,
+  ntn_cnic?: string | null,
+  excludeCustomerId?: string
+): Promise<{ duplicate: boolean }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { duplicate: false };
+
+  const trimmedName = (name ?? "").trim();
+  if (!trimmedName) return { duplicate: false };
+
+  let query = supabase
+    .from("customers")
+    .select("id")
+    .eq("company_id", companyId)
+    .ilike("name", trimmedName);
+  if (excludeCustomerId) query = query.neq("id", excludeCustomerId);
+  const { data: byName } = await query.limit(1).maybeSingle();
+  if (byName) return { duplicate: true };
+
+  const trimmedNtn = (ntn_cnic ?? "").trim();
+  if (!trimmedNtn) return { duplicate: false };
+
+  let queryNtn = supabase
+    .from("customers")
+    .select("id")
+    .eq("company_id", companyId)
+    .ilike("ntn_cnic", trimmedNtn);
+  if (excludeCustomerId) queryNtn = queryNtn.neq("id", excludeCustomerId);
+  const { data: byNtn } = await queryNtn.limit(1).maybeSingle();
+  return { duplicate: !!byNtn };
+}
+
 export type DeleteCustomersResult = {
   error?: string;
   deletedCount?: number;
@@ -21,6 +71,13 @@ export async function createCustomer(
   if (!name) {
     return { error: "Customer name is required." };
   }
+
+  const email = (formData.get("email") as string)?.trim() || null;
+  const phone = (formData.get("phone") as string)?.trim() || null;
+  const emailErr = validateEmail(email);
+  if (emailErr) return { error: emailErr };
+  const phoneErr = validatePhone(phone);
+  if (phoneErr) return { error: phoneErr };
 
   const supabase = await createClient();
   const {
@@ -47,8 +104,8 @@ export async function createCustomer(
       )
         ? (formData.get("registration_type") as string)
         : null,
-      phone: (formData.get("phone") as string)?.trim() || null,
-      email: (formData.get("email") as string)?.trim() || null,
+      phone: phone,
+      email: email,
     })
     .select("id")
     .single();
@@ -69,6 +126,13 @@ export async function updateCustomer(
   if (!name) {
     return { error: "Customer name is required." };
   }
+
+  const email = (formData.get("email") as string)?.trim() || null;
+  const phone = (formData.get("phone") as string)?.trim() || null;
+  const emailErr = validateEmail(email);
+  if (emailErr) return { error: emailErr };
+  const phoneErr = validatePhone(phone);
+  if (phoneErr) return { error: phoneErr };
 
   const supabase = await createClient();
   const {
@@ -93,8 +157,8 @@ export async function updateCustomer(
       )
         ? (formData.get("registration_type") as string)
         : null,
-      phone: (formData.get("phone") as string)?.trim() || null,
-      email: (formData.get("email") as string)?.trim() || null,
+      phone,
+      email,
       updated_at: new Date().toISOString(),
     })
     .eq("id", customerId)
@@ -104,6 +168,206 @@ export async function updateCustomer(
   revalidatePath("/dashboard/customers");
   revalidatePath("/dashboard/estimates");
   return {};
+}
+
+export async function getCustomerDocumentCounts(
+  customerId: string,
+  companyId: string
+): Promise<{ estimatesCount: number; invoicesCount: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { estimatesCount: 0, invoicesCount: 0 };
+
+  const [est, inv] = await Promise.all([
+    supabase
+      .from("estimates")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("customer_id", customerId),
+    supabase
+      .from("sales_invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("customer_id", customerId),
+  ]);
+  return {
+    estimatesCount: est.count ?? 0,
+    invoicesCount: inv.count ?? 0,
+  };
+}
+
+export type CustomerListItem = {
+  id: string;
+  name: string;
+  contact_person_name: string | null;
+  ntn_cnic: string | null;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+  registration_type: string | null;
+  phone: string | null;
+  email: string | null;
+  created_at?: string;
+  updated_at?: string | null;
+};
+
+function escapeIlikePattern(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+export async function getCustomersList(
+  companyId: string,
+  page: number,
+  perPage: number,
+  searchQuery?: string | null
+): Promise<{ totalCount: number; list: CustomerListItem[] }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { totalCount: 0, list: [] };
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("id", companyId)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) return { totalCount: 0, list: [] };
+
+  const from = (page - 1) * perPage;
+  const to = from + perPage - 1;
+
+  let query = supabase
+    .from("customers")
+    .select(
+      "id, name, contact_person_name, ntn_cnic, address, city, province, country, registration_type, phone, email, created_at, updated_at",
+      { count: "exact" }
+    )
+    .eq("company_id", companyId)
+    .order("name", { ascending: true });
+
+  const q = searchQuery?.trim();
+  if (q && q.length > 0) {
+    const pattern = `%${escapeIlikePattern(q)}%`;
+    query = query.or(`name.ilike.${pattern},ntn_cnic.ilike.${pattern}`);
+  }
+
+  const { data: rows, count, error } = await query.range(from, to);
+
+  if (error) {
+    console.error("[getCustomersList]", error);
+    return { totalCount: 0, list: [] };
+  }
+
+  const list: CustomerListItem[] = (rows ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    contact_person_name: c.contact_person_name ?? null,
+    ntn_cnic: c.ntn_cnic ?? null,
+    address: c.address ?? null,
+    city: c.city ?? null,
+    province: c.province ?? null,
+    country: c.country ?? null,
+    registration_type: c.registration_type ?? null,
+    phone: c.phone ?? null,
+    email: c.email ?? null,
+    created_at: c.created_at ?? undefined,
+    updated_at: c.updated_at ?? null,
+  }));
+
+  return { totalCount: count ?? 0, list };
+}
+
+export async function duplicateCustomer(
+  customerId: string,
+  companyId: string
+): Promise<{ error?: string; customerId?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in to copy a customer." };
+
+  const { data: existing } = await supabase
+    .from("customers")
+    .select("id, name, contact_person_name, ntn_cnic, address, city, province, country, registration_type, phone, email")
+    .eq("id", customerId)
+    .eq("company_id", companyId)
+    .single();
+  if (!existing) return { error: "Customer not found." };
+
+  const { data: inserted, error } = await supabase
+    .from("customers")
+    .insert({
+      company_id: companyId,
+      name: "Copy of " + (existing.name ?? "").trim(),
+      contact_person_name: existing.contact_person_name ?? null,
+      ntn_cnic: existing.ntn_cnic ?? null,
+      address: existing.address ?? null,
+      city: existing.city ?? null,
+      province: existing.province ?? null,
+      country: existing.country ?? null,
+      registration_type: existing.registration_type ?? null,
+      phone: existing.phone ?? null,
+      email: existing.email ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/customers");
+  return { customerId: inserted?.id };
+}
+
+const EXPORT_CUSTOMERS_LIMIT = 10_000;
+
+export async function exportCustomersCsv(
+  companyId: string
+): Promise<{ error?: string; csv?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in to export." };
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("id", companyId)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) return { error: "Company not found." };
+
+  const { data: rows } = await supabase
+    .from("customers")
+    .select("name, contact_person_name, email, phone, address, city, province, country, ntn_cnic, registration_type")
+    .eq("company_id", companyId)
+    .order("name", { ascending: true })
+    .limit(EXPORT_CUSTOMERS_LIMIT);
+
+  const header = "name,contact_person_name,email,phone,address,city,province,country,ntn_cnic,registration_type";
+  const escape = (v: string | null | undefined) => {
+    if (v == null) return "";
+    const s = String(v);
+    if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  };
+  const lines = [header];
+  for (const r of rows ?? []) {
+    lines.push(
+      [
+        escape(r.name),
+        escape(r.contact_person_name ?? null),
+        escape(r.email ?? null),
+        escape(r.phone ?? null),
+        escape(r.address ?? null),
+        escape(r.city ?? null),
+        escape(r.province ?? null),
+        escape(r.country ?? null),
+        escape(r.ntn_cnic ?? null),
+        escape(r.registration_type ?? null),
+      ].join(",")
+    );
+  }
+  return { csv: lines.join("\r\n") };
 }
 
 export async function deleteCustomer(

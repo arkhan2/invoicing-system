@@ -39,10 +39,10 @@ export function Modal({
         onClick={onClose}
       />
       <div
-        className={`relative z-10 flex max-h-[90vh] w-full ${contentClassName ?? "max-w-lg"} flex-col rounded-2xl overflow-hidden bg-[var(--color-card-bg)] shadow-lg`}
+        className={`relative z-10 flex max-h-[90vh] w-full ${contentClassName ?? "max-w-lg"} flex-col rounded-2xl overflow-hidden bg-elevated shadow-elevated`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-divider)] bg-[var(--color-card-bg)] px-6 py-4">
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-[var(--color-divider)] bg-elevated px-6 py-4">
           <h2 id="modal-title" className="text-lg font-semibold text-[var(--color-on-surface)]">
             {title}
           </h2>

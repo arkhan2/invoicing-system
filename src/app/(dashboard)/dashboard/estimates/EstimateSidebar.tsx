@@ -29,6 +29,7 @@ export function EstimateSidebar({
   perPage,
   perPageOptions = [50, 100, 200],
   searchQuery: searchQueryProp = "",
+  filterCustomerId,
 }: {
   estimates: EstimateListItem[];
   companyId: string;
@@ -37,6 +38,7 @@ export function EstimateSidebar({
   perPage?: number;
   perPageOptions?: readonly number[];
   searchQuery?: string;
+  filterCustomerId?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -58,12 +60,21 @@ export function EstimateSidebar({
   const endItem = (totalCount ?? 0) === 0 ? 0 : Math.min((page ?? 1) * (perPage ?? 0), totalCount ?? 0);
 
   const filtered = estimates;
-  const qs = (params: { page?: number; perPage?: number; q?: string }) => {
+  const qs = (params: { page?: number; perPage?: number; q?: string; customerId?: string | null }) => {
     const p = new URLSearchParams();
     p.set("page", String(params.page ?? page ?? 1));
     p.set("perPage", String(params.perPage ?? perPage ?? 100));
     const q = params.q !== undefined ? params.q : searchQueryProp;
     if (q && q.trim()) p.set("q", q.trim());
+    if (params.customerId) p.set("customerId", params.customerId);
+    return `/dashboard/estimates?${p.toString()}`;
+  };
+
+  const clearCustomerFilterUrl = () => {
+    const p = new URLSearchParams();
+    p.set("page", String(page ?? 1));
+    p.set("perPage", String(perPage ?? 100));
+    if (searchQueryProp?.trim()) p.set("q", searchQueryProp.trim());
     return `/dashboard/estimates?${p.toString()}`;
   };
 
@@ -72,6 +83,7 @@ export function EstimateSidebar({
     p.set("page", String(page ?? 1));
     p.set("perPage", String(perPage ?? 100));
     if (searchInput.trim()) p.set("q", searchInput.trim());
+    if (filterCustomerId) p.set("customerId", filterCustomerId);
     return p.toString();
   };
   const estimateHref = (estimateId: string) => {
@@ -213,7 +225,7 @@ export function EstimateSidebar({
 
   return (
     <>
-      <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-[var(--color-surface)]">
+      <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-base">
         <div className="flex flex-shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
           <div className="relative flex items-center">
             <input
@@ -244,6 +256,17 @@ export function EstimateSidebar({
               />
             )}
           </div>
+          {filterCustomerId && (
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface-variant)]/50 px-2 py-1.5 text-sm">
+              <span className="truncate text-[var(--color-on-surface-variant)]">Filter: customer</span>
+              <Link
+                href={clearCustomerFilterUrl()}
+                className="shrink-0 font-medium text-[var(--color-primary)] hover:underline"
+              >
+                Clear
+              </Link>
+            </div>
+          )}
           {selectedIds.size > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/50 px-3 py-2">
               <div className="flex items-center gap-2">
@@ -305,7 +328,7 @@ export function EstimateSidebar({
                 const cardClass = `flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors duration-200 ${
                   isActive
                     ? "border-[var(--color-primary)] bg-[var(--color-primary-container)]"
-                    : "border-[var(--color-outline)] bg-[var(--color-card-bg)] hover:bg-[var(--color-surface-variant)]"
+                    : "border-[var(--color-outline)] bg-surface hover:bg-[var(--color-surface-variant)]"
                 }`;
                 return (
                   <div
@@ -403,7 +426,7 @@ export function EstimateSidebar({
             <p className="text-xs font-medium text-[var(--color-on-surface-variant)]">
               Total Count: {totalCount!.toLocaleString()}
             </p>
-            <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface)] px-2 py-1.5">
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-outline)] bg-surface px-2 py-1.5">
               <div className="relative">
                 <button
                   type="button"
@@ -425,7 +448,7 @@ export function EstimateSidebar({
                     />
                     <ul
                       role="listbox"
-                      className="absolute bottom-full left-0 z-20 mb-1 min-w-[8rem] rounded-lg border border-[var(--color-outline)] bg-[var(--color-card-bg)] py-1 shadow-lg"
+                      className="absolute bottom-full left-0 z-20 mb-1 min-w-[8rem] rounded-lg border border-[var(--color-outline)] bg-elevated py-1 shadow-elevated"
                     >
                       {perPageOptions.map((n) => (
                         <li key={n} role="option">

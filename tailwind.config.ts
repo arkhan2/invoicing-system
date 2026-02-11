@@ -18,6 +18,11 @@ const config: Config = {
           DEFAULT: "var(--color-surface)",
           variant: "var(--color-surface-variant)",
         },
+        /* Elevation layers (60-30-10) */
+        base: "var(--color-bg-base)",
+        "base-foreground": "var(--color-on-base)",
+        elevated: "var(--color-bg-elevated)",
+        "elevated-foreground": "var(--color-on-elevated)",
       },
       fontFamily: {
         sans: ["var(--font-roboto)", "Roboto", "system-ui", "sans-serif"],
@@ -25,6 +30,7 @@ const config: Config = {
       boxShadow: {
         card: "var(--shadow-sm)",
         "card-hover": "var(--shadow-md)",
+        elevated: "var(--shadow-elevated)",
       },
     },
   },

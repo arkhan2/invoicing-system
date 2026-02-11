@@ -1,0 +1,76 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
+import { VendorForm, type Vendor } from "./VendorForm";
+import { VendorsTopBar } from "./VendorsTopBar";
+
+export function VendorFormPage({
+  vendor,
+  companyId,
+  title,
+  backHref,
+  listHref,
+  returnToSpreadsheet,
+}: {
+  vendor: Vendor | null;
+  companyId: string;
+  title: string;
+  backHref: string;
+  /** URL for list view; used for redirect after create or delete. */
+  listHref?: string;
+  /** When true, after delete navigate to spreadsheet view. */
+  returnToSpreadsheet?: boolean;
+}) {
+  const router = useRouter();
+
+  return (
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <VendorsTopBar
+        left={
+          <>
+            <Link
+              href={backHref}
+              className="btn btn-secondary btn-icon shrink-0"
+              aria-label="Back"
+              title="Back"
+            >
+              <ChevronLeft className="size-4" />
+            </Link>
+            <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
+              {title}
+            </h2>
+          </>
+        }
+      />
+      <div className="min-h-0 flex-1 overflow-y-auto bg-base p-6">
+        <div className="card max-w-2xl p-6">
+          <VendorForm
+            vendor={vendor}
+            companyId={companyId}
+            listHref={listHref}
+            returnToSpreadsheet={returnToSpreadsheet}
+            onSuccess={(vendorId) => {
+              const base = listHref ?? "/dashboard/vendors";
+              const qs = base.includes("?") ? base.split("?")[1] : "";
+              const query = qs ? `?${qs}` : "";
+              if (vendorId) {
+                router.push(`/dashboard/vendors/${vendorId}${query}`);
+              } else if (vendor?.id) {
+                router.push(`/dashboard/vendors/${vendor.id}${query}`);
+              } else {
+                router.push(base);
+              }
+              router.refresh();
+            }}
+            onCancel={() => {
+              if (vendor?.id) router.push(backHref);
+              else router.push(listHref ?? "/dashboard/vendors");
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

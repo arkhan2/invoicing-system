@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo, useImperativeHandle, forwardRef } from "react";
+import { useState, useMemo, useImperativeHandle, forwardRef, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
 import { Modal } from "@/components/Modal";
@@ -25,6 +26,7 @@ type CustomerListProps = {
   onSearchChange?: (value: string) => void;
   selectedIds?: Set<string>;
   onSelectionChange?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  scrollToCustomerId?: string | null;
 };
 
 export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(function CustomerList(
@@ -36,10 +38,12 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
     onSearchChange,
     selectedIds: controlledSelectedIds,
     onSelectionChange,
+    scrollToCustomerId,
   },
   ref
 ) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [internalSearch, setInternalSearch] = useState("");
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
   const search = controlledSearch !== undefined ? controlledSearch : internalSearch;
@@ -52,6 +56,21 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
     { ids: string[]; loading: boolean } | null
   >(null);
 
+  const scrollToRowRef = useRef<HTMLTableRowElement | null>(null);
+
+  const customerDetailUrl = (id: string) => {
+    if (!hideToolbar) return `/dashboard/customers/${id}`;
+    const p = new URLSearchParams();
+    p.set("from", "spreadsheet");
+    const page = searchParams.get("page") ?? "1";
+    const perPage = searchParams.get("perPage") ?? "100";
+    const q = searchParams.get("q") ?? "";
+    p.set("page", page);
+    p.set("perPage", perPage);
+    if (q.trim()) p.set("q", q.trim());
+    return `/dashboard/customers/${id}?${p.toString()}`;
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return initialCustomers;
@@ -62,6 +81,11 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
         (c.phone?.toLowerCase().includes(q) ?? false)
     );
   }, [initialCustomers, search]);
+
+  useEffect(() => {
+    if (!scrollToCustomerId || !scrollToRowRef.current) return;
+    scrollToRowRef.current.scrollIntoView({ block: "nearest", behavior: "auto" });
+  }, [scrollToCustomerId, filtered]);
 
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
@@ -206,7 +230,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
             </div>
             <div className="flex flex-col gap-4 p-5">
               {selectedIds.size > 0 && (
-                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/50 px-4 py-2">
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)] px-4 py-2">
                   <span className="text-sm text-[var(--color-on-surface-variant)]">
                     {selectedIds.size} selected
                   </span>
@@ -247,15 +271,17 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                 <thead className="sticky top-0 z-10 bg-[var(--color-surface-variant)] shadow-[0_1px_0_0_var(--color-divider)]">
                   <tr>
                     <th className="w-10 p-3">
-                      <label className="flex cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={allFilteredSelected}
-                          onChange={toggleSelectAll}
-                          className="rounded-md border-[var(--color-outline)]"
-                          aria-label="Select all"
-                        />
-                      </label>
+                      {selectedIds.size > 0 && (
+                        <label className="flex cursor-pointer items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={allFilteredSelected}
+                            onChange={toggleSelectAll}
+                            className="rounded-md border-[var(--color-outline)]"
+                            aria-label="Select all"
+                          />
+                        </label>
+                      )}
                     </th>
                     <th className="p-3 font-medium text-[var(--color-on-surface)]">
                       Name
@@ -279,6 +305,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                   {filtered.map((c) => (
                     <tr
                       key={c.id}
+                      ref={c.id === scrollToCustomerId ? scrollToRowRef : undefined}
                       className={`border-b border-[var(--color-divider)] last:border-b-0 even:bg-[var(--color-surface-variant)]/10 transition-colors duration-150 ${
                         hideToolbar
                           ? "cursor-pointer hover:bg-[var(--color-surface-variant)]"
@@ -286,7 +313,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                       }`}
                       onClick={
                         hideToolbar
-                          ? () => router.push(`/dashboard/customers/${c.id}?from=spreadsheet`)
+                          ? () => router.push(customerDetailUrl(c.id))
                           : undefined
                       }
                       role={hideToolbar ? "button" : undefined}
@@ -296,7 +323,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                           ? (e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
-                                router.push(`/dashboard/customers/${c.id}?from=spreadsheet`);
+                                router.push(customerDetailUrl(c.id));
                               }
                             }
                           : undefined
@@ -328,7 +355,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                       </td>
                       <td className="w-28 shrink-0 p-3 text-right" onClick={(e) => hideToolbar && e.stopPropagation()}>
                         <div className="flex justify-end gap-2">
-                          <IconButton variant="edit" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={(e) => { e.stopPropagation(); if (hideToolbar) router.push(`/dashboard/customers/${c.id}/edit`); else openEdit(c); }} />
+                          <IconButton variant="edit" icon={<Pencil className="w-4 h-4" />} label="Edit" onClick={(e) => { e.stopPropagation(); if (hideToolbar) router.push(`/dashboard/customers/${c.id}/edit?${searchParams.toString()}`); else openEdit(c); }} />
                           <IconButton variant="danger" icon={<Trash2 className="w-4 h-4" />} label="Delete" onClick={(e) => { e.stopPropagation(); openDeleteOne(c.id); }} />
                         </div>
                       </td>
@@ -349,6 +376,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
         <CustomerForm
           customer={editingCustomer}
           companyId={companyId}
+          returnToSpreadsheet={true}
           onSuccess={closeModal}
           onCancel={closeModal}
         />

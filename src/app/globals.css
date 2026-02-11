@@ -4,13 +4,12 @@
 
 /* =============================================================================
    COLOR SYSTEM — Semantic only (no raw hex in components)
-   Use ONLY: --color-surface, --color-surface-variant, --color-card-bg,
-   --color-on-surface, --color-on-surface-variant, --color-primary,
-   --color-primary-container, --color-secondary, --color-error, --color-outline,
-   --color-divider (soft list/table separators),
-   --color-input-bg, --color-placeholder, and *-container / btn-* / badge-* tokens.
-   Hierarchy: page = surface-variant; content/sidebar = surface; cards = card-bg.
-   Single border rule: one border OR one shadow per section. Focus always visible.
+   ELEVATION LAYERS (60-30-10: 60% base, 30% surface, 10% accent):
+   - Base:    Deepest background (page, main area). Use: bg-base
+   - Surface: Cards, sidebars, primary containers. Use: bg-surface
+   - Elevated: Modals, dropdowns, popovers. Use: bg-elevated + shadow-elevated
+   Luminosity: Each layer rises slightly (lighter in light mode, lighter in dark).
+   WCAG AA: All on-* text meets 4.5:1 contrast.
    ============================================================================= */
 
 /* --- Light mode — soft, easy on eyes (no bright white) --- */
@@ -28,9 +27,18 @@
   --palette-coral-dark: #a8645a;
   --palette-mint: #6cb8a8;
 
-  /* Surfaces: warm gray (reduced brightness) */
+  /* Elevation layers (base → surface → elevated) */
+  --color-bg-base: #dfdcd9;
+  --color-bg-surface: #e8e6e3;
+  --color-bg-elevated: #f5f3f0;
+  --color-on-base: #3a3734;
+  --color-on-surface: #3a3734;
+  --color-on-elevated: #3a3734;
+  --shadow-elevated: 0 8px 32px rgb(58 55 52 / 12%), 0 2px 8px rgb(58 55 52 / 8%);
+
+  /* Legacy alias — prefer bg-base, bg-surface, bg-elevated */
   --color-surface: #e8e6e3;
-  --color-surface-variant: #e0ddda;
+  --color-surface-variant: #dfdcd9;
   --color-on-surface: #3a3734;
   --color-on-surface-variant: #5c5956;
   --color-placeholder: #8a8682;
@@ -59,7 +67,7 @@
   --color-error-bg: #ecd8d6;
   --color-secondary-bg: #c8e4e0;
 
-  --color-card-bg: #efedea;
+  --color-card-bg: #e8e6e3;
   --color-card-text: #3a3734;
 
   /* Buttons: more prominent, readable on soft bg (not document view) */
@@ -103,15 +111,23 @@
   --shadow-md: 0 2px 6px 0 rgb(58 55 52 / 8%), 0 4px 12px 3px rgb(58 55 52 / 6%);
 }
 
-/* --- Dark mode — darker; form controls same bg as cards --- */
+/* --- Dark mode — darker; luminosity shift: base → surface → elevated --- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-surface: #181a1e;
-    --color-surface-variant: #1e2024;
+    --color-bg-base: #14161a;
+    --color-bg-surface: #1c1e22;
+    --color-bg-elevated: #25282c;
+    --color-on-base: #e4e2df;
+    --color-on-surface: #e4e2df;
+    --color-on-elevated: #e4e2df;
+    --shadow-elevated: 0 8px 32px rgb(0 0 0 / 35%), 0 2px 8px rgb(0 0 0 / 25%);
+
+    --color-surface: #1c1e22;
+    --color-surface-variant: #14161a;
     --color-on-surface: #e2e0dd;
     --color-on-surface-variant: #9c9a96;
     --color-placeholder: #6a6864;
-    --color-card-bg: #222428;
+    --color-card-bg: #1c1e22;
     --color-input-bg: #2a2c30;
     --color-input-border: #404348;
     --color-input-shadow: none;
@@ -171,14 +187,22 @@
   }
 }
 
-/* Manual dark theme — same as system dark (darker; inputs = card bg) */
+/* Manual dark theme — same as system dark */
 [data-theme="dark"] {
-  --color-surface: #181a1e;
-  --color-surface-variant: #1e2024;
+  --color-bg-base: #14161a;
+  --color-bg-surface: #1c1e22;
+  --color-bg-elevated: #25282c;
+  --color-on-base: #e4e2df;
+  --color-on-surface: #e4e2df;
+  --color-on-elevated: #e4e2df;
+  --shadow-elevated: 0 8px 32px rgb(0 0 0 / 35%), 0 2px 8px rgb(0 0 0 / 25%);
+
+  --color-surface: #1c1e22;
+  --color-surface-variant: #14161a;
   --color-on-surface: #e2e0dd;
   --color-on-surface-variant: #9c9a96;
   --color-placeholder: #6a6864;
-  --color-card-bg: #222428;
+  --color-card-bg: #1c1e22;
   --color-input-bg: #2a2c30;
   --color-input-border: #404348;
   --color-input-shadow: none;
@@ -236,10 +260,18 @@
   --shadow-md: 0 2px 6px 0 rgb(0 0 0 / 22%), 0 4px 12px 3px rgb(0 0 0 / 16%);
 }
 
-/* Manual light theme override — same as :root light (soft, easy on eyes) */
+/* Manual light theme override — same as :root light */
 [data-theme="light"] {
+  --color-bg-base: #dfdcd9;
+  --color-bg-surface: #e8e6e3;
+  --color-bg-elevated: #f5f3f0;
+  --color-on-base: #3a3734;
+  --color-on-surface: #3a3734;
+  --color-on-elevated: #3a3734;
+  --shadow-elevated: 0 8px 32px rgb(58 55 52 / 12%), 0 2px 8px rgb(58 55 52 / 8%);
+
   --color-surface: #e8e6e3;
-  --color-surface-variant: #e0ddda;
+  --color-surface-variant: #dfdcd9;
   --color-on-surface: #3a3734;
   --color-on-surface-variant: #5c5956;
   --color-placeholder: #8a8682;
@@ -260,7 +292,7 @@
   --color-error: #a85a50;
   --color-error-bg: #ecd8d6;
   --color-secondary-bg: #c8e4e0;
-  --color-card-bg: #efedea;
+  --color-card-bg: #e8e6e3;
   --color-card-text: #3a3734;
   --color-btn-primary-bg: #4a7ab8;
   --color-btn-primary-bg-hover: #3d6aa6;
@@ -427,12 +459,12 @@
   .document-page td,
   .document-page th { color: #3a3734 !important; }
 
-  /* Cards: 8–12px radius, single subtle border, 16–20px padding when used */
+  /* Cards: surface layer — 8–12px radius, single subtle border */
   .card {
     border: 1px solid var(--color-outline);
     border-radius: var(--radius-md);
-    background-color: var(--color-card-bg);
-    color: var(--color-card-text);
+    background-color: var(--color-bg-surface);
+    color: var(--color-on-surface);
   }
   /* Soft divider for table rows / list separators (no harsh lines) */
   .divider-subtle {
@@ -464,8 +496,8 @@
 @layer base {
   body {
     font-family: var(--font-roboto), "Roboto", system-ui, sans-serif;
-    color: var(--color-on-surface);
-    background: var(--color-surface-variant);
+    color: var(--color-on-base);
+    background: var(--color-bg-base);
     -webkit-font-smoothing: antialiased;
     line-height: 1.5;
   }
