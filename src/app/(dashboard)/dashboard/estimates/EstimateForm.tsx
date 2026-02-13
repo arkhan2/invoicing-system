@@ -12,7 +12,7 @@ import {
   convertEstimateToInvoice,
   type EstimateFormState,
 } from "./actions";
-import { Save, Loader2, Plus, Pencil, Search, X, Trash2, Send, FileOutput, FileSpreadsheet } from "lucide-react";
+import { Save, Loader2, Plus, Pencil, PlusCircle, Search, X, Trash2, Send, FileOutput, FileSpreadsheet } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
@@ -25,6 +25,8 @@ import {
   getCustomerById,
   type CustomerSearchResult,
 } from "@/app/(dashboard)/dashboard/customers/actions";
+import { getUomList } from "@/app/(dashboard)/dashboard/items/actions";
+import { AddItemsFromCatalogModal } from "./AddItemsFromCatalogModal";
 import { formatEstimateDate } from "@/lib/formatDate";
 import { EstimateStatusBadge } from "./EstimateStatusBadge";
 import { useEstimatesTopBar } from "./EstimatesTopBarContext";
@@ -85,11 +87,14 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 export type SalesTaxRateOption = { id: string; name: string; rate: number };
 
+export type UomOption = { id: string; code: string; description: string };
+
 export function EstimateForm({
   estimateId,
   companyId,
   company,
   salesTaxRates = [],
+  uomList: initialUomList,
   initialEstimateNumber,
   initialEstimateDate,
   initialCustomerId,
@@ -102,6 +107,7 @@ export function EstimateForm({
   companyId: string;
   company?: { name: string } | null;
   salesTaxRates?: SalesTaxRateOption[];
+  uomList?: UomOption[];
   initialEstimateNumber?: string | null;
   initialEstimateDate?: string | null;
   initialCustomerId?: string | null;
@@ -139,6 +145,7 @@ export function EstimateForm({
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<LineItemRow[]>(defaultItems());
   const [customerModal, setCustomerModal] = useState<"add" | "edit" | null>(null);
+  const [addItemsModalOpen, setAddItemsModalOpen] = useState(false);
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const [convertState, setConvertState] = useState<{ loading: boolean } | null>(null);
   const [sendLoading, setSendLoading] = useState(false);
@@ -148,6 +155,12 @@ export function EstimateForm({
   const [paymentTerms, setPaymentTerms] = useState("");
   const [deliveryTimeAmount, setDeliveryTimeAmount] = useState("");
   const [deliveryTimeUnit, setDeliveryTimeUnit] = useState<"days" | "weeks" | "months">("days");
+  const [uomList, setUomList] = useState<UomOption[]>(initialUomList ?? []);
+
+  useEffect(() => {
+    if (initialUomList?.length) return;
+    getUomList().then(setUomList);
+  }, [initialUomList]);
 
   const runSearch = useCallback(
     async (q: string) => {
@@ -774,10 +787,29 @@ export function EstimateForm({
 
           {/* Line items card */}
           <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-              Line items
-            </h3>
-            <LineItemsEditor items={items} onChange={setItems} />
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+                Line items
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAddItemsModalOpen(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/10"
+                aria-label="Add items from catalog"
+              >
+                <PlusCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <LineItemsEditor items={items} onChange={setItems} uomList={uomList} />
+            <AddItemsFromCatalogModal
+              open={addItemsModalOpen}
+              onClose={() => setAddItemsModalOpen(false)}
+              companyId={companyId}
+              onImport={(newRows) => {
+                setItems((prev) => [...prev, ...newRows]);
+                setAddItemsModalOpen(false);
+              }}
+            />
 
             {/* Discount & tax calculations — table styled like line items */}
             <div className="mt-6 overflow-hidden rounded-xl border border-[var(--color-outline)]">

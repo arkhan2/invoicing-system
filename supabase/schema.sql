@@ -95,7 +95,9 @@ values
   ('Ltr', 'Litre'),
   ('Meter', 'Meter'),
   ('Box', 'Box'),
-  ('Packet', 'Packet')
+  ('Packet', 'Packet'),
+  ('rft', 'Running foot / linear foot'),
+  ('sqft', 'Square foot')
 on conflict (code) do nothing;
 
 create table if not exists public.items (
@@ -103,7 +105,9 @@ create table if not exists public.items (
   company_id uuid not null references public.companies(id) on delete cascade,
   name text not null,
   description text,
+  reference text,
   hs_code text,
+  unit_rate decimal(12,4) default null,
   default_tax_rate_id uuid references public.tax_rates(id) on delete set null,
   uom_id uuid references public.uom(id) on delete set null,
   sale_type text default 'Goods at standard rate (default)',

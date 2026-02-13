@@ -2,6 +2,7 @@ import { createClient, getUserSafe } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { EstimateForm } from "../../EstimateForm";
 import { getCompanyTaxRates } from "@/app/(dashboard)/dashboard/company/actions";
+import { getUomList } from "@/app/(dashboard)/dashboard/items/actions";
 import { getEstimateWithItems } from "../../actions";
 
 export default async function EstimateEditPage({
@@ -21,9 +22,10 @@ export default async function EstimateEditPage({
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const [estimateWithItems, { salesTaxRates }] = await Promise.all([
+  const [estimateWithItems, { salesTaxRates }, uomList] = await Promise.all([
     getEstimateWithItems(id),
     getCompanyTaxRates(company.id),
+    getUomList(),
   ]);
 
   if (!estimateWithItems || estimateWithItems.estimate.company_id !== company.id) notFound();
@@ -60,6 +62,7 @@ export default async function EstimateEditPage({
             companyId={company.id}
             company={{ name: company.name }}
             salesTaxRates={salesTaxRates}
+            uomList={uomList}
             initialEstimateNumber={estimate.estimate_number}
             initialEstimateDate={estimate.estimate_date ?? null}
             initialCustomerId={estimate.customer_id ?? undefined}

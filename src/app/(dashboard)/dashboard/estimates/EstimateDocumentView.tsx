@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pencil, Trash2, FileOutput, X, Send, Plus, FileSpreadsheet } from "lucide-react";
+import { Pencil, Trash2, FileOutput, X, Send, Plus, FileSpreadsheet, FileDown, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { convertEstimateToInvoice, deleteEstimate, setEstimateStatus } from "./actions";
@@ -19,6 +19,8 @@ function effectiveStatus(status: string, validUntil: string | null): string {
 }
 
 const ROWS_PER_PAGE = 22;
+/** A4 width at 96dpi: 210mm */
+const A4_WIDTH_PX = 794;
 
 type Company = {
   name: string;
@@ -98,7 +100,11 @@ export function EstimateDocumentView({
   const [convertState, setConvertState] = useState<{ loading: boolean } | null>(null);
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const [sendLoading, setSendLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [scale, setScale] = useState(1);
   const { setBarState } = useEstimatesTopBar();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const documentRef = useRef<HTMLDivElement>(null);
   const docViewHandlersRef = useRef<{
     handleSend: () => void;
     setConvertState: (s: { loading: boolean } | null) => void;
@@ -169,6 +175,52 @@ export function EstimateDocumentView({
       router.refresh();
     } finally {
       setSendLoading(false);
+      endGlobalProcessing();
+    }
+  }
+
+  async function handleExportPdf() {
+    const wrapper = documentRef.current;
+    if (!wrapper) return;
+    setPdfLoading(true);
+    startGlobalProcessing("Exporting PDF…");
+    const prevScale = scale;
+    setScale(1);
+    await new Promise((r) => setTimeout(r, 100));
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+      const pages = wrapper.querySelectorAll<HTMLElement>(".document-page");
+      if (pages.length === 0) return;
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      for (let i = 0; i < pages.length; i++) {
+        const pageEl = pages[i];
+        const canvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+          width: pageEl.offsetWidth,
+          height: pageEl.offsetHeight,
+          onclone: (_clonedDoc, clonedEl) => {
+            clonedEl.style.boxShadow = "none";
+            clonedEl.style.background = "#ffffff";
+            clonedEl.querySelectorAll(".doc-cell, .doc-notes-bg").forEach((el) => {
+              (el as HTMLElement).style.background = "#ffffff";
+            });
+          },
+        });
+        const imgData = canvas.toDataURL("image/jpeg", 0.98);
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      }
+      pdf.save(`estimate-${estimateNumber}.pdf`);
+      endGlobalProcessing({ success: "PDF exported." });
+    } catch (err) {
+      endGlobalProcessing({ error: "Failed to export PDF." });
+    } finally {
+      setScale(prevScale);
+      setPdfLoading(false);
       endGlobalProcessing();
     }
   }
@@ -289,6 +341,19 @@ export function EstimateDocumentView({
   );
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const updateScale = () => {
+      const w = el.offsetWidth;
+      if (w > 0) setScale(Math.min(1, (w - 32) / A4_WIDTH_PX));
+    };
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
     const title = `Estimate ${estimateNumber}`;
     const h = docViewHandlersRef.current;
     setBarState({
@@ -296,6 +361,16 @@ export function EstimateDocumentView({
       titleSuffix: h ? <EstimateStatusBadge status={displayStatus} className="shrink-0" /> : null,
       rightSlot: h ? (
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={pdfLoading}
+            className="btn btn-secondary btn-icon shrink-0"
+            aria-label="Export PDF"
+            title="Export PDF"
+          >
+            {pdfLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+          </button>
           <Link
             href="/dashboard/estimates/import"
             className="btn btn-secondary btn-sm inline-flex items-center gap-2"
@@ -360,14 +435,18 @@ export function EstimateDocumentView({
       ) : undefined,
     });
     return () => setBarState({ title: null, titleSuffix: null, rightSlot: null });
-  }, [estimateId, estimateNumber, displayStatus, canSend, canConvert, sendLoading, setBarState]);
+  }, [estimateId, estimateNumber, displayStatus, canSend, canConvert, sendLoading, pdfLoading, setBarState]);
 
   return (
     <>
       <div className="flex h-full min-h-0 w-full flex-col">
-        {/* Document body: grey area + one or more A4 pages with shadow */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-outline)]/20 py-8 px-4">
-          <div className="space-y-8">
+        {/* Document body: grey area + one or more A4 pages, scaled to fit */}
+        <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[var(--color-outline)]/20 py-8 px-4 flex justify-center">
+          <div
+            style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
+            className="shrink-0"
+          >
+            <div ref={documentRef} className="space-y-8">
             {pageChunks.map((chunk, pageIndex) => {
               const startIndex = pageIndex * ROWS_PER_PAGE;
               const isLastPage = pageIndex === pageChunks.length - 1;
@@ -529,6 +608,7 @@ export function EstimateDocumentView({
                 </div>
               );
             })}
+            </div>
           </div>
         </div>
       </div>

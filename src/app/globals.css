@@ -436,11 +436,11 @@
     color: var(--color-badge-success-text);
   }
 
-  /* A4 document view: soft paper (matches light theme), consistent in both modes */
+  /* A4 document view: white paper */
   .document-page {
     width: 210mm;
     min-height: 297mm;
-    background: #efedea !important;
+    background: #ffffff !important;
     color: #3a3734 !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
   }
@@ -450,8 +450,8 @@
   .document-page .doc-muted { color: #5c5956 !important; }
   .document-page .doc-border { border-color: #b2aea8 !important; }
   .document-page .doc-head { background: #e0ddda !important; color: #3a3734 !important; }
-  .document-page .doc-cell { background: #efedea !important; color: #3a3734 !important; }
-  .document-page .doc-notes-bg { background: #e8e6e3 !important; border-color: #b2aea8 !important; color: #3a3734 !important; }
+  .document-page .doc-cell { background: #ffffff !important; color: #3a3734 !important; }
+  .document-page .doc-notes-bg { background: #ffffff !important; border-color: #b2aea8 !important; color: #3a3734 !important; }
   .document-page h1,
   .document-page h2,
   .document-page h3,

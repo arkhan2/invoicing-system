@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { Plus, Trash2, Copy, GripVertical } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Plus, Trash2, Copy, GripVertical, Search } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
+import type { ItemSearchResult } from "@/app/(dashboard)/dashboard/items/actions";
 
 const MIN_DESC_HEIGHT_PX = 38;
 
@@ -48,7 +49,7 @@ const defaultRow = (): LineItemRow => ({
   sale_type: "Goods at standard rate (default)",
 });
 
-function computeRow(r: Partial<LineItemRow>): LineItemRow {
+export function computeRow(r: Partial<LineItemRow>): LineItemRow {
   const qty = Number(r.quantity) || 0;
   const price = Number(r.unit_price) || 0;
   const valueSales = qty * price;
@@ -82,19 +83,99 @@ const inputClass =
 const inputClassRight =
   inputClass + " text-right tabular-nums";
 
+export type UomOption = { id: string; code: string; description: string };
+
+type LineItemsEditorProps = {
+  items: LineItemRow[];
+  onChange: (items: LineItemRow[]) => void;
+  disabled?: boolean;
+  /** When provided, enables "Pick from catalog" to fill row with item data (including unit_rate → unit_price) */
+  companyId?: string;
+  /** Async search for items; used when companyId is provided */
+  searchItems?: (companyId: string, query: string) => Promise<ItemSearchResult[]>;
+  /** When provided, shows UOM select per row with options (default: Nos) */
+  uomList?: UomOption[];
+};
+
 export function LineItemsEditor({
   items,
   onChange,
   disabled = false,
-}: {
-  items: LineItemRow[];
-  onChange: (items: LineItemRow[]) => void;
-  disabled?: boolean;
-}) {
+  companyId,
+  searchItems: searchItemsProp,
+  uomList = [],
+}: LineItemsEditorProps) {
+  const uomCodes = [
+    ...(uomList.some((u) => u.code === "Nos") ? [] : ["Nos"]),
+    ...uomList.map((u) => u.code).filter(Boolean),
+  ];
+  const showUomColumn = uomCodes.length > 0;
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [itemPickerRow, setItemPickerRow] = useState<number | null>(null);
+  const [itemSearchQuery, setItemSearchQuery] = useState("");
+  const [itemSearchResults, setItemSearchResults] = useState<ItemSearchResult[]>([]);
+  const [itemSearchLoading, setItemSearchLoading] = useState(false);
+  const itemSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const itemPickerRef = useRef<HTMLDivElement>(null);
   /** Visual row index (0-based from top) where cursor is; drives live reorder and highlight. */
   const [dropVisualIndex, setDropVisualIndex] = useState<number | null>(null);
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
+
+  const canPickItems = Boolean(companyId && searchItemsProp && !disabled);
+
+  const runItemSearch = useCallback(
+    async (q: string) => {
+      if (!companyId || !searchItemsProp) return;
+      if (!q.trim()) {
+        setItemSearchResults([]);
+        return;
+      }
+      setItemSearchLoading(true);
+      const list = await searchItemsProp(companyId, q);
+      setItemSearchResults(list);
+      setItemSearchLoading(false);
+    },
+    [companyId, searchItemsProp]
+  );
+
+  useEffect(() => {
+    if (!canPickItems) return;
+    if (itemSearchDebounceRef.current) clearTimeout(itemSearchDebounceRef.current);
+    if (!itemSearchQuery.trim()) {
+      setItemSearchResults([]);
+      return;
+    }
+    itemSearchDebounceRef.current = setTimeout(() => runItemSearch(itemSearchQuery), 300);
+    return () => {
+      if (itemSearchDebounceRef.current) clearTimeout(itemSearchDebounceRef.current);
+    };
+  }, [itemSearchQuery, runItemSearch, canPickItems]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (itemPickerRef.current && !itemPickerRef.current.contains(e.target as Node)) {
+        setItemPickerRow(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function applyItemToRow(index: number, item: ItemSearchResult) {
+    const desc = [item.name, item.description].filter(Boolean).join(item.description ? ": " : "");
+    updateRow(index, {
+      item_number: item.reference ?? "",
+      product_description: desc || item.name,
+      hs_code: item.hs_code ?? "",
+      rate_label: item.rate_label ?? "",
+      uom: item.uom ?? "Nos",
+      unit_price: item.unit_rate ?? 0,
+      sale_type: item.sale_type ?? "Goods at standard rate (default)",
+    });
+    setItemPickerRow(null);
+    setItemSearchQuery("");
+    setItemSearchResults([]);
+  }
 
   /** Display order: while dragging, show list with dragged row at dropVisualIndex so user sees movement. */
   const displayIndices =
@@ -181,17 +262,20 @@ export function LineItemsEditor({
   return (
     <div className="space-y-2">
       <div className="overflow-x-auto border border-[var(--color-outline)] rounded-xl overflow-hidden">
-        <table className="line-items-table w-full min-w-[700px] text-left text-sm">
+        <table className="line-items-table w-full min-w-[600px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)]">
-              {!disabled && <th className="w-9 p-2.5 text-left text-[var(--color-on-surface-variant)]" aria-label="Drag to reorder" />}
-              <th className="w-12 p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">#</th>
-              <th className="w-28 p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Item #</th>
-              <th className="min-w-[380px] p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Description</th>
-              <th className="w-20 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Qty</th>
-              <th className="w-32 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Unit price</th>
-              <th className="w-24 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Total</th>
-              {!disabled && <th className="w-20 p-2.5" aria-label="Actions" />}
+              {!disabled && <th className="w-9 p-1.5 text-left text-[var(--color-on-surface-variant)]" aria-label="Drag to reorder" />}
+              <th className="w-12 p-1.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">#</th>
+              <th className="w-28 p-1.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Item #</th>
+              <th className="min-w-[280px] p-1.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Description</th>
+              <th className="w-20 p-1.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Qty</th>
+              {showUomColumn && (
+                <th className="w-20 p-1.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">UOM</th>
+              )}
+              <th className="w-32 p-1.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Unit price</th>
+              <th className="w-24 p-1.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Total</th>
+              {!disabled && <th className="w-20 p-1.5" aria-label="Actions" />}
             </tr>
           </thead>
           <tbody
@@ -215,7 +299,7 @@ export function LineItemsEditor({
                 className={`line-items-row border-b border-[var(--color-divider)] last:border-b-0 transition-[background-color,box-shadow] duration-150 align-top ${isDragging ? "line-items-row-dragging line-items-row-dragging-lift" : ""} ${isDropTarget ? "line-items-row-drop" : ""}`}
               >
                 {!disabled && (
-                  <td className={`w-9 p-2.5 align-top ${cellBg}`}>
+                  <td className={`w-9 p-1.5 align-top ${cellBg}`}>
                     <span
                       draggable
                       onDragStart={(e) => handleDragStart(e, dataIndex)}
@@ -227,8 +311,8 @@ export function LineItemsEditor({
                     </span>
                   </td>
                 )}
-                <td className={`w-12 p-2.5 align-top text-[var(--color-on-surface-variant)] tabular-nums ${cellBg}`}>{displayPos + 1}</td>
-                <td className={`w-28 p-2.5 align-top ${cellBg}`}>
+                <td className={`w-12 p-1.5 align-top text-[var(--color-on-surface-variant)] tabular-nums ${cellBg}`}>{displayPos + 1}</td>
+                <td className={`w-28 p-1.5 align-top ${cellBg}`}>
                   <input
                     type="text"
                     value={row.item_number}
@@ -238,23 +322,80 @@ export function LineItemsEditor({
                     placeholder="Item #"
                   />
                 </td>
-                <td className={`min-w-[380px] p-2.5 align-top ${cellBg}`}>
-                  <textarea
-                    value={row.product_description}
-                    onChange={(e) => {
-                      updateRow(dataIndex, { product_description: e.target.value });
-                      resizeDescriptionTextarea(e.currentTarget);
-                    }}
-                    ref={(el) => {
-                      if (el) requestAnimationFrame(() => resizeDescriptionTextarea(el));
-                    }}
-                    disabled={disabled}
-                    rows={1}
-                    className={inputClass + " min-h-[2.25rem] resize-none overflow-hidden"}
-                    placeholder="Product or service"
-                  />
+                <td className={`min-w-[280px] p-1.5 align-top ${cellBg}`}>
+                  <div className="flex gap-1">
+                    <textarea
+                      value={row.product_description}
+                      onChange={(e) => {
+                        updateRow(dataIndex, { product_description: e.target.value });
+                        resizeDescriptionTextarea(e.currentTarget);
+                      }}
+                      ref={(el) => {
+                        if (el) requestAnimationFrame(() => resizeDescriptionTextarea(el));
+                      }}
+                      disabled={disabled}
+                      rows={1}
+                      className={inputClass + " min-h-[2.25rem] flex-1 resize-none overflow-hidden"}
+                      placeholder="Product or service"
+                    />
+                    {canPickItems && (
+                      <div ref={itemPickerRef} className="relative shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setItemPickerRow(itemPickerRow === dataIndex ? null : dataIndex)}
+                          className="shrink-0 rounded p-1.5 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
+                          aria-label="Pick from catalog"
+                          title="Pick from catalog"
+                        >
+                          <Search className="w-4 h-4" />
+                        </button>
+                        {itemPickerRow === dataIndex && (
+                          <div className="absolute left-0 top-full z-20 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] shadow-lg">
+                            <input
+                              type="text"
+                              value={itemSearchQuery}
+                              onChange={(e) => setItemSearchQuery(e.target.value)}
+                              placeholder="Search items…"
+                              className={inputClass + " m-2 w-[calc(100%-1rem)]"}
+                              autoFocus
+                            />
+                            <div className="max-h-48 overflow-y-auto py-1">
+                              {itemSearchLoading ? (
+                                <div className="px-3 py-4 text-center text-sm text-[var(--color-on-surface-variant)]">
+                                  Searching…
+                                </div>
+                              ) : itemSearchResults.length === 0 ? (
+                                <div className="px-3 py-4 text-sm text-[var(--color-on-surface-variant)]">
+                                  {itemSearchQuery.trim() ? "No items found." : "Type to search items."}
+                                </div>
+                              ) : (
+                                <ul className="py-1">
+                                  {itemSearchResults.map((item) => (
+                                    <li key={item.id}>
+                                      <button
+                                        type="button"
+                                        className="w-full px-3 py-2 text-left text-sm text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
+                                        onClick={() => applyItemToRow(dataIndex, item)}
+                                      >
+                                        <span className="font-medium">{item.name}</span>
+                                        {item.unit_rate != null && (
+                                          <span className="ml-2 text-[var(--color-on-surface-variant)]">
+                                            {item.unit_rate} {item.uom}
+                                          </span>
+                                        )}
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </td>
-                <td className={`w-20 p-2.5 align-top text-right ${cellBg}`}>
+                <td className={`w-20 p-1.5 align-top text-right ${cellBg}`}>
                   <input
                     type="number"
                     min={0}
@@ -267,7 +408,24 @@ export function LineItemsEditor({
                     className={inputClassRight + " input-no-spinner"}
                   />
                 </td>
-                <td className={`w-32 p-2.5 align-top text-right ${cellBg}`}>
+                {showUomColumn && (
+                  <td className={`w-20 p-1.5 align-top ${cellBg}`}>
+                    <select
+                      value={row.uom || "Nos"}
+                      onChange={(e) => updateRow(dataIndex, { uom: e.target.value })}
+                      disabled={disabled}
+                      className={inputClass + " min-w-0 cursor-pointer"}
+                      aria-label="Unit of measure"
+                    >
+                      {uomCodes.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                )}
+                <td className={`w-32 p-1.5 align-top text-right ${cellBg}`}>
                   <input
                     type="number"
                     min={0}
@@ -280,11 +438,11 @@ export function LineItemsEditor({
                     className={inputClassRight + " input-no-spinner"}
                   />
                 </td>
-                <td className={`w-24 p-2.5 align-top text-right tabular-nums text-[var(--color-on-surface-variant)] ${cellBg}`}>
+                <td className={`w-24 p-1.5 align-top text-right tabular-nums text-[var(--color-on-surface-variant)] ${cellBg}`}>
                   {row.total_values.toFixed(2)}
                 </td>
                 {!disabled && (
-                  <td className={`w-20 p-2.5 align-top ${cellBg}`}>
+                  <td className={`w-20 p-1.5 align-top ${cellBg}`}>
                     <span className="flex items-center gap-0.5">
                       <button
                         type="button"
@@ -313,7 +471,7 @@ export function LineItemsEditor({
           </tbody>
         </table>
         {!disabled && (
-          <div className="border-t border-[var(--color-divider)] px-2 py-2">
+          <div className="border-t border-[var(--color-divider)] px-1.5 py-1.5">
             <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add row" onClick={addRow} />
           </div>
         )}

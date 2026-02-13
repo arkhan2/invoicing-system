@@ -32,7 +32,7 @@ Flow: **App** → (HTTPS + API key) → **Middleware** → (Bearer token) → **
 - **customers** – per company; buyer for sales invoices (NTN/CNIC, province, registration type, etc.).
 - **tax_rates** – per company (e.g. 0%, 5%, 18%); one can be default.
 - **uom** – system-wide (KG, Nos, Ltr, etc.); seeded in schema.
-- **items** – per company; name, HS code, default tax, UOM, sale type.
+- **items** – per company; name, description, reference, HS code, unit_rate (pre-fills line item price), default tax, UOM, sale type.
 - **sales_invoices** – company + customer; status Draft/Final/Sent; optional `fbr_irn`, `fbr_status`, `fbr_sent_at`.
 - **sales_invoice_items** – line items (FBR-shaped: hs_code, rate_label, uom, value_sales_excluding_st, sales_tax_applicable, etc.).
 - **sales_invoice_payments** – amount, deducted_tax, deducted_tax_amount, mode_of_payment, reference_payment_id, payment_date.

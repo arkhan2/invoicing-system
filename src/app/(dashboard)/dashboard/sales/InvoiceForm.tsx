@@ -9,6 +9,7 @@ import {
   getInvoiceWithItems,
   type InvoiceFormState,
 } from "./actions";
+import { searchItems } from "@/app/(dashboard)/dashboard/items/actions";
 import { Save, Loader2, ChevronLeft, X } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
@@ -368,7 +369,7 @@ export function InvoiceForm({
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
               Line items
             </h3>
-            <LineItemsEditor items={items} onChange={setItems} />
+            <LineItemsEditor items={items} onChange={setItems} companyId={companyId} searchItems={searchItems} />
             <div className="mt-4 flex justify-end border-t border-[var(--color-divider)] pt-3">
               <table className="w-full max-w-xs text-right text-sm tabular-nums">
                 <tbody>
