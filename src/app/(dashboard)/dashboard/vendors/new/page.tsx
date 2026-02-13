@@ -5,7 +5,7 @@ import { VendorFormPage } from "../VendorFormPage";
 export default async function NewVendorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string; perPage?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; perPage?: string; view?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -18,11 +18,12 @@ export default async function NewVendorPage({
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const { q, page = "1", perPage = "100" } = await searchParams;
+  const { q, page = "1", perPage = "100", view } = await searchParams;
   const listParams = new URLSearchParams();
   listParams.set("page", page);
   listParams.set("perPage", perPage);
   if (q?.trim()) listParams.set("q", q.trim());
+  if (view === "spreadsheet") listParams.set("view", "spreadsheet");
   const listQs = listParams.toString();
   const listHref = listQs ? `/dashboard/vendors?${listQs}` : "/dashboard/vendors";
 

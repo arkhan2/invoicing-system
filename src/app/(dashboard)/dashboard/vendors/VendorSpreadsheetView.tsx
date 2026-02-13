@@ -231,12 +231,19 @@ export function VendorSpreadsheetView({
               </div>
             </div>
           )}
-          <IconButton
-            variant="add"
-            icon={<Plus className="w-4 h-4" />}
-            label="Add vendor"
-            onClick={() => listRef.current?.openAdd()}
-          />
+          <Link
+            href={`/dashboard/vendors/new?${new URLSearchParams({
+              page: String(page ?? 1),
+              perPage: String(perPage ?? 100),
+              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
+              view: "spreadsheet",
+            }).toString()}`}
+            className="btn btn-add btn-icon shrink-0"
+            aria-label="Add vendor"
+            title="Add vendor"
+          >
+            <Plus className="w-4 h-4" />
+          </Link>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden flex flex-col">

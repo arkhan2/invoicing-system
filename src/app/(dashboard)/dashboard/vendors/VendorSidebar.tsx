@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Trash2, X, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { Plus, Trash2, X, ChevronLeft, ChevronRight, Settings } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
@@ -175,8 +175,9 @@ export function VendorSidebar({
   return (
     <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-base">
       <div className="flex flex-shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
-        <div className="relative min-w-0 flex-1">
-          <input
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <input
               type="search"
               placeholder="Search vendors… (press Enter to search)"
               value={searchInput}
@@ -204,6 +205,20 @@ export function VendorSidebar({
               />
             )}
           </div>
+          <Link
+            href={`/dashboard/vendors/new?${new URLSearchParams({
+              page: String(page ?? 1),
+              perPage: String(perPage ?? 100),
+              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
+              ...(fromSpreadsheet && { view: "spreadsheet" }),
+            }).toString()}`}
+            className="btn btn-add btn-icon shrink-0"
+            aria-label="Add vendor"
+            title="Add vendor"
+          >
+            <Plus className="size-4" />
+          </Link>
+        </div>
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {selectionMode && selectedIds && selectedIds.size > 0 && (

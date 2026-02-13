@@ -175,8 +175,9 @@ export function CustomerSidebar({
   return (
     <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-base">
       <div className="flex flex-shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
-        <div className="relative min-w-0 flex-1">
-          <input
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <input
               type="search"
               placeholder="Search customers… (press Enter to search)"
               value={searchInput}
@@ -204,6 +205,20 @@ export function CustomerSidebar({
               />
             )}
           </div>
+          <Link
+            href={`/dashboard/customers/new?${new URLSearchParams({
+              page: String(page ?? 1),
+              perPage: String(perPage ?? 100),
+              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
+              ...(fromSpreadsheet && { view: "spreadsheet" }),
+            }).toString()}`}
+            className="btn btn-add btn-icon shrink-0"
+            aria-label="Add customer"
+            title="Add customer"
+          >
+            <Plus className="size-4" />
+          </Link>
+        </div>
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {selectionMode && selectedIds && selectedIds.size > 0 && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { CustomerSidebar } from "./CustomerSidebar";
 import { useCustomersData } from "./CustomersDataContext";
 
@@ -19,14 +19,15 @@ export function CustomersViewSwitcher({
     perPageOptions,
     searchQuery,
   } = useCustomersData();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const view = searchParams.get("view");
-  const isSpreadsheet = view === "spreadsheet";
+  const isSpreadsheetView = pathname === "/dashboard/customers" && view === "spreadsheet";
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   return (
     <div className="-m-6 flex min-h-0 min-w-0 flex-1 flex-shrink-0 overflow-hidden border-r border-b border-[var(--color-outline)] bg-base">
-      {!isSpreadsheet && (
+      {!isSpreadsheetView && (
         <aside className="w-80 flex-shrink-0 overflow-hidden">
           <CustomerSidebar
             customers={sidebarList}

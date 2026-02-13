@@ -70,6 +70,25 @@ export function VendorDetailView({
 
   const fromSpreadsheet = searchParams.get("from") === "spreadsheet";
 
+  const backPage = searchParams.get("page") ?? "1";
+  const backPerPage = searchParams.get("perPage") ?? "100";
+  const backQ = searchParams.get("q") ?? "";
+
+  const backParams = new URLSearchParams();
+  if (fromSpreadsheet) backParams.set("view", "spreadsheet");
+  backParams.set("highlight", vendor.id);
+  backParams.set("page", backPage);
+  backParams.set("perPage", backPerPage);
+  if (backQ.trim()) backParams.set("q", backQ.trim());
+  const backHref = `/dashboard/vendors?${backParams.toString()}`;
+  const backLabel = fromSpreadsheet ? "Back to spreadsheet" : "Back to list";
+
+  const addParams = new URLSearchParams();
+  if (fromSpreadsheet) addParams.set("view", "spreadsheet");
+  addParams.set("page", backPage);
+  addParams.set("perPage", backPerPage);
+  if (backQ.trim()) addParams.set("q", backQ.trim());
+
   async function handleDelete() {
     setDeleteState({ loading: true });
     startGlobalProcessing("Deleting…");
@@ -81,12 +100,7 @@ export function VendorDetailView({
         return;
       }
       endGlobalProcessing({ success: "Vendor deleted." });
-      const p = new URLSearchParams();
-      p.set("view", "spreadsheet");
-      p.set("page", backPage);
-      p.set("perPage", backPerPage);
-      if (backQ.trim()) p.set("q", backQ.trim());
-      router.push(`/dashboard/vendors?${p.toString()}`);
+      router.push(backHref);
       router.refresh();
     } finally {
       endGlobalProcessing();
@@ -95,18 +109,6 @@ export function VendorDetailView({
 
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : null;
-
-  const backPage = searchParams.get("page") ?? "1";
-  const backPerPage = searchParams.get("perPage") ?? "100";
-  const backQ = searchParams.get("q") ?? "";
-  const backParams = new URLSearchParams();
-  backParams.set("view", "spreadsheet");
-  backParams.set("highlight", vendor.id);
-  backParams.set("page", backPage);
-  backParams.set("perPage", backPerPage);
-  if (backQ.trim()) backParams.set("q", backQ.trim());
-  const backHref = `/dashboard/vendors?${backParams.toString()}`;
-  const backLabel = "Back to spreadsheet";
 
   return (
     <>
@@ -138,7 +140,7 @@ export function VendorDetailView({
           right={
             <>
               <Link
-                href={backParams.toString() ? `/dashboard/vendors/new?${backParams.toString()}` : "/dashboard/vendors/new"}
+                href={addParams.toString() ? `/dashboard/vendors/new?${addParams.toString()}` : "/dashboard/vendors/new"}
                 className="btn btn-add btn-icon shrink-0"
                 aria-label="New vendor"
                 title="New vendor"

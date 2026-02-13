@@ -231,12 +231,19 @@ export function CustomerSpreadsheetView({
               </div>
             </div>
           )}
-          <IconButton
-            variant="add"
-            icon={<Plus className="w-4 h-4" />}
-            label="Add customer"
-            onClick={() => listRef.current?.openAdd()}
-          />
+          <Link
+            href={`/dashboard/customers/new?${new URLSearchParams({
+              page: String(page ?? 1),
+              perPage: String(perPage ?? 100),
+              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
+              view: "spreadsheet",
+            }).toString()}`}
+            className="btn btn-add btn-icon shrink-0"
+            aria-label="Add customer"
+            title="Add customer"
+          >
+            <Plus className="w-4 h-4" />
+          </Link>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
