@@ -41,6 +41,32 @@ function parseItems(formData: FormData): LineItemInput[] {
   }
 }
 
+function toEstimateItemRow(
+  it: LineItemInput,
+  estimateId: string,
+  sortOrder: number
+): Record<string, unknown> {
+  return {
+    estimate_id: estimateId,
+    item_number: it.item_number ?? "",
+    product_description: it.product_description,
+    hs_code: it.hs_code ?? "",
+    rate_label: it.rate_label ?? "",
+    uom: it.uom ?? "Nos",
+    quantity: it.quantity,
+    unit_price: it.unit_price,
+    value_sales_excluding_st: it.value_sales_excluding_st,
+    sales_tax_applicable: it.sales_tax_applicable ?? 0,
+    sales_tax_withheld_at_source: it.sales_tax_withheld_at_source ?? 0,
+    extra_tax: it.extra_tax ?? 0,
+    further_tax: it.further_tax ?? 0,
+    discount: it.discount ?? 0,
+    total_values: it.total_values,
+    sale_type: it.sale_type ?? "Goods at standard rate (default)",
+    sort_order: sortOrder,
+  };
+}
+
 const ESTIMATE_NUMBER_DIGITS = 6;
 
 async function getNextEstimateNumber(
@@ -173,28 +199,9 @@ export async function createEstimate(
     .single();
   if (estErr) return { error: estErr.message };
 
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i];
-    await supabase.from("estimate_items").insert({
-      estimate_id: estimate.id,
-      item_number: (it as LineItemInput).item_number ?? "",
-      product_description: it.product_description,
-      hs_code: it.hs_code ?? "",
-      rate_label: it.rate_label ?? "",
-      uom: it.uom ?? "Nos",
-      quantity: it.quantity,
-      unit_price: it.unit_price,
-      value_sales_excluding_st: it.value_sales_excluding_st,
-      sales_tax_applicable: it.sales_tax_applicable ?? 0,
-      sales_tax_withheld_at_source: it.sales_tax_withheld_at_source ?? 0,
-      extra_tax: it.extra_tax ?? 0,
-      further_tax: it.further_tax ?? 0,
-      discount: it.discount ?? 0,
-      total_values: it.total_values,
-      sale_type: it.sale_type ?? "Goods at standard rate (default)",
-      sort_order: i,
-    });
-  }
+  const itemRows = items.map((it, i) => toEstimateItemRow(it, estimate.id, i));
+  const { error: itemsErr } = await supabase.from("estimate_items").insert(itemRows);
+  if (itemsErr) return { error: itemsErr.message };
 
   await supabase.from("companies").update({ estimate_next_number: nextNum + 1 }).eq("id", companyId).eq("user_id", user.id);
   revalidatePath("/dashboard/estimates");
@@ -272,28 +279,9 @@ export async function updateEstimate(
   if (upErr) return { error: upErr.message };
 
   await supabase.from("estimate_items").delete().eq("estimate_id", estimateId);
-  for (let i = 0; i < items.length; i++) {
-    const it = items[i];
-    await supabase.from("estimate_items").insert({
-      estimate_id: estimateId,
-      item_number: (it as LineItemInput).item_number ?? "",
-      product_description: it.product_description,
-      hs_code: it.hs_code ?? "",
-      rate_label: it.rate_label ?? "",
-      uom: it.uom ?? "Nos",
-      quantity: it.quantity,
-      unit_price: it.unit_price,
-      value_sales_excluding_st: it.value_sales_excluding_st,
-      sales_tax_applicable: it.sales_tax_applicable ?? 0,
-      sales_tax_withheld_at_source: it.sales_tax_withheld_at_source ?? 0,
-      extra_tax: it.extra_tax ?? 0,
-      further_tax: it.further_tax ?? 0,
-      discount: it.discount ?? 0,
-      total_values: it.total_values,
-      sale_type: it.sale_type ?? "Goods at standard rate (default)",
-      sort_order: i,
-    });
-  }
+  const itemRows = items.map((it, i) => toEstimateItemRow(it, estimateId, i));
+  const { error: itemsErr } = await supabase.from("estimate_items").insert(itemRows);
+  if (itemsErr) return { error: itemsErr.message };
 
   revalidatePath("/dashboard/estimates");
   return {};
