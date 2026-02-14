@@ -436,17 +436,23 @@
     color: var(--color-badge-success-text);
   }
 
-  /* A4 document view: white paper */
+  /* A4 document view: white paper — fixed height, content area between header and footer */
   .document-page {
     width: 210mm;
+    height: 297mm;
     min-height: 297mm;
     background: #ffffff !important;
     color: #3a3734 !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
   }
   .document-page-spaced {
+    height: 297mm;
     min-height: 297mm;
   }
+  .document-page-header { flex-shrink: 0; }
+  .document-page-content { flex: 1 1 0; min-height: 0; }
+  .document-page-footer { flex-shrink: 0; margin-top: auto; }
+  .document-page-break-before { break-before: page; page-break-before: always; }
   .document-page .doc-muted { color: #5c5956 !important; }
   .document-page .doc-border { border-color: #b2aea8 !important; }
   .document-page .doc-head { background: #e0ddda !important; color: #3a3734 !important; }

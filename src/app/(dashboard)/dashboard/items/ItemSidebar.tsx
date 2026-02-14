@@ -198,7 +198,12 @@ export function ItemSidebar({
           )}
           </div>
           <Link
-            href={`/dashboard/items/new?${qs({ page: page ?? 1, perPage: perPage ?? 100 })}`}
+            href={`/dashboard/items/new?${new URLSearchParams({
+              page: String(page ?? 1),
+              perPage: String(perPage ?? 100),
+              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
+              ...(fromSpreadsheet && { view: "spreadsheet" }),
+            }).toString()}`}
             className="btn btn-add btn-icon shrink-0"
             aria-label="Add item"
             title="Add item"

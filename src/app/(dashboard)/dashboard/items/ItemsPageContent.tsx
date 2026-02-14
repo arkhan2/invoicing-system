@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { ItemSpreadsheetView } from "./ItemSpreadsheetView";
 import { ItemsTopBar } from "./ItemsTopBar";
 import { useItemsData } from "./ItemsDataContext";
@@ -31,6 +31,14 @@ export function ItemsPageContent() {
     searchQuery,
   } = useItemsData();
 
+  const fromSpreadsheet = view === "spreadsheet";
+  const newItemHref = `/dashboard/items/new?${new URLSearchParams({
+    page: String(page ?? 1),
+    perPage: String(perPage ?? 100),
+    ...(searchQuery?.trim() && { q: searchQuery.trim() }),
+    ...(fromSpreadsheet && { view: "spreadsheet" }),
+  }).toString()}`;
+
   if (isSpreadsheet) {
     return (
       <ItemSpreadsheetView
@@ -55,6 +63,14 @@ export function ItemsPageContent() {
         }
         right={
           <>
+            <Link
+              href={newItemHref}
+              className="btn btn-add btn-icon shrink-0"
+              aria-label="New item"
+              title="New item"
+            >
+              <Plus className="size-4" />
+            </Link>
             <Link
               href={`/dashboard/items?view=spreadsheet&${listQs}`}
               className="btn btn-secondary btn-icon shrink-0"

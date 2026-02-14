@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Pencil, Trash2, FileOutput, X, Send, Plus, FileSpreadsheet, FileDown, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
@@ -18,9 +18,117 @@ function effectiveStatus(status: string, validUntil: string | null): string {
   return status;
 }
 
-const ROWS_PER_PAGE = 22;
+/** Fallback if measurement fails */
+const ROWS_FIRST_PAGE_FALLBACK = 14;
+const ROWS_PER_PAGE_FALLBACK = 20;
+const TFOOT_ESTIMATED_ROWS = 6;
+/** Reserve at bottom of content area (0 = fill to footer) */
+const FOOTER_SAFETY = 0;
+const BILL_TO_ESTIMATE = 180;
+/** Probe uses mt-5 (20px), real last page uses mt-3 (12px); add this so terms get full space */
+const CONTENT_TOP_MARGIN_DIFF_PX = 8;
 /** A4 width at 96dpi: 210mm */
 const A4_WIDTH_PX = 794;
+/** Chars per content area (header to footer) — use full page for notes/terms */
+const CHARS_PER_CONTENT_PAGE = 1400;
+
+function splitTextIntoChunks(text: string, maxChars: number): string[] {
+  if (!text?.trim()) return [];
+  const trimmed = text.trim();
+  if (trimmed.length <= maxChars) return [trimmed];
+  const chunks: string[] = [];
+  let remaining = trimmed;
+  while (remaining.length > 0) {
+    if (remaining.length <= maxChars) {
+      chunks.push(remaining);
+      break;
+    }
+    const candidate = remaining.slice(0, maxChars);
+    const lastPara = candidate.lastIndexOf("\n\n");
+    const lastLine = candidate.lastIndexOf("\n");
+    const breakAt = lastPara >= maxChars * 0.5 ? lastPara + 2 : lastLine >= maxChars * 0.5 ? lastLine + 1 : maxChars;
+    chunks.push(remaining.slice(0, breakAt).trimEnd());
+    remaining = remaining.slice(breakAt).trimStart();
+  }
+  return chunks;
+}
+
+/** Find a good break point before index (prefer paragraph, then line, then space) */
+function findBreakPoint(str: string, maxIdx: number): number {
+  if (maxIdx >= str.length) return str.length;
+  const slice = str.slice(0, maxIdx + 1);
+  const lastPara = slice.lastIndexOf("\n\n");
+  const lastLine = slice.lastIndexOf("\n");
+  const lastSpace = slice.lastIndexOf(" ");
+  if (lastPara >= maxIdx * 0.3) return lastPara + 2;
+  if (lastLine >= maxIdx * 0.3) return lastLine + 1;
+  if (lastSpace >= maxIdx * 0.3) return lastSpace + 1;
+  return maxIdx;
+}
+
+const SAFETY_FACTOR = 1;
+
+/**
+ * Split text into chunks that fit within maxHeightPx.
+ * Uses measure element and binary search with safety factor.
+ */
+function splitTextByContentArea(
+  text: string,
+  maxHeightPx: number,
+  measureEl: HTMLElement | null,
+  whitespace: "pre-wrap" | "pre-line"
+): string[] {
+  return splitTextByContentAreaMulti(text, [maxHeightPx], measureEl, whitespace);
+}
+
+/**
+ * Split text: first chunk fits maxHeights[0], second fits maxHeights[1], etc.
+ * When maxHeights is exhausted, uses last value for remaining chunks.
+ * Fully uses each available space before moving to next.
+ */
+function splitTextByContentAreaMulti(
+  text: string,
+  maxHeightsPx: number[],
+  measureEl: HTMLElement | null,
+  whitespace: "pre-wrap" | "pre-line"
+): string[] {
+  if (!text?.trim() || maxHeightsPx.length === 0) return [];
+  const trimmed = text.trim();
+  if (!measureEl || maxHeightsPx.every((h) => h <= 0))
+    return splitTextIntoChunks(trimmed, CHARS_PER_CONTENT_PAGE);
+  const origWhiteSpace = measureEl.style.whiteSpace;
+  measureEl.style.whiteSpace = whitespace;
+  measureEl.style.height = "auto";
+  measureEl.style.overflow = "visible";
+  const chunks: string[] = [];
+  let remaining = trimmed;
+  let idx = 0;
+  while (remaining.length > 0) {
+    const maxH = maxHeightsPx[Math.min(idx, maxHeightsPx.length - 1)];
+    const effectiveMax = Math.floor(maxH * SAFETY_FACTOR);
+    if (effectiveMax <= 0) break;
+    measureEl.textContent = remaining;
+    if (measureEl.scrollHeight <= effectiveMax) {
+      chunks.push(remaining);
+      break;
+    }
+    let lo = 0;
+    let hi = remaining.length;
+    while (hi - lo > 1) {
+      const mid = Math.floor((lo + hi) / 2);
+      measureEl.textContent = remaining.slice(0, mid);
+      if (measureEl.scrollHeight <= effectiveMax) lo = mid;
+      else hi = mid;
+    }
+    const breakAt = findBreakPoint(remaining, Math.max(1, lo));
+    chunks.push(remaining.slice(0, breakAt).trimEnd());
+    remaining = remaining.slice(breakAt).trimStart();
+    idx++;
+  }
+  measureEl.style.whiteSpace = origWhiteSpace;
+  measureEl.textContent = "";
+  return chunks;
+}
 
 type Company = {
   name: string;
@@ -102,9 +210,29 @@ export function EstimateDocumentView({
   const [sendLoading, setSendLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [scale, setScale] = useState(1);
+  const [rowsFirstPage, setRowsFirstPage] = useState(ROWS_FIRST_PAGE_FALLBACK);
+  const [rowsPerPage, setRowsPerPage] = useState(ROWS_PER_PAGE_FALLBACK);
   const { setBarState } = useEstimatesTopBar();
   const containerRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const termsMeasureRef = useRef<HTMLParagraphElement>(null);
+  const measureValuesRef = useRef<{
+    contentHeight: number;
+    rowHeight: number;
+    headerHeight: number;
+    cardShellHeight: number;
+    maxHeightFullPage: number;
+    tfootRows: number;
+  } | null>(null);
+  const [termsOnLastTablePage, setTermsOnLastTablePage] = useState(false);
+  const [notesOnLastTablePage, setNotesOnLastTablePage] = useState(false);
+  const [notesChunks, setNotesChunks] = useState<string[]>(() =>
+    notes?.trim() ? splitTextIntoChunks(notes.trim(), CHARS_PER_CONTENT_PAGE) : []
+  );
+  const [termsChunks, setTermsChunks] = useState<string[]>(() =>
+    paymentTerms?.trim() ? splitTextIntoChunks(paymentTerms.trim(), CHARS_PER_CONTENT_PAGE) : []
+  );
   const docViewHandlersRef = useRef<{
     handleSend: () => void;
     setConvertState: (s: { loading: boolean } | null) => void;
@@ -237,11 +365,30 @@ export function EstimateDocumentView({
   const pageChunks = useMemo(() => {
     if (items.length === 0) return [[]];
     const chunks: Item[][] = [];
-    for (let i = 0; i < items.length; i += ROWS_PER_PAGE) {
-      chunks.push(items.slice(i, i + ROWS_PER_PAGE));
+    let i = 0;
+    while (i < items.length) {
+      const limit = chunks.length === 0 ? rowsFirstPage : rowsPerPage;
+      chunks.push(items.slice(i, i + limit));
+      i += limit;
     }
     return chunks;
-  }, [items]);
+  }, [items, rowsFirstPage, rowsPerPage]);
+
+  const continuationBlocks = useMemo(() => {
+    const blocks: { kind: "notes" | "terms"; text: string; isContinued: boolean }[] = [];
+    notesChunks.forEach((chunk, i) => {
+      if (i === 0 && notesOnLastTablePage) return;
+      blocks.push({ kind: "notes", text: chunk, isContinued: i > 0 || notesOnLastTablePage });
+    });
+    termsChunks.forEach((chunk, i) => {
+      if (i === 0 && termsOnLastTablePage) return;
+      blocks.push({ kind: "terms", text: chunk, isContinued: i > 0 || termsOnLastTablePage });
+    });
+    return blocks;
+  }, [notesChunks, notesOnLastTablePage, termsChunks, termsOnLastTablePage]);
+
+  const totalPageCount =
+    pageChunks.length + continuationBlocks.length;
 
   type TableFooter = {
     totalQty: number;
@@ -260,7 +407,7 @@ export function EstimateDocumentView({
     startIndex: number,
     footer?: TableFooter
   ) => (
-    <div className="mt-5 overflow-hidden rounded-xl border doc-border">
+    <div className="overflow-hidden rounded-xl border doc-border">
       <table className="w-full text-left text-sm tabular-nums">
         <thead>
           <tr className="border-b doc-border doc-head">
@@ -339,6 +486,131 @@ export function EstimateDocumentView({
       </table>
     </div>
   );
+
+  useLayoutEffect(() => {
+    const run = () => {
+      const probe = measureRef.current;
+      if (!probe) return;
+      const contentEl = probe.querySelector<HTMLElement>(".document-page-content");
+      const tableEl = probe.querySelector<HTMLTableElement>("table");
+      const theadRow = tableEl?.querySelector("thead tr");
+      const firstBodyRow = tableEl?.querySelector("tbody tr");
+      const termsContentEl = probe.querySelector<HTMLElement>(".measure-terms-content");
+      if (!contentEl || !firstBodyRow || !theadRow) return;
+      const contentHeight = contentEl.clientHeight;
+      const rowHeight = (firstBodyRow as HTMLElement).offsetHeight;
+      const headerHeight = (theadRow as HTMLElement).offsetHeight;
+      const tableWrapperMargin = 20;
+      const availableForRows = contentHeight - tableWrapperMargin - headerHeight;
+      const maxRows = Math.max(1, Math.floor(availableForRows / rowHeight));
+      setRowsPerPage(maxRows);
+      setRowsFirstPage(Math.max(1, maxRows - 4));
+
+      const termsContentHeight = termsContentEl?.clientHeight ?? 0;
+      const cardShellEl = probe.querySelector<HTMLElement>(".measure-terms-card");
+      if (termsMeasureRef.current) termsMeasureRef.current.textContent = "";
+      const cardShellHeight = cardShellEl?.offsetHeight ?? 52;
+      const maxHeightFullPage =
+        termsContentHeight > 150
+          ? Math.max(80, termsContentHeight - cardShellHeight)
+          : 0;
+      measureValuesRef.current =
+        maxHeightFullPage > 0
+          ? {
+              contentHeight,
+              rowHeight,
+              headerHeight,
+              cardShellHeight,
+              maxHeightFullPage,
+              tfootRows: TFOOT_ESTIMATED_ROWS,
+            }
+          : null;
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
+  }, []);
+
+  useLayoutEffect(() => {
+    const mv = measureValuesRef.current;
+    const measureEl = termsMeasureRef.current;
+    if (!mv || !measureEl) {
+      if (notes?.trim())
+        setNotesChunks(splitTextIntoChunks(notes.trim(), CHARS_PER_CONTENT_PAGE));
+      if (paymentTerms?.trim())
+        setTermsChunks(splitTextIntoChunks(paymentTerms.trim(), CHARS_PER_CONTENT_PAGE));
+      return;
+    }
+    const lastChunkRowCount =
+      pageChunks.length > 0 ? pageChunks[pageChunks.length - 1].length : 0;
+    const isFirstPageAlsoLast = pageChunks.length === 1;
+    const billToReserve = isFirstPageAlsoLast ? BILL_TO_ESTIMATE : 0;
+    const tfootRows =
+      2 + (showDiscount ? 2 : 0) + (totalTax != null ? 1 : 0);
+    const tableTotalHeight =
+      mv.headerHeight + (lastChunkRowCount + tfootRows) * mv.rowHeight;
+    const GAP = 8;
+    const contentHeight =
+      mv.contentHeight - FOOTER_SAFETY + CONTENT_TOP_MARGIN_DIFF_PX;
+    const hasNotes = !!notes?.trim();
+    const hasTerms = !!paymentTerms?.trim();
+
+    // First place complete notes (last table page + continuation), then complete terms (with splitting).
+    // When notes exist: notes get full space on last table page; terms only on continuation pages.
+    // When no notes: terms can use last table page + continuation.
+    const itemsHeight = billToReserve + tableTotalHeight;
+    const spacingAfterItems = GAP;
+    const gapBeforeFooter = GAP;
+
+    let notesResult: string[] = [];
+    let maxTermsOnLast = 0;
+    let maxNotesOnLast = 0;
+    const termsOnLastTablePageAllowed = hasTerms && !hasNotes;
+
+    if (hasNotes) {
+      const spaceForNotesCard = Math.max(
+        0,
+        contentHeight - itemsHeight - spacingAfterItems - gapBeforeFooter
+      );
+      maxNotesOnLast = Math.max(80, spaceForNotesCard - mv.cardShellHeight);
+      const notesHeights =
+        maxNotesOnLast > 0
+          ? [maxNotesOnLast, mv.maxHeightFullPage]
+          : [mv.maxHeightFullPage];
+      notesResult = splitTextByContentAreaMulti(
+        notes!.trim(),
+        notesHeights,
+        measureEl,
+        "pre-wrap"
+      );
+      setNotesChunks(notesResult);
+    } else {
+      setNotesChunks([]);
+    }
+
+    if (hasTerms) {
+      if (termsOnLastTablePageAllowed) {
+        const spaceForTermsCard = Math.max(
+          0,
+          contentHeight - itemsHeight - spacingAfterItems - gapBeforeFooter
+        );
+        maxTermsOnLast = Math.max(80, spaceForTermsCard - mv.cardShellHeight);
+      }
+      const th =
+        maxTermsOnLast > 0
+          ? [maxTermsOnLast, mv.maxHeightFullPage]
+          : [mv.maxHeightFullPage];
+      const termsResult = splitTextByContentAreaMulti(
+        paymentTerms!.trim(),
+        th,
+        measureEl,
+        "pre-line"
+      );
+      setTermsChunks(termsResult);
+    } else {
+      setTermsChunks([]);
+    }
+    setNotesOnLastTablePage(!!(hasNotes && maxNotesOnLast > 0));
+    setTermsOnLastTablePage(!!(hasTerms && maxTermsOnLast > 0));
+  }, [notes, paymentTerms, pageChunks, showDiscount, totalTax]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -446,92 +718,142 @@ export function EstimateDocumentView({
             style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
             className="shrink-0"
           >
-            <div ref={documentRef} className="space-y-8">
-            {pageChunks.map((chunk, pageIndex) => {
-              const startIndex = pageIndex * ROWS_PER_PAGE;
-              const isLastPage = pageIndex === pageChunks.length - 1;
-              return (
-                <div key={pageIndex} className="document-page document-page-spaced mx-auto flex flex-col p-8 pl-10">
-                  {/* Header on every page */}
-                  <div className="flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-start gap-4">
-                      {company.logo_url ? (
-                        <img
-                          src={company.logo_url}
-                          alt=""
-                          className="max-h-20 w-auto shrink-0 object-contain"
-                          aria-hidden
-                        />
-                      ) : (
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)] text-lg font-semibold text-[var(--color-on-primary-container)]">
-                          {company.name.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                      <div>
-                        <h1 className="text-lg font-semibold">{company.name}</h1>
-                        {(company.ntn || company.gst_number) && (
-                          <p className="mt-0.5 text-sm doc-muted">
-                            {[company.ntn && `NTN: ${company.ntn}`, company.gst_number && `GST: ${company.gst_number}`].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
-                        {addressLine && (
-                          <p className="mt-0.5 text-sm doc-muted">{addressLine}</p>
-                        )}
-                        {(company.phone || company.email) && (
-                          <p className="mt-0.5 text-sm doc-muted">
-                            {[company.phone, company.email].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
+            <div ref={documentRef} className="relative space-y-8">
+            {/* Hidden probe: fixed + visibility:hidden ensures correct layout measurement */}
+            <div
+              ref={measureRef}
+              className="fixed left-0 top-0 z-[-1] w-[210mm] pointer-events-none"
+              style={{ visibility: "hidden" }}
+              aria-hidden
+            >
+              <div className="document-page document-page-spaced flex flex-col p-8 pl-10">
+                <div className="document-page-header flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)]">AB</div>
+                  <div className="text-left sm:text-right">
+                    <p className="text-3xl font-bold tracking-tight">ESTIMATE</p>
+                    <p className="mt-1 text-lg font-semibold"># 00000</p>
+                  </div>
+                </div>
+                <div className="document-page-content mt-5 flex flex-col flex-1 min-h-0">
+                  <div className="mt-5 overflow-hidden rounded-xl border doc-border">
+                    <table className="w-full text-left text-sm tabular-nums">
+                      <thead>
+                        <tr className="border-b doc-border doc-head">
+                          <th className="w-12 border-r doc-border p-2 font-medium">#</th>
+                          <th className="w-20 border-r doc-border p-2 font-medium">Item #</th>
+                          <th className="border-r doc-border p-2 font-medium">Item & Description</th>
+                          <th className="w-14 border-r doc-border p-2 font-medium text-right">Qty</th>
+                          <th className="w-24 border-r doc-border p-2 font-medium text-right">Rate</th>
+                          <th className="w-24 p-2 font-medium text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="doc-cell">
+                          <td className="border-r doc-border p-2 doc-muted">1</td>
+                          <td className="w-20 border-r doc-border p-2">—</td>
+                          <td className="border-r doc-border p-2">Sample item</td>
+                          <td className="w-14 border-r doc-border p-2 text-right">1</td>
+                          <td className="w-24 border-r doc-border p-2 text-right">0</td>
+                          <td className="w-24 p-2 text-right font-medium">0</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div className="document-page-footer pt-6 text-right text-sm doc-muted">1/1</div>
+              </div>
+              {/* Terms-only page probe — matches continuation page layout exactly */}
+              <div className="document-page document-page-spaced flex flex-col p-8 pl-10">
+                <div className="document-page-header flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)]">AB</div>
+                  <div className="text-left sm:text-right">
+                    <p className="text-3xl font-bold tracking-tight">ESTIMATE</p>
+                    <p className="mt-1 text-lg font-semibold"># 00000</p>
+                  </div>
+                </div>
+                <div className="document-page-content measure-terms-content mt-3">
+                  <div className="measure-terms-card rounded-xl border doc-border doc-notes-bg p-2">
+                    <h3 className="mb-0.5 text-xs font-semibold uppercase tracking-wider doc-muted">Terms and conditions</h3>
+                    <p ref={termsMeasureRef} className="text-sm whitespace-pre-line" />
+                  </div>
+                </div>
+                <div className="document-page-footer pt-6 text-right text-sm doc-muted">1/1</div>
+              </div>
+            </div>
+            {(() => {
+              const renderHeader = () => (
+                <div className="document-page-header flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    {company.logo_url ? (
+                      <img
+                        src={company.logo_url}
+                        alt=""
+                        className="max-h-20 w-auto shrink-0 object-contain"
+                        aria-hidden
+                      />
+                    ) : (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)] text-lg font-semibold text-[var(--color-on-primary-container)]">
+                        {company.name.slice(0, 2).toUpperCase()}
                       </div>
-                    </div>
-                    <div className="text-left sm:text-right">
-                      <p className="text-3xl font-bold tracking-tight">ESTIMATE</p>
-                      <p className="mt-1 text-lg font-semibold"># {estimateNumber}</p>
-                      <p className="mt-1 text-sm doc-muted">Estimate Date: {formatEstimateDate(estimateDate)}</p>
+                    )}
+                    <div>
+                      <h1 className="text-lg font-semibold">{company.name}</h1>
+                      {(company.ntn || company.gst_number) && (
+                        <p className="mt-0.5 text-sm doc-muted">
+                          {[company.ntn && `NTN: ${company.ntn}`, company.gst_number && `GST: ${company.gst_number}`].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
+                      {addressLine && (
+                        <p className="mt-0.5 text-sm doc-muted">{addressLine}</p>
+                      )}
+                      {(company.phone || company.email) && (
+                        <p className="mt-0.5 text-sm doc-muted">
+                          {[company.phone, company.email].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
                     </div>
                   </div>
+                  <div className="text-left sm:text-right">
+                    <p className="text-3xl font-bold tracking-tight">ESTIMATE</p>
+                    <p className="mt-1 text-lg font-semibold"># {estimateNumber}</p>
+                    <p className="mt-1 text-sm doc-muted">Estimate Date: {formatEstimateDate(estimateDate)}</p>
+                  </div>
+                </div>
+              );
 
-                  {pageIndex === 0 && (
-                    <>
-                      {/* Left card: Bill To + Project + Subject | Right card: Expiry, Payment terms, Delivery time */}
-                      <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-stretch sm:justify-between">
-                        {/* Left card — slightly wider */}
+              const renderFooter = (pageNum: number) => (
+                <p className="document-page-footer pt-6 text-right text-sm doc-muted" aria-label={`Page ${pageNum} of ${totalPageCount}`}>
+                  {pageNum}/{totalPageCount}
+                </p>
+              );
+
+              const pages: React.ReactNode[] = [];
+
+              pageChunks.forEach((chunk, pageIndex) => {
+                const startIndex = pageChunks.slice(0, pageIndex).reduce((s, c) => s + c.length, 0);
+                const isLastTablePage = pageIndex === pageChunks.length - 1;
+                const pageNum = pageIndex + 1;
+
+                const content = (
+                  <div className="flex flex-col gap-2">
+                    {pageIndex === 0 && (
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
                         <div className="min-w-0 flex-[1.2] rounded-xl border doc-border doc-notes-bg p-3">
-                          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider doc-muted">
-                            Bill To
-                          </h2>
+                          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider doc-muted">Bill To</h2>
                           <p className="font-semibold">{customer.name}</p>
-                          {customer.contact_person_name && (
-                            <p className="mt-0.5 text-sm doc-muted">Attn: {customer.contact_person_name}</p>
-                          )}
-                          {customerAddress && (
-                            <p className="mt-0.5 text-sm doc-muted">{customerAddress}</p>
-                          )}
-                          {customer.ntn_cnic && (
-                            <p className="mt-0.5 text-sm doc-muted">NTN: {customer.ntn_cnic}</p>
-                          )}
+                          {customer.contact_person_name && <p className="mt-0.5 text-sm doc-muted">Attn: {customer.contact_person_name}</p>}
+                          {customerAddress && <p className="mt-0.5 text-sm doc-muted">{customerAddress}</p>}
+                          {customer.ntn_cnic && <p className="mt-0.5 text-sm doc-muted">NTN: {customer.ntn_cnic}</p>}
                           {(customer.phone || customer.email) && (
-                            <p className="mt-0.5 text-sm doc-muted">
-                              {[customer.phone, customer.email].filter(Boolean).join(" · ")}
-                            </p>
+                            <p className="mt-0.5 text-sm doc-muted">{[customer.phone, customer.email].filter(Boolean).join(" · ")}</p>
                           )}
                           {(projectName || subject) && (
                             <div className="mt-3 space-y-1 border-t doc-border pt-2 text-sm">
-                              {projectName && (
-                                <p className="doc-muted">
-                                  <span className="font-semibold">Project:</span> {projectName}
-                                </p>
-                              )}
-                              {subject && (
-                                <p className="doc-muted">
-                                  <span className="font-semibold">Subject:</span> {subject}
-                                </p>
-                              )}
+                              {projectName && <p className="doc-muted"><span className="font-semibold">Project:</span> {projectName}</p>}
+                              {subject && <p className="doc-muted"><span className="font-semibold">Subject:</span> {subject}</p>}
                             </div>
                           )}
                         </div>
-
-                        {/* Right card — labels left, values right (Expiry, Delivery time; Terms moved below Notes) */}
                         <div className="min-w-0 flex-1 rounded-xl border doc-border doc-notes-bg p-3 sm:max-w-[17rem]">
                           <table className="w-full border-collapse text-sm" style={{ border: "none" }}>
                             <tbody>
@@ -548,66 +870,82 @@ export function EstimateDocumentView({
                                 </tr>
                               )}
                               {!validUntil && (!deliveryTimeAmount || deliveryTimeAmount <= 0 || !deliveryTimeUnit) && (
-                                <tr>
-                                  <td className="doc-muted" style={{ border: "none" }}>—</td>
-                                  <td style={{ border: "none" }} />
-                                </tr>
+                                <tr><td className="doc-muted" style={{ border: "none" }}>—</td><td style={{ border: "none" }} /></tr>
                               )}
                             </tbody>
                           </table>
                         </div>
                       </div>
-                    </>
-                  )}
+                    )}
 
-                  {renderTable(
-                    chunk,
-                    startIndex,
-                    isLastPage
-                      ? {
+                    <div className="flex flex-col gap-2">
+                      {renderTable(
+                        chunk,
+                        startIndex,
+                        isLastTablePage ? {
                           totalQty,
                           subtotal,
                           showDiscount,
-                          discountLabel:
-                            showDiscount && discountType && discountAmount != null
-                              ? discountType === "percentage"
-                                ? `Discount (${Number(discountAmount)}%)`
-                                : `Discount (${discountValue.toLocaleString(undefined, { minimumFractionDigits: 2 })})`
-                              : undefined,
+                          discountLabel: showDiscount && discountType && discountAmount != null
+                            ? discountType === "percentage"
+                              ? `Discount (${Number(discountAmount)}%)`
+                              : `Discount (${discountValue.toLocaleString(undefined, { minimumFractionDigits: 2 })})`
+                            : undefined,
                           discountValue,
                           totalAfterDiscount,
                           salesTaxLabel: salesTaxLabel ?? undefined,
                           totalTax,
                           totalAmount,
-                        }
-                      : undefined
-                  )}
-
-                  {isLastPage && notes && (
-                    <div className="mt-5 rounded-xl border doc-notes-bg p-3">
-                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider doc-muted">
-                        Notes
-                      </h3>
-                      <p className="text-sm whitespace-pre-wrap">{notes}</p>
+                        } : undefined
+                      )}
+                      {isLastTablePage && notesOnLastTablePage && notesChunks[0] && (
+                        <div className="rounded-xl border doc-notes-bg p-2">
+                          <h3 className="mb-0.5 text-xs font-semibold uppercase tracking-wider doc-muted">Notes</h3>
+                          <p className="text-sm whitespace-pre-wrap">{notesChunks[0]}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                  {isLastPage && paymentTerms && (
-                    <div className="mt-5 rounded-xl border doc-notes-bg p-3">
-                      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider doc-muted">
-                        Terms and conditions
-                      </h3>
-                      <p className="text-sm whitespace-pre-line">{paymentTerms}</p>
+                    {isLastTablePage && termsOnLastTablePage && termsChunks[0] && (
+                      <div className="rounded-xl border doc-notes-bg p-2">
+                        <h3 className="mb-0.5 text-xs font-semibold uppercase tracking-wider doc-muted">Terms and conditions</h3>
+                        <p className="text-sm whitespace-pre-line">{termsChunks[0]}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+
+                pages.push(
+                  <div key={pageIndex} className="document-page document-page-spaced mx-auto flex flex-col p-8 pl-10">
+                    {renderHeader()}
+                    <div className="document-page-content mt-3">{content}</div>
+                    {renderFooter(pageNum)}
+                  </div>
+                );
+              });
+
+              continuationBlocks.forEach((block, i) => {
+                const pageNum = pageChunks.length + i + 1;
+                const label = block.kind === "notes"
+                  ? (block.isContinued ? "Notes (continued)" : "Notes")
+                  : (block.isContinued ? "Terms and conditions (continued)" : "Terms and conditions");
+                const whitespaceClass = block.kind === "notes" ? "whitespace-pre-wrap" : "whitespace-pre-line";
+                pages.push(
+                  <div key={`cont-${i}`} className="document-page document-page-spaced document-page-break-before mx-auto flex flex-col p-8 pl-10">
+                    {renderHeader()}
+                    <div className="document-page-content mt-3">
+                      <div className="rounded-xl border doc-border doc-notes-bg p-2">
+                        <h3 className="mb-0.5 text-xs font-semibold uppercase tracking-wider doc-muted">{label}</h3>
+                        <p className={`text-sm ${whitespaceClass}`}>{block.text}</p>
+                      </div>
                     </div>
-                  )}
+                    {renderFooter(pageNum)}
+                  </div>
+                );
+              });
 
-                  {/* Page number - bottom right */}
-                  <p className="mt-auto pt-6 text-right text-sm doc-muted" aria-label={`Page ${pageIndex + 1} of ${pageChunks.length}`}>
-                    {pageIndex + 1}/{pageChunks.length}
-                  </p>
-                </div>
-              );
-            })}
+              return pages;
+            })()}
             </div>
           </div>
         </div>

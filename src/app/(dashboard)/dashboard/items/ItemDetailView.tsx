@@ -77,12 +77,7 @@ export function ItemDetailView({
         return;
       }
       endGlobalProcessing({ success: "Item deleted." });
-      const p = new URLSearchParams();
-      p.set("view", "spreadsheet");
-      p.set("page", backPage);
-      p.set("perPage", backPerPage);
-      if (backQ.trim()) p.set("q", backQ.trim());
-      router.push(`/dashboard/items?${p.toString()}`);
+      router.push(backHref);
       router.refresh();
     } finally {
       endGlobalProcessing();
@@ -112,8 +107,13 @@ export function ItemDetailView({
   if (fromSpreadsheet) editParams.set("from", "spreadsheet");
   const editQs = editParams.toString();
   const editHref = editQs ? `/dashboard/items/${item.id}/edit?${editQs}` : `/dashboard/items/${item.id}/edit`;
-  const newItemParams = new URLSearchParams(backParams);
-  const newItemHref = `/dashboard/items/new?${newItemParams.toString()}`;
+
+  const addParams = new URLSearchParams();
+  if (fromSpreadsheet) addParams.set("view", "spreadsheet");
+  addParams.set("page", backPage);
+  addParams.set("perPage", backPerPage);
+  if (backQ.trim()) addParams.set("q", backQ.trim());
+  const newItemHref = addParams.toString() ? `/dashboard/items/new?${addParams.toString()}` : "/dashboard/items/new";
 
   return (
     <>
