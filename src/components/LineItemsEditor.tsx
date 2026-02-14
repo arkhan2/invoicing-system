@@ -265,17 +265,17 @@ export function LineItemsEditor({
         <table className="line-items-table w-full min-w-[600px] text-left text-sm">
           <thead>
             <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)]">
-              {!disabled && <th className="w-9 p-1.5 text-left text-[var(--color-on-surface-variant)]" aria-label="Drag to reorder" />}
-              <th className="w-12 p-1.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">#</th>
-              <th className="w-28 p-1.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Item #</th>
-              <th className="min-w-[280px] p-1.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Description</th>
-              <th className="w-20 p-1.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Qty</th>
+              {!disabled && <th className="w-9 py-1.5 px-1 text-left text-[var(--color-on-surface-variant)]" aria-label="Drag to reorder" />}
+              <th className="w-12 py-1.5 px-1 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">#</th>
+              <th className="w-28 py-1.5 px-1 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Item #</th>
+              <th className="min-w-[280px] py-1.5 px-1 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Description</th>
+              <th className="w-20 py-1.5 px-1 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Qty</th>
               {showUomColumn && (
-                <th className="w-20 p-1.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">UOM</th>
+                <th className="w-20 py-1.5 px-1 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">UOM</th>
               )}
-              <th className="w-32 p-1.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Unit price</th>
-              <th className="w-24 p-1.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Total</th>
-              {!disabled && <th className="w-20 p-1.5" aria-label="Actions" />}
+              <th className="w-32 py-1.5 px-1 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Unit price</th>
+              <th className="w-24 py-1.5 px-1 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Total</th>
+              {!disabled && <th className="w-20 py-1.5 px-1" aria-label="Actions" />}
             </tr>
           </thead>
           <tbody
@@ -299,7 +299,7 @@ export function LineItemsEditor({
                 className={`line-items-row border-b border-[var(--color-divider)] last:border-b-0 transition-[background-color,box-shadow] duration-150 align-top ${isDragging ? "line-items-row-dragging line-items-row-dragging-lift" : ""} ${isDropTarget ? "line-items-row-drop" : ""}`}
               >
                 {!disabled && (
-                  <td className={`w-9 p-1.5 align-top ${cellBg}`}>
+                  <td className={`w-9 py-1.5 px-1 align-top ${cellBg}`}>
                     <span
                       draggable
                       onDragStart={(e) => handleDragStart(e, dataIndex)}
@@ -311,8 +311,8 @@ export function LineItemsEditor({
                     </span>
                   </td>
                 )}
-                <td className={`w-12 p-1.5 align-top text-[var(--color-on-surface-variant)] tabular-nums ${cellBg}`}>{displayPos + 1}</td>
-                <td className={`w-28 p-1.5 align-top ${cellBg}`}>
+                <td className={`w-12 py-1.5 px-1 align-top text-[var(--color-on-surface-variant)] tabular-nums ${cellBg}`}>{displayPos + 1}</td>
+                <td className={`w-28 py-1.5 px-1 align-top ${cellBg}`}>
                   <input
                     type="text"
                     value={row.item_number}
@@ -322,7 +322,7 @@ export function LineItemsEditor({
                     placeholder="Item #"
                   />
                 </td>
-                <td className={`min-w-[280px] p-1.5 align-top ${cellBg}`}>
+                <td className={`min-w-[280px] py-1.5 px-1 align-top ${cellBg}`}>
                   <div className="flex gap-1">
                     <textarea
                       value={row.product_description}
@@ -395,7 +395,7 @@ export function LineItemsEditor({
                     )}
                   </div>
                 </td>
-                <td className={`w-20 p-1.5 align-top text-right ${cellBg}`}>
+                <td className={`w-20 py-1.5 px-1 align-top text-right ${cellBg}`}>
                   <input
                     type="number"
                     min={0}
@@ -409,7 +409,7 @@ export function LineItemsEditor({
                   />
                 </td>
                 {showUomColumn && (
-                  <td className={`w-20 p-1.5 align-top ${cellBg}`}>
+                  <td className={`w-20 py-1.5 px-1 align-top ${cellBg}`}>
                     <select
                       value={row.uom || "Nos"}
                       onChange={(e) => updateRow(dataIndex, { uom: e.target.value })}
@@ -425,7 +425,7 @@ export function LineItemsEditor({
                     </select>
                   </td>
                 )}
-                <td className={`w-32 p-1.5 align-top text-right ${cellBg}`}>
+                <td className={`w-32 py-1.5 px-1 align-top text-right ${cellBg}`}>
                   <input
                     type="number"
                     min={0}
@@ -438,11 +438,11 @@ export function LineItemsEditor({
                     className={inputClassRight + " input-no-spinner"}
                   />
                 </td>
-                <td className={`w-24 p-1.5 align-top text-right tabular-nums text-[var(--color-on-surface-variant)] ${cellBg}`}>
+                <td className={`w-24 py-1.5 px-1 align-top text-right tabular-nums text-[var(--color-on-surface-variant)] ${cellBg}`}>
                   {row.total_values.toFixed(2)}
                 </td>
                 {!disabled && (
-                  <td className={`w-20 p-1.5 align-top ${cellBg}`}>
+                  <td className={`w-20 py-1.5 px-1 align-top ${cellBg}`}>
                     <span className="flex items-center gap-0.5">
                       <button
                         type="button"
@@ -471,7 +471,7 @@ export function LineItemsEditor({
           </tbody>
         </table>
         {!disabled && (
-          <div className="border-t border-[var(--color-divider)] px-1.5 py-1.5">
+          <div className="border-t border-[var(--color-divider)] px-1 py-1.5">
             <IconButton variant="add" icon={<Plus className="w-4 h-4" />} label="Add row" onClick={addRow} />
           </div>
         )}
