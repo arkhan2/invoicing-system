@@ -216,6 +216,7 @@ export function EstimateDocumentView({
   const containerRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const billToBlockRef = useRef<HTMLDivElement>(null);
   const termsMeasureRef = useRef<HTMLParagraphElement>(null);
   const measureValuesRef = useRef<{
     contentHeight: number;
@@ -226,6 +227,7 @@ export function EstimateDocumentView({
     tfootRows: number;
   } | null>(null);
   const [termsOnLastTablePage, setTermsOnLastTablePage] = useState(false);
+  const [termsOnLastNotesPage, setTermsOnLastNotesPage] = useState(false);
   const [notesOnLastTablePage, setNotesOnLastTablePage] = useState(false);
   const [notesChunks, setNotesChunks] = useState<string[]>(() =>
     notes?.trim() ? splitTextIntoChunks(notes.trim(), CHARS_PER_CONTENT_PAGE) : []
@@ -318,7 +320,11 @@ export function EstimateDocumentView({
     try {
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
-      const pages = wrapper.querySelectorAll<HTMLElement>(".document-page");
+      const probeRoot = measureRef.current;
+      const allPages = wrapper.querySelectorAll<HTMLElement>(".document-page");
+      const pages = probeRoot
+        ? Array.from(allPages).filter((el) => !probeRoot.contains(el))
+        : Array.from(allPages);
       if (pages.length === 0) return;
       const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
       for (let i = 0; i < pages.length; i++) {
@@ -375,17 +381,23 @@ export function EstimateDocumentView({
   }, [items, rowsFirstPage, rowsPerPage]);
 
   const continuationBlocks = useMemo(() => {
-    const blocks: { kind: "notes" | "terms"; text: string; isContinued: boolean }[] = [];
-    notesChunks.forEach((chunk, i) => {
-      if (i === 0 && notesOnLastTablePage) return;
-      blocks.push({ kind: "notes", text: chunk, isContinued: i > 0 || notesOnLastTablePage });
+    const blocks: { kind: "notes" | "terms"; text: string; isContinued: boolean; termsOnSamePage?: string }[] = [];
+    const notesContinuation = notesChunks.slice(1);
+    notesContinuation.forEach((text, i) => {
+      const isLastNotesBlock = i === notesContinuation.length - 1;
+      blocks.push({
+        kind: "notes",
+        text,
+        isContinued: true,
+        termsOnSamePage: isLastNotesBlock && termsOnLastNotesPage ? termsChunks[0] : undefined,
+      });
     });
     termsChunks.forEach((chunk, i) => {
-      if (i === 0 && termsOnLastTablePage) return;
-      blocks.push({ kind: "terms", text: chunk, isContinued: i > 0 || termsOnLastTablePage });
+      if (i === 0 && (termsOnLastTablePage || termsOnLastNotesPage)) return;
+      blocks.push({ kind: "terms", text: chunk, isContinued: i > 0 || termsOnLastTablePage || termsOnLastNotesPage });
     });
     return blocks;
-  }, [notesChunks, notesOnLastTablePage, termsChunks, termsOnLastTablePage]);
+  }, [notesChunks, termsChunks, termsOnLastTablePage, termsOnLastNotesPage]);
 
   const totalPageCount =
     pageChunks.length + continuationBlocks.length;
@@ -500,11 +512,12 @@ export function EstimateDocumentView({
       const contentHeight = contentEl.clientHeight;
       const rowHeight = (firstBodyRow as HTMLElement).offsetHeight;
       const headerHeight = (theadRow as HTMLElement).offsetHeight;
-      const tableWrapperMargin = 20;
-      const availableForRows = contentHeight - tableWrapperMargin - headerHeight;
+      const GAP = 8;
+      const availableForRows = contentHeight - headerHeight;
       const maxRows = Math.max(1, Math.floor(availableForRows / rowHeight));
       setRowsPerPage(maxRows);
-      setRowsFirstPage(Math.max(1, maxRows - 4));
+      const availableFirstPage = contentHeight - headerHeight - GAP - BILL_TO_ESTIMATE;
+      setRowsFirstPage(Math.max(1, Math.floor(availableFirstPage / rowHeight)));
 
       const termsContentHeight = termsContentEl?.clientHeight ?? 0;
       const cardShellEl = probe.querySelector<HTMLElement>(".measure-terms-card");
@@ -539,76 +552,109 @@ export function EstimateDocumentView({
         setTermsChunks(splitTextIntoChunks(paymentTerms.trim(), CHARS_PER_CONTENT_PAGE));
       return;
     }
+    const GAP = 8;
     const lastChunkRowCount =
       pageChunks.length > 0 ? pageChunks[pageChunks.length - 1].length : 0;
     const isFirstPageAlsoLast = pageChunks.length === 1;
-    const billToReserve = isFirstPageAlsoLast ? BILL_TO_ESTIMATE : 0;
+    const billToHeight = billToBlockRef.current?.offsetHeight ?? BILL_TO_ESTIMATE;
+    const billToReserve = isFirstPageAlsoLast ? billToHeight : 0;
+
+    if (pageChunks.length >= 1) {
+      const availableFirstPage = mv.contentHeight - mv.headerHeight - GAP - billToHeight;
+      const newRowsFirstPage = Math.max(1, Math.floor(availableFirstPage / mv.rowHeight));
+      setRowsFirstPage(newRowsFirstPage);
+    }
     const tfootRows =
       2 + (showDiscount ? 2 : 0) + (totalTax != null ? 1 : 0);
     const tableTotalHeight =
       mv.headerHeight + (lastChunkRowCount + tfootRows) * mv.rowHeight;
-    const GAP = 8;
     const contentHeight =
       mv.contentHeight - FOOTER_SAFETY + CONTENT_TOP_MARGIN_DIFF_PX;
     const hasNotes = !!notes?.trim();
     const hasTerms = !!paymentTerms?.trim();
 
-    // First place complete notes (last table page + continuation), then complete terms (with splitting).
-    // When notes exist: notes get full space on last table page; terms only on continuation pages.
-    // When no notes: terms can use last table page + continuation.
-    const itemsHeight = billToReserve + tableTotalHeight;
+    // Notes first (last table page + continuation). On the page where notes end, use remaining space for terms if any, then split terms to next page(s).
+    const gapAfterBillTo = billToReserve > 0 ? GAP : 0;
+    const itemsHeight = billToReserve + gapAfterBillTo + tableTotalHeight;
     const spacingAfterItems = GAP;
     const gapBeforeFooter = GAP;
 
     let notesResult: string[] = [];
-    let maxTermsOnLast = 0;
     let maxNotesOnLast = 0;
-    const termsOnLastTablePageAllowed = hasTerms && !hasNotes;
+    let maxTermsOnLast = 0;
 
+    // 1) Notes: use all remaining space on last table page; overflow to continuation pages
     if (hasNotes) {
-      const spaceForNotesCard = Math.max(
-        0,
-        contentHeight - itemsHeight - spacingAfterItems - gapBeforeFooter
-      );
-      maxNotesOnLast = Math.max(80, spaceForNotesCard - mv.cardShellHeight);
-      const notesHeights =
-        maxNotesOnLast > 0
-          ? [maxNotesOnLast, mv.maxHeightFullPage]
-          : [mv.maxHeightFullPage];
-      notesResult = splitTextByContentAreaMulti(
-        notes!.trim(),
-        notesHeights,
-        measureEl,
-        "pre-wrap"
-      );
+      const spaceForNotesOnLast = contentHeight - itemsHeight - spacingAfterItems - gapBeforeFooter;
+      maxNotesOnLast = Math.max(80, Math.max(0, spaceForNotesOnLast) - mv.cardShellHeight);
+      const notesHeights = maxNotesOnLast > 0 ? [maxNotesOnLast, mv.maxHeightFullPage] : [mv.maxHeightFullPage];
+      notesResult = splitTextByContentAreaMulti(notes!.trim(), notesHeights, measureEl, "pre-wrap");
       setNotesChunks(notesResult);
     } else {
       setNotesChunks([]);
     }
 
+    // 2) Terms: on the page where notes end, check if there is space left and start terms there; split rest to next page(s)
+    const notesEndOnLastTablePage = hasNotes && notesResult.length === 1;
+    const notesEndOnContinuationPage = hasNotes && notesResult.length > 1;
+    const notesCardHeight = (() => {
+      if (!hasNotes || !notesResult[0]) return 0;
+      measureEl.style.whiteSpace = "pre-wrap";
+      measureEl.textContent = notesResult[0];
+      const h = measureEl.scrollHeight;
+      measureEl.textContent = "";
+      return mv.cardShellHeight + h;
+    })();
+    const gapBeforeTerms = hasNotes ? GAP : 0;
+    let maxTermsOnLastNotesPage = 0;
+
     if (hasTerms) {
-      if (termsOnLastTablePageAllowed) {
+      if (notesEndOnLastTablePage || !hasNotes) {
         const spaceForTermsCard = Math.max(
           0,
-          contentHeight - itemsHeight - spacingAfterItems - gapBeforeFooter
+          contentHeight - itemsHeight - spacingAfterItems - notesCardHeight - gapBeforeTerms - gapBeforeFooter
         );
         maxTermsOnLast = Math.max(80, spaceForTermsCard - mv.cardShellHeight);
+        const th = maxTermsOnLast > 0 ? [maxTermsOnLast, mv.maxHeightFullPage] : [mv.maxHeightFullPage];
+        setTermsChunks(
+          splitTextByContentAreaMulti(paymentTerms!.trim(), th, measureEl, "pre-line")
+        );
+        setTermsOnLastNotesPage(false);
+      } else if (notesEndOnContinuationPage) {
+        const lastNotesChunk = notesResult[notesResult.length - 1];
+        measureEl.style.whiteSpace = "pre-wrap";
+        measureEl.textContent = lastNotesChunk ?? "";
+        const lastNotesTextHeight = measureEl.scrollHeight;
+        measureEl.textContent = "";
+        const lastNotesCardHeight = mv.cardShellHeight + lastNotesTextHeight;
+        const continuationContentHeight = mv.maxHeightFullPage + mv.cardShellHeight;
+        const spaceForTermsCard = Math.max(
+          0,
+          continuationContentHeight - lastNotesCardHeight - GAP - gapBeforeFooter
+        );
+        maxTermsOnLastNotesPage = Math.max(80, spaceForTermsCard - mv.cardShellHeight);
+        const th = maxTermsOnLastNotesPage > 0 ? [maxTermsOnLastNotesPage, mv.maxHeightFullPage] : [mv.maxHeightFullPage];
+        setTermsChunks(
+          splitTextByContentAreaMulti(paymentTerms!.trim(), th, measureEl, "pre-line")
+        );
+        setTermsOnLastNotesPage(maxTermsOnLastNotesPage > 0);
+      } else {
+        setTermsChunks(
+          splitTextByContentAreaMulti(
+            paymentTerms!.trim(),
+            [mv.maxHeightFullPage],
+            measureEl,
+            "pre-line"
+          )
+        );
+        setTermsOnLastNotesPage(false);
       }
-      const th =
-        maxTermsOnLast > 0
-          ? [maxTermsOnLast, mv.maxHeightFullPage]
-          : [mv.maxHeightFullPage];
-      const termsResult = splitTextByContentAreaMulti(
-        paymentTerms!.trim(),
-        th,
-        measureEl,
-        "pre-line"
-      );
-      setTermsChunks(termsResult);
     } else {
       setTermsChunks([]);
+      setTermsOnLastNotesPage(false);
     }
-    setNotesOnLastTablePage(!!(hasNotes && maxNotesOnLast > 0));
+
+    setNotesOnLastTablePage(!!(hasNotes && notesResult.length > 0 && maxNotesOnLast > 0));
     setTermsOnLastTablePage(!!(hasTerms && maxTermsOnLast > 0));
   }, [notes, paymentTerms, pageChunks, showDiscount, totalTax]);
 
@@ -837,35 +883,35 @@ export function EstimateDocumentView({
                 const content = (
                   <div className="flex flex-col gap-2">
                     {pageIndex === 0 && (
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
-                        <div className="min-w-0 flex-[1.2] rounded-xl border doc-border doc-notes-bg p-3">
-                          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider doc-muted">Bill To</h2>
-                          <p className="font-semibold">{customer.name}</p>
-                          {customer.contact_person_name && <p className="mt-0.5 text-sm doc-muted">Attn: {customer.contact_person_name}</p>}
-                          {customerAddress && <p className="mt-0.5 text-sm doc-muted">{customerAddress}</p>}
-                          {customer.ntn_cnic && <p className="mt-0.5 text-sm doc-muted">NTN: {customer.ntn_cnic}</p>}
+                      <div ref={billToBlockRef} className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
+                        <div className="min-w-0 flex-[1.2] rounded-xl border doc-border doc-notes-bg" style={{ padding: "12px", boxSizing: "border-box" }}>
+                          <h2 className="text-xs font-semibold uppercase tracking-wider doc-muted" style={{ marginBottom: "8px" }}>Bill To</h2>
+                          <p className="font-semibold" style={{ margin: 0 }}>{customer.name}</p>
+                          {customer.contact_person_name && <p className="text-sm doc-muted" style={{ margin: "2px 0 0" }}>Attn: {customer.contact_person_name}</p>}
+                          {customerAddress && <p className="text-sm doc-muted" style={{ margin: "2px 0 0" }}>{customerAddress}</p>}
+                          {customer.ntn_cnic && <p className="text-sm doc-muted" style={{ margin: "2px 0 0" }}>NTN: {customer.ntn_cnic}</p>}
                           {(customer.phone || customer.email) && (
-                            <p className="mt-0.5 text-sm doc-muted">{[customer.phone, customer.email].filter(Boolean).join(" · ")}</p>
+                            <p className="text-sm doc-muted" style={{ margin: "2px 0 0" }}>{[customer.phone, customer.email].filter(Boolean).join(" · ")}</p>
                           )}
                           {(projectName || subject) && (
-                            <div className="mt-3 space-y-1 border-t doc-border pt-2 text-sm">
-                              {projectName && <p className="doc-muted"><span className="font-semibold">Project:</span> {projectName}</p>}
-                              {subject && <p className="doc-muted"><span className="font-semibold">Subject:</span> {subject}</p>}
+                            <div className="border-t doc-border text-sm" style={{ marginTop: "12px", paddingTop: "8px" }}>
+                              {projectName && <p className="doc-muted" style={{ margin: "0 0 4px" }}><span className="font-semibold">Project:</span> {projectName}</p>}
+                              {subject && <p className="doc-muted" style={{ margin: 0 }}><span className="font-semibold">Subject:</span> {subject}</p>}
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0 flex-1 rounded-xl border doc-border doc-notes-bg p-3 sm:max-w-[17rem]">
-                          <table className="w-full border-collapse text-sm" style={{ border: "none" }}>
+                        <div className="min-w-0 flex-1 rounded-xl border doc-border doc-notes-bg sm:max-w-[17rem]" style={{ padding: "12px", boxSizing: "border-box" }}>
+                          <table className="w-full border-collapse text-sm" style={{ border: "none", width: "100%" }}>
                             <tbody>
                               {validUntil && (
                                 <tr>
-                                  <td className="align-top pr-3 font-semibold doc-muted" style={{ border: "none", verticalAlign: "top" }}>Expiry date:</td>
+                                  <td className="align-top font-semibold doc-muted" style={{ border: "none", verticalAlign: "top", paddingRight: "12px" }}>Expiry date:</td>
                                   <td className="align-top doc-muted text-left" style={{ border: "none", verticalAlign: "top" }}>{formatEstimateDate(validUntil)}</td>
                                 </tr>
                               )}
                               {deliveryTimeAmount != null && deliveryTimeAmount > 0 && deliveryTimeUnit && (
                                 <tr>
-                                  <td className="align-top pr-3 font-semibold doc-muted" style={{ border: "none", verticalAlign: "top" }}>Delivery time:</td>
+                                  <td className="align-top font-semibold doc-muted" style={{ border: "none", verticalAlign: "top", paddingRight: "12px" }}>Delivery time:</td>
                                   <td className="align-top doc-muted text-left" style={{ border: "none", verticalAlign: "top" }}>{deliveryTimeAmount} {deliveryTimeUnit}</td>
                                 </tr>
                               )}
@@ -926,6 +972,7 @@ export function EstimateDocumentView({
 
               continuationBlocks.forEach((block, i) => {
                 const pageNum = pageChunks.length + i + 1;
+                const isNotesWithTermsBelow = block.kind === "notes" && block.termsOnSamePage;
                 const label = block.kind === "notes"
                   ? (block.isContinued ? "Notes (continued)" : "Notes")
                   : (block.isContinued ? "Terms and conditions (continued)" : "Terms and conditions");
@@ -934,9 +981,17 @@ export function EstimateDocumentView({
                   <div key={`cont-${i}`} className="document-page document-page-spaced document-page-break-before mx-auto flex flex-col p-8 pl-10">
                     {renderHeader()}
                     <div className="document-page-content mt-3">
-                      <div className="rounded-xl border doc-border doc-notes-bg p-2">
-                        <h3 className="mb-0.5 text-xs font-semibold uppercase tracking-wider doc-muted">{label}</h3>
-                        <p className={`text-sm ${whitespaceClass}`}>{block.text}</p>
+                      <div className="flex flex-col gap-2">
+                        <div className="rounded-xl border doc-border doc-notes-bg p-2">
+                          <h3 className="mb-0.5 text-xs font-semibold uppercase tracking-wider doc-muted">{label}</h3>
+                          <p className={`text-sm ${whitespaceClass}`}>{block.text}</p>
+                        </div>
+                        {isNotesWithTermsBelow && block.termsOnSamePage && (
+                          <div className="rounded-xl border doc-border doc-notes-bg p-2">
+                            <h3 className="mb-0.5 text-xs font-semibold uppercase tracking-wider doc-muted">Terms and conditions</h3>
+                            <p className="text-sm whitespace-pre-line">{block.termsOnSamePage}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                     {renderFooter(pageNum)}
