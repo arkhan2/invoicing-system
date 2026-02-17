@@ -514,6 +514,9 @@ export type CustomerSearchResult = {
 const CUSTOMER_SELECT =
   "id, name, contact_person_name, address, city, province, country, ntn_cnic, phone, email, registration_type";
 
+const CUSTOMER_DETAIL_SELECT =
+  "id, name, contact_person_name, ntn_cnic, address, city, province, country, registration_type, phone, email, created_at, updated_at";
+
 export async function searchCustomers(
   companyId: string,
   query: string
@@ -561,6 +564,45 @@ export async function getCustomerById(
 
   if (error || !data) return null;
   return data as CustomerSearchResult;
+}
+
+export type CustomerDetailResult = {
+  id: string;
+  name: string;
+  contact_person_name: string | null;
+  ntn_cnic: string | null;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+  registration_type: string | null;
+  phone: string | null;
+  email: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+/** Full customer row for detail view / side panel. */
+export async function getCustomerDetail(
+  companyId: string,
+  customerId: string
+): Promise<CustomerDetailResult | null> {
+  if (!customerId) return null;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("customers")
+    .select(CUSTOMER_DETAIL_SELECT)
+    .eq("id", customerId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as CustomerDetailResult;
 }
 
 export type ImportCustomersResult = {

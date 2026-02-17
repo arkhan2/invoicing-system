@@ -10,17 +10,18 @@ import {
   type InvoiceFormState,
 } from "./actions";
 import { searchItems } from "@/app/(dashboard)/dashboard/items/actions";
-import { Save, Loader2, ChevronLeft, X } from "lucide-react";
+import { Save, Loader2, ChevronLeft, X, PlusCircle } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
-import { showMessage } from "@/components/MessageBar";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
+import { AddItemsFromCatalogModal } from "@/app/(dashboard)/dashboard/estimates/AddItemsFromCatalogModal";
 
 const inputClass =
-  "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
+  "w-full min-h-[2.5rem] border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
 const STATUS_OPTIONS = ["Draft", "Final", "Sent"] as const;
+const DELIVERY_TIME_UNITS = ["days", "weeks", "months"] as const;
 
 function defaultItems(): LineItemRow[] {
   return [
@@ -69,13 +70,32 @@ export type InvoiceListItem = {
   estimate_number: string | null;
 };
 
+export type SalesTaxRateOption = { id: string; name: string; rate: number };
+export type UomOption = { id: string; code: string; description: string };
+
 export function InvoiceForm({
   invoiceId,
   companyId,
   customers,
   company,
+  salesTaxRates = [],
+  uomList = [],
   initialInvoiceNumber,
   initialInvoiceDate,
+  initialCustomerId,
+  initialSelectedCustomer,
+  initialPoNumber,
+  initialNotes,
+  initialProjectName,
+  initialSubject,
+  initialPaymentTerms,
+  initialDeliveryTimeAmount,
+  initialDeliveryTimeUnit,
+  initialDiscountAmount,
+  initialDiscountType,
+  initialSalesTaxRateId,
+  initialStatus,
+  initialItems,
   onSuccess,
   onCancel,
 }: {
@@ -91,24 +111,63 @@ export function InvoiceForm({
     email?: string | null;
     logo_url?: string | null;
   } | null;
+  salesTaxRates?: SalesTaxRateOption[];
+  uomList?: UomOption[];
   initialInvoiceNumber?: string | null;
   initialInvoiceDate?: string | null;
+  initialCustomerId?: string;
+  initialSelectedCustomer?: CustomerOption | null;
+  initialPoNumber?: string | null;
+  initialNotes?: string | null;
+  initialProjectName?: string | null;
+  initialSubject?: string | null;
+  initialPaymentTerms?: string | null;
+  initialDeliveryTimeAmount?: number | null;
+  initialDeliveryTimeUnit?: string | null;
+  initialDiscountAmount?: string | null;
+  initialDiscountType?: "amount" | "percentage";
+  initialSalesTaxRateId?: string | null;
+  initialStatus?: string | null;
+  initialItems?: LineItemRow[];
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
   const router = useRouter();
   const isEdit = !!invoiceId;
+  const hasInitialData = initialItems != null || initialCustomerId != null;
+
   const [loading, setLoading] = useState(false);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "done" | "error">(
-    isEdit ? "loading" : "idle"
+    isEdit && !hasInitialData ? "loading" : "idle"
   );
   const [state, setState] = useState<InvoiceFormState>({});
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
   const [invoiceDate, setInvoiceDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
+    initialInvoiceDate ?? new Date().toISOString().slice(0, 10)
   );
-  const [status, setStatus] = useState<"Draft" | "Final" | "Sent">("Draft");
-  const [items, setItems] = useState<LineItemRow[]>(defaultItems());
+  const [status, setStatus] = useState<"Draft" | "Final" | "Sent">(
+    (initialStatus && ["Draft", "Final", "Sent"].includes(initialStatus) ? initialStatus : "Draft") as "Draft" | "Final" | "Sent"
+  );
+  const [poNumber, setPoNumber] = useState(initialPoNumber ?? "");
+  const [notes, setNotes] = useState(initialNotes ?? "");
+  const [projectName, setProjectName] = useState(initialProjectName ?? "");
+  const [subject, setSubject] = useState(initialSubject ?? "");
+  const [paymentTerms, setPaymentTerms] = useState(initialPaymentTerms ?? "");
+  const [deliveryTimeAmount, setDeliveryTimeAmount] = useState(
+    initialDeliveryTimeAmount != null ? String(initialDeliveryTimeAmount) : ""
+  );
+  const [deliveryTimeUnit, setDeliveryTimeUnit] = useState<"days" | "weeks" | "months" | "">(
+    (initialDeliveryTimeUnit && ["days", "weeks", "months"].includes(initialDeliveryTimeUnit) ? initialDeliveryTimeUnit : "") as "days" | "weeks" | "months" | ""
+  );
+  const [discountAmount, setDiscountAmount] = useState(initialDiscountAmount ?? "");
+  const [discountType, setDiscountType] = useState<"amount" | "percentage">(
+    initialDiscountType === "percentage" ? "percentage" : "amount"
+  );
+  const [salesTaxRateId, setSalesTaxRateId] = useState(initialSalesTaxRateId ?? "");
+  const [items, setItems] = useState<LineItemRow[]>(
+    initialItems && initialItems.length > 0 ? initialItems : defaultItems()
+  );
+  const [addItemsModalOpen, setAddItemsModalOpen] = useState(false);
 
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === customerId) as CustomerOption | undefined,
@@ -116,6 +175,14 @@ export function InvoiceForm({
   );
 
   useEffect(() => {
+    if (hasInitialData && isEdit) {
+      if (initialCustomerId) setCustomerId(initialCustomerId);
+      if (initialInvoiceDate) setInvoiceDate(initialInvoiceDate);
+      if (initialStatus && ["Draft", "Final", "Sent"].includes(initialStatus)) setStatus(initialStatus as "Draft" | "Final" | "Sent");
+      if (initialItems && initialItems.length > 0) setItems(initialItems);
+      setLoadState("done");
+      return;
+    }
     if (!invoiceId) return;
     let cancelled = false;
     (async () => {
@@ -132,13 +199,27 @@ export function InvoiceForm({
           ? (data.invoice.status as "Draft" | "Final" | "Sent")
           : "Draft"
       );
+      setPoNumber(data.invoice.invoice_ref_no ?? "");
+      setNotes(data.invoice.notes ?? "");
+      setProjectName(data.invoice.project_name ?? "");
+      setSubject(data.invoice.subject ?? "");
+      setPaymentTerms(data.invoice.payment_terms ?? "");
+      setDeliveryTimeAmount(data.invoice.delivery_time_amount != null ? String(data.invoice.delivery_time_amount) : "");
+      setDeliveryTimeUnit(
+        (data.invoice.delivery_time_unit === "days" || data.invoice.delivery_time_unit === "weeks" || data.invoice.delivery_time_unit === "months")
+          ? data.invoice.delivery_time_unit
+          : ""
+      );
+      setDiscountAmount(data.invoice.discount_amount != null ? String(data.invoice.discount_amount) : "");
+      setDiscountType((data.invoice as { discount_type?: string }).discount_type === "percentage" ? "percentage" : "amount");
+      setSalesTaxRateId(data.invoice.sales_tax_rate_id ?? "");
       setItems(data.items.length > 0 ? data.items : defaultItems());
       setLoadState("done");
     })();
     return () => {
       cancelled = true;
     };
-  }, [invoiceId]);
+  }, [invoiceId, hasInitialData, initialCustomerId, initialInvoiceDate, initialStatus, initialItems]);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -146,6 +227,16 @@ export function InvoiceForm({
     formData.set("customer_id", customerId);
     formData.set("invoice_date", invoiceDate);
     formData.set("status", status);
+    formData.set("invoice_ref_no", poNumber.trim());
+    formData.set("notes", notes.trim());
+    formData.set("project_name", projectName.trim());
+    formData.set("subject", subject.trim());
+    formData.set("payment_terms", paymentTerms.trim());
+    formData.set("delivery_time_amount", deliveryTimeAmount);
+    formData.set("delivery_time_unit", deliveryTimeUnit);
+    formData.set("discount_amount", discountAmount);
+    formData.set("discount_type", discountType);
+    formData.set("sales_tax_rate_id", salesTaxRateId.trim());
     formData.set("items", JSON.stringify(items));
     startGlobalProcessing(isEdit ? "Saving…" : "Creating invoice…");
     try {
@@ -189,13 +280,15 @@ export function InvoiceForm({
     );
   }
 
-  const subtotal = items.reduce((s, i) => s + i.value_sales_excluding_st, 0);
-  const totalTax = items.reduce(
-    (s, i) =>
-      s + i.sales_tax_applicable - i.sales_tax_withheld_at_source + i.extra_tax + i.further_tax,
-    0
-  );
-  const total = items.reduce((s, i) => s + i.total_values, 0);
+  const subtotal = items.reduce((s, i) => s + i.total_values, 0);
+  const discountNum = Number(discountAmount) || 0;
+  const discountValue = discountType === "percentage" ? (subtotal * discountNum) / 100 : discountNum;
+  const totalAfterDiscount = Math.max(0, subtotal - discountValue);
+  const selectedSalesRate = salesTaxRates.find((r) => r.id === salesTaxRateId);
+  const salesTaxRatePct = selectedSalesRate ? selectedSalesRate.rate : 0;
+  const salesTaxAmount = (totalAfterDiscount * salesTaxRatePct) / 100;
+  const finalTotal = totalAfterDiscount + salesTaxAmount;
+
   const billingLines = selectedCustomer
     ? [
         selectedCustomer.address,
@@ -205,6 +298,7 @@ export function InvoiceForm({
     : [];
 
   return (
+    <>
     <form
       id="invoice-form"
       onSubmit={(e) => {
@@ -213,7 +307,6 @@ export function InvoiceForm({
       }}
       className="flex h-full flex-col"
     >
-      {/* Header: title + actions */}
       <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           {isEdit ? (
@@ -268,140 +361,273 @@ export function InvoiceForm({
 
       <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-surface-variant)] p-4">
         <div className="mx-auto max-w-4xl space-y-5">
-          {/* Customer + Invoice details side by side on md+ */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          {/* Customer card */}
-          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-              Customer
-            </h3>
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
+            <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+                Customer
+              </h3>
+              <div className="space-y-3">
                 <label htmlFor="invoice-customer" className={labelClass}>
                   Customer name <span className="text-[var(--color-error)]">*</span>
                 </label>
-                {selectedCustomer && (
-                  <Link href="/dashboard/customers" className="text-sm text-[var(--color-primary)] hover:underline">
-                    {selectedCustomer.name.length > 24 ? selectedCustomer.name.slice(0, 24) + "…" : selectedCustomer.name} →
-                  </Link>
-                )}
-              </div>
-              <select
-                id="invoice-customer"
-                name="customer_id"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                required
-                className={inputClass + " !min-h-[2.5rem] cursor-pointer"}
-              >
-                <option value="">— Select customer —</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              {selectedCustomer && billingLines.length > 0 && (
-                <div className="rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/20 p-3">
-                  <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-on-surface-variant)] mb-1">
-                    Billing address
-                  </p>
-                  <p className="text-sm text-[var(--color-on-surface)] whitespace-pre-line">
-                    {billingLines.join("\n")}
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Invoice details card */}
-          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-              Invoice details
-            </h3>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div>
-                <label className={labelClass}>
-                  Invoice # <span className="text-[var(--color-error)]">*</span>
-                </label>
-                <div className="flex min-h-[2.5rem] items-center rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] px-3 py-2.5 text-sm font-medium text-[var(--color-on-surface)]">
-                  {isEdit ? (initialInvoiceNumber ?? "—") : "Auto-generated"}
-                </div>
-              </div>
-              <div>
-                <label htmlFor="invoice-date" className={labelClass}>
-                  Invoice date <span className="text-[var(--color-error)]">*</span>
-                </label>
-                <input
-                  id="invoice-date"
-                  name="invoice_date"
-                  type="date"
-                  value={invoiceDate}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
-                  className={inputClass + " !min-h-[2.5rem]"}
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="invoice-status" className={labelClass}>
-                  Status
-                </label>
                 <select
-                  id="invoice-status"
-                  name="status"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as "Draft" | "Final" | "Sent")}
+                  id="invoice-customer"
+                  name="customer_id"
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  required
                   className={inputClass + " !min-h-[2.5rem] cursor-pointer"}
                 >
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
+                  <option value="">— Select customer —</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
+                {selectedCustomer && billingLines.length > 0 && (
+                  <div className="rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/20 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-on-surface-variant)] mb-1">
+                      Billing address
+                    </p>
+                    <p className="text-sm text-[var(--color-on-surface)] whitespace-pre-line">
+                      {billingLines.join("\n")}
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="invoice-project-name" className={labelClass}>Project name</label>
+                  <input
+                    id="invoice-project-name"
+                    name="project_name"
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    className={inputClass + " h-[2.5rem] min-h-0"}
+                    placeholder="e.g. Office renovation"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="invoice-subject" className={labelClass}>Subject</label>
+                  <input
+                    id="invoice-subject"
+                    name="subject"
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className={inputClass + " h-[2.5rem] min-h-0"}
+                    placeholder="e.g. Invoice for steel fabrication"
+                  />
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+
+            <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+                Invoice details
+              </h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelClass}>Invoice # <span className="text-[var(--color-error)]">*</span></label>
+                  <div className="flex min-h-[2.5rem] items-center rounded-xl border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2.5 text-sm font-medium text-[var(--color-on-surface)]">
+                    {isEdit ? (initialInvoiceNumber ?? "—") : "Auto-generated"}
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="invoice-date" className={labelClass}>Invoice date <span className="text-[var(--color-error)]">*</span></label>
+                  <input
+                    id="invoice-date"
+                    name="invoice_date"
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    className={inputClass + " h-[2.5rem] min-h-0"}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="invoice-po" className={labelClass}>P.O. number</label>
+                  <input
+                    id="invoice-po"
+                    name="invoice_ref_no"
+                    type="text"
+                    value={poNumber}
+                    onChange={(e) => setPoNumber(e.target.value)}
+                    className={inputClass + " h-[2.5rem] min-h-0"}
+                    placeholder="Customer P.O. or reference"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="invoice-status" className={labelClass}>Status</label>
+                  <select
+                    id="invoice-status"
+                    name="status"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as "Draft" | "Final" | "Sent")}
+                    className={inputClass + " h-[2.5rem] min-h-0 cursor-pointer"}
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label htmlFor="invoice-payment-terms" className={labelClass}>Payment terms</label>
+                  <input
+                    id="invoice-payment-terms"
+                    name="payment_terms"
+                    type="text"
+                    value={paymentTerms}
+                    onChange={(e) => setPaymentTerms(e.target.value)}
+                    className={inputClass + " h-[2.5rem] min-h-0"}
+                    placeholder="e.g. Net 30"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="invoice-delivery-amount" className={labelClass}>Delivery time</label>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <input
+                      id="invoice-delivery-amount"
+                      name="delivery_time_amount"
+                      type="number"
+                      min={0}
+                      value={deliveryTimeAmount}
+                      onChange={(e) => setDeliveryTimeAmount(e.target.value)}
+                      className={inputClass + " h-[2.5rem] min-h-0 w-24"}
+                      placeholder="0"
+                    />
+                    <select
+                      name="delivery_time_unit"
+                      value={deliveryTimeUnit}
+                      onChange={(e) => setDeliveryTimeUnit(e.target.value as "days" | "weeks" | "months" | "")}
+                      className={inputClass + " h-[2.5rem] min-h-0 w-28 cursor-pointer"}
+                    >
+                      <option value="">—</option>
+                      {DELIVERY_TIME_UNITS.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
 
-          {/* Line items card */}
           <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
-              Line items
-            </h3>
-            <LineItemsEditor items={items} onChange={setItems} companyId={companyId} searchItems={searchItems} />
-            <div className="mt-4 flex justify-end border-t border-[var(--color-divider)] pt-3">
-              <table className="w-full max-w-xs text-right text-sm tabular-nums">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">
+                Line items
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAddItemsModalOpen(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/10"
+                aria-label="Add items from catalog"
+              >
+                <PlusCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <LineItemsEditor items={items} onChange={setItems} companyId={companyId} searchItems={searchItems} uomList={uomList} />
+            <AddItemsFromCatalogModal
+              open={addItemsModalOpen}
+              onClose={() => setAddItemsModalOpen(false)}
+              companyId={companyId}
+              onImport={(newRows) => {
+                setItems((prev) => [...prev, ...newRows]);
+                setAddItemsModalOpen(false);
+              }}
+            />
+            <div className="mt-6 overflow-hidden rounded-xl border border-[var(--color-outline)]">
+              <table className="w-full min-w-[320px] text-left text-sm tabular-nums">
+                <thead>
+                  <tr className="border-b border-[var(--color-outline)] bg-[var(--color-surface-variant)]">
+                    <th className="p-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Calculation</th>
+                    <th className="w-28 p-2.5 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Amount</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  <tr>
-                    <td className="py-1 pr-4 text-[var(--color-on-surface-variant)]">Subtotal</td>
-                    <td className="py-1 font-medium text-[var(--color-on-surface)]">{subtotal.toFixed(2)}</td>
+                  <tr className="border-b border-[var(--color-divider)]">
+                    <td className="p-2.5 text-[var(--color-on-surface-variant)]">Total</td>
+                    <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
-                  <tr>
-                    <td className="py-1 pr-4 text-[var(--color-on-surface-variant)]">Tax</td>
-                    <td className="py-1 font-medium text-[var(--color-on-surface)]">{totalTax.toFixed(2)}</td>
+                  <tr className="border-b border-[var(--color-divider)] align-middle">
+                    <td className="p-2.5">
+                      <div className="flex min-w-0 flex-nowrap items-center gap-2">
+                        <span className="shrink-0 text-[var(--color-on-surface-variant)]">Discount</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={discountType === "percentage" ? 0.01 : 1}
+                          value={discountAmount}
+                          onChange={(e) => setDiscountAmount(e.target.value)}
+                          className={inputClass + " input-no-spinner h-[2.25rem] min-h-0 w-[9rem] max-w-[9rem] shrink-0"}
+                          placeholder={discountType === "percentage" ? "0" : "0"}
+                        />
+                        <select
+                          name="discount_type"
+                          value={discountType}
+                          onChange={(e) => setDiscountType(e.target.value as "amount" | "percentage")}
+                          className={inputClass + " h-[2.25rem] min-h-0 w-[10rem] max-w-[10rem] shrink-0 cursor-pointer"}
+                        >
+                          <option value="amount">Amount</option>
+                          <option value="percentage">%</option>
+                        </select>
+                      </div>
+                    </td>
+                    <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">-{discountValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
-                  <tr className="border-t border-[var(--color-divider)]">
-                    <td className="py-2 pr-4 font-medium text-[var(--color-on-surface)]">Total</td>
-                    <td className="py-2 text-lg font-semibold text-[var(--color-on-surface)]">{total.toFixed(2)}</td>
+                  <tr className="border-b border-[var(--color-divider)]">
+                    <td className="p-2.5 text-[var(--color-on-surface-variant)]">Total after discount</td>
+                    <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">{totalAfterDiscount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr className="border-b border-[var(--color-divider)] align-middle">
+                    <td className="p-2.5">
+                      <div className="flex min-w-0 flex-nowrap items-center gap-2">
+                        <span className="shrink-0 text-[var(--color-on-surface-variant)]">Sales tax</span>
+                        <select
+                          name="sales_tax_rate_id"
+                          value={salesTaxRateId}
+                          onChange={(e) => setSalesTaxRateId(e.target.value)}
+                          className={inputClass + " h-[2.25rem] min-h-0 w-[10rem] max-w-[10rem] shrink-0 cursor-pointer"}
+                        >
+                          <option value="">— None —</option>
+                          {salesTaxRates.map((r) => (
+                            <option key={r.id} value={r.id}>{r.name} ({r.rate}%)</option>
+                          ))}
+                        </select>
+                      </div>
+                    </td>
+                    <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">{salesTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr className="border-t-2 border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30">
+                    <td className="p-2.5 font-semibold text-[var(--color-on-surface)]">G.Total</td>
+                    <td className="p-2.5 text-right text-base font-semibold text-[var(--color-on-surface)]">{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </section>
+
+          <section className="rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] p-4">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-on-surface-variant)]">Notes</h3>
+            <textarea
+              name="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className={inputClass + " resize-y min-h-[60px]"}
+              placeholder="Optional notes for the customer"
+            />
+          </section>
         </div>
       </div>
 
-      {/* Footer: PDF template info */}
       <div className="flex flex-shrink-0 items-center border-t border-[var(--color-divider)] px-4 py-2">
         <p className="text-xs text-[var(--color-on-surface-variant)]">
-          PDF template: <span className="font-medium text-[var(--color-on-surface)]">Invoice</span>
-          {" · "}
-          <button type="button" className="text-[var(--color-primary)] hover:underline">
-            Change
-          </button>
+          PDF: <span className="font-medium text-[var(--color-on-surface)]">Invoice</span>
         </p>
       </div>
     </form>
+    </>
   );
 }

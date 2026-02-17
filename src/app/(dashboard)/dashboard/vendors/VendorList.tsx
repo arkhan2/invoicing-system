@@ -62,13 +62,12 @@ export const VendorList = forwardRef<VendorListRef, VendorListProps>(function Ve
     if (!hideToolbar) return `/dashboard/vendors/${id}`;
     const p = new URLSearchParams();
     p.set("from", "spreadsheet");
-    const page = searchParams.get("page") ?? "1";
-    const perPage = searchParams.get("perPage") ?? "100";
+    p.set("page", searchParams.get("page") ?? "1");
+    p.set("perPage", searchParams.get("perPage") ?? "100");
     const q = searchParams.get("q") ?? "";
-    p.set("page", page);
-    p.set("perPage", perPage);
     if (q.trim()) p.set("q", q.trim());
-    return `/dashboard/vendors/${id}?${p.toString()}`;
+    const qs = p.toString();
+    return qs ? `/dashboard/vendors/${id}?${qs}` : `/dashboard/vendors/${id}`;
   };
 
   const filtered = useMemo(() => {

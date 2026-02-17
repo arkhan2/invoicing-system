@@ -3,11 +3,13 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Trash2, Copy, X, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { Trash2, Copy, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { EstimateStatusBadge } from "./EstimateStatusBadge";
 import { usePathname, useRouter } from "next/navigation";
+import { useGlobalSearch } from "@/components/global-search/useGlobalSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
+import { PerPageDropdown } from "@/components/PerPageDropdown";
 import {
   deleteEstimate,
   deleteEstimates,
@@ -42,30 +44,36 @@ export function EstimateSidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [searchInput, setSearchInput] = useState(searchQueryProp);
+  const globalSearch = useGlobalSearch();
+  const effectiveQuery = (globalSearch?.query ?? searchQueryProp ?? "").trim();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteState, setDeleteState] = useState<SingleDeleteState | BulkDeleteState | null>(null);
   const [convertState, setConvertState] = useState<{ estimateId: string; loading: boolean } | null>(null);
   const [cloneLoadingId, setCloneLoadingId] = useState<string | null>(null);
-  const [perPageOpen, setPerPageOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if ((searchQueryProp ?? "").trim() !== "") setSearchInput(searchQueryProp);
-  }, [searchQueryProp]);
 
   const showFooter = totalCount != null && page != null && perPage != null;
   const totalPages = perPage != null && perPage > 0 ? Math.max(1, Math.ceil((totalCount ?? 0) / perPage)) : 1;
   const startItem = (totalCount ?? 0) === 0 ? 0 : ((page ?? 1) - 1) * (perPage ?? 0) + 1;
   const endItem = (totalCount ?? 0) === 0 ? 0 : Math.min((page ?? 1) * (perPage ?? 0), totalCount ?? 0);
 
-  const filtered = estimates;
+  const filtered = useMemo(() => {
+    if (!effectiveQuery) return estimates;
+    const q = effectiveQuery.toLowerCase();
+    return estimates.filter(
+      (e) =>
+        e.estimate_number?.toLowerCase().includes(q) ||
+        e.customer_name?.toLowerCase().includes(q) ||
+        (e.status?.toLowerCase().includes(q) ?? false)
+    );
+  }, [estimates, effectiveQuery]);
+
   const qs = (params: { page?: number; perPage?: number; q?: string; customerId?: string | null }) => {
     const p = new URLSearchParams();
     p.set("page", String(params.page ?? page ?? 1));
     p.set("perPage", String(params.perPage ?? perPage ?? 100));
-    const q = params.q !== undefined ? params.q : searchQueryProp;
-    if (q && q.trim()) p.set("q", q.trim());
+    const q = params.q !== undefined ? params.q : effectiveQuery;
+    if (q) p.set("q", q);
     if (params.customerId) p.set("customerId", params.customerId);
     return `/dashboard/estimates?${p.toString()}`;
   };
@@ -74,7 +82,7 @@ export function EstimateSidebar({
     const p = new URLSearchParams();
     p.set("page", String(page ?? 1));
     p.set("perPage", String(perPage ?? 100));
-    if (searchQueryProp?.trim()) p.set("q", searchQueryProp.trim());
+    if (effectiveQuery) p.set("q", effectiveQuery);
     return `/dashboard/estimates?${p.toString()}`;
   };
 
@@ -82,7 +90,7 @@ export function EstimateSidebar({
     const p = new URLSearchParams();
     p.set("page", String(page ?? 1));
     p.set("perPage", String(perPage ?? 100));
-    if (searchInput.trim()) p.set("q", searchInput.trim());
+    if (effectiveQuery) p.set("q", effectiveQuery);
     if (filterCustomerId) p.set("customerId", filterCustomerId);
     return p.toString();
   };
@@ -220,42 +228,10 @@ export function EstimateSidebar({
     }
   }
 
-  const inputClass =
-    "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
-
   return (
     <>
       <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-base">
         <div className="flex flex-shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
-          <div className="relative flex items-center">
-            <input
-              type="search"
-              placeholder="Search estimates… (press Enter to search)"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  const q = searchInput.trim();
-                  router.push(qs({ page: 1, perPage: perPage ?? 100, q: q || undefined }));
-                }
-              }}
-              className={inputClass + " input-no-search-cancel min-h-[2rem] pr-9"}
-              aria-label="Search estimates"
-            />
-            {searchInput.trim() !== "" && (
-              <IconButton
-                variant="secondary"
-                icon={<X className="w-4 h-4" />}
-                label="Clear search"
-                onClick={() => {
-                  setSearchInput("");
-                  router.push(qs({ page: 1, q: "" }));
-                }}
-                className="absolute right-1 top-1/2 -translate-y-1/2 shrink-0 rounded-md p-1.5 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
-              />
-            )}
-          </div>
           {filterCustomerId && (
             <div className="flex items-center gap-2 rounded-lg border border-[var(--color-outline)] bg-[var(--color-surface-variant)]/50 px-2 py-1.5 text-sm">
               <span className="truncate text-[var(--color-on-surface-variant)]">Filter: customer</span>
@@ -311,7 +287,7 @@ export function EstimateSidebar({
         >
           {filtered.length === 0 ? (
             <div className="py-6 text-center text-sm text-[var(--color-on-surface-variant)]">
-              {estimates.length === 0 ? "No estimates yet" : "No matches"}
+              {effectiveQuery ? "No matches" : "No estimates yet"}
             </div>
           ) : (
             <div
@@ -428,45 +404,12 @@ export function EstimateSidebar({
             </p>
             <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-outline)] bg-surface px-2 py-1.5">
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setPerPageOpen((o) => !o)}
-                  className="flex items-center gap-1.5 text-sm text-[var(--color-on-surface)]"
-                  aria-expanded={perPageOpen}
-                  aria-haspopup="listbox"
+                <PerPageDropdown
+                  perPage={perPage ?? 100}
+                  perPageOptions={perPageOptions}
+                  onSelect={(n) => router.push(qs({ page: 1, perPage: n }))}
                   aria-label="Items per page"
-                >
-                  <Settings className="h-3.5 w-3.5 text-[var(--color-on-surface-variant)]" />
-                  <span>{perPage} per page</span>
-                </button>
-                {perPageOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      aria-hidden
-                      onClick={() => setPerPageOpen(false)}
-                    />
-                    <ul
-                      role="listbox"
-                      className="absolute bottom-full left-0 z-20 mb-1 min-w-[8rem] rounded-lg border border-[var(--color-outline)] bg-elevated py-1 shadow-elevated"
-                    >
-                      {perPageOptions.map((n) => (
-                        <li key={n} role="option">
-                          <button
-                            type="button"
-                            className="w-full px-3 py-1.5 text-left text-sm text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
-                            onClick={() => {
-                              setPerPageOpen(false);
-                              router.push(qs({ page: 1, perPage: n }));
-                            }}
-                          >
-                            {n} per page
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
+                />
               </div>
               <div className="flex items-center gap-1">
                 <button

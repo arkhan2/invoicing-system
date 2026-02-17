@@ -1,0 +1,62 @@
+"use client";
+
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getInvoicesList } from "./actions";
+import { InvoiceSidebar } from "./InvoiceSidebar";
+import type { InvoiceListItem } from "./InvoiceSidebar";
+
+const PER_PAGE_OPTIONS = [50, 100, 200] as const;
+
+export function InvoiceSidebarWithData({ companyId }: { companyId: string }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const perPage = (() => {
+    const raw = searchParams.get("perPage") ?? "100";
+    const n = parseInt(raw, 10);
+    return PER_PAGE_OPTIONS.includes(n as (typeof PER_PAGE_OPTIONS)[number])
+      ? (n as (typeof PER_PAGE_OPTIONS)[number])
+      : 100;
+  })();
+  const searchQuery = searchParams.get("q") ?? "";
+  const customerId = searchParams.get("customerId") ?? "";
+
+  const [data, setData] = useState<{
+    totalCount: number;
+    list: InvoiceListItem[];
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getInvoicesList(companyId, page, perPage, searchQuery || undefined, customerId || undefined).then((res) => {
+      if (!cancelled) setData(res);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId, page, perPage, searchQuery, customerId, pathname]);
+
+  if (!data) {
+    return (
+      <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-base">
+        <div className="flex flex-1 items-center justify-center p-4 text-sm text-[var(--color-on-surface-variant)]">
+          Loading…
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <InvoiceSidebar
+      invoices={data.list}
+      companyId={companyId}
+      totalCount={data.totalCount}
+      page={page}
+      perPage={perPage}
+      perPageOptions={PER_PAGE_OPTIONS}
+      searchQuery={searchQuery}
+      filterCustomerId={customerId || undefined}
+    />
+  );
+}

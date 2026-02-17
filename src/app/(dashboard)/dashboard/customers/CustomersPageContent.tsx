@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { CustomerSpreadsheetView } from "./CustomerSpreadsheetView";
 import { CustomersTopBar } from "./CustomersTopBar";
+import { CustomerSidebar } from "./CustomerSidebar";
 import { useCustomersData } from "./CustomersDataContext";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useState } from "react";
 
 function customersListParams(searchParams: URLSearchParams) {
   const p = new URLSearchParams();
@@ -18,11 +21,12 @@ function customersListParams(searchParams: URLSearchParams) {
 
 export function CustomersPageContent() {
   const searchParams = useSearchParams();
-  const view = searchParams.get("view");
-  const isSpreadsheet = view === "spreadsheet";
   const listQs = customersListParams(searchParams);
+  const isLg = useMediaQuery("(min-width: 1024px)");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const {
     customers,
+    sidebarList,
     companyId,
     totalCount,
     page,
@@ -31,7 +35,7 @@ export function CustomersPageContent() {
     searchQuery,
   } = useCustomersData();
 
-  if (isSpreadsheet) {
+  if (isLg) {
     return (
       <CustomerSpreadsheetView
         customers={customers}
@@ -48,38 +52,35 @@ export function CustomersPageContent() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <CustomersTopBar
+        showViewSwitcher={false}
         left={
           <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
             Customers
           </h2>
         }
         right={
-          <>
-            <Link
-              href={`/dashboard/customers/new?${listQs}`}
-              className="btn btn-add btn-icon shrink-0"
-              aria-label="New customer"
-              title="New customer"
-            >
-              <Plus className="size-4" />
-            </Link>
-            <Link
-              href={`/dashboard/customers?view=spreadsheet&${listQs}`}
-              className="btn btn-secondary btn-icon shrink-0"
-              aria-label="Switch to spreadsheet view"
-              title="Spreadsheet view"
-            >
-              <X className="size-4" />
-            </Link>
-          </>
+          <Link
+            href={`/dashboard/customers/new?${listQs}`}
+            className="btn btn-add btn-icon shrink-0"
+            aria-label="New customer"
+            title="New customer"
+          >
+            <Plus className="size-4" />
+          </Link>
         }
       />
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8">
-        <div className="rounded-xl border border-dashed border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30 px-6 py-10 text-center">
-          <p className="text-sm text-[var(--color-on-surface-variant)]">
-            Select a customer from the list or create a new one.
-          </p>
-        </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <CustomerSidebar
+          customers={sidebarList}
+          companyId={companyId}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+          totalCount={totalCount}
+          page={page}
+          perPage={perPage}
+          perPageOptions={perPageOptions}
+          searchQuery={searchQuery}
+        />
       </div>
     </div>
   );

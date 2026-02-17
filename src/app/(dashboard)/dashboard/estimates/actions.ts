@@ -595,7 +595,7 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Esti
 
   const { data: estimate, error: eErr } = await supabase
     .from("estimates")
-    .select("id, company_id, customer_id, estimate_date, total_amount, total_tax, status, valid_until")
+    .select("id, company_id, customer_id, estimate_date, total_amount, total_tax, status, valid_until, notes, project_name, subject, payment_terms, delivery_time_amount, delivery_time_unit, discount_amount, discount_type, sales_tax_rate_id")
     .eq("id", estimateId)
     .single();
   if (eErr || !estimate) return { error: "Estimate not found." };
@@ -616,7 +616,7 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Esti
 
   const prefix = company.sales_invoice_prefix ?? "INV";
   const nextNum = company.sales_invoice_next_number ?? 1;
-  const invoiceNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
+  const invoiceNumber = `${prefix}-${String(nextNum).padStart(ESTIMATE_NUMBER_DIGITS, "0")}`;
 
   const { data: inv, error: invErr } = await supabase
     .from("sales_invoices")
@@ -629,6 +629,15 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Esti
       status: "Draft",
       total_amount: estimate.total_amount,
       total_tax: estimate.total_tax,
+      notes: (estimate as { notes?: string | null }).notes ?? null,
+      project_name: (estimate as { project_name?: string | null }).project_name ?? null,
+      subject: (estimate as { subject?: string | null }).subject ?? null,
+      payment_terms: (estimate as { payment_terms?: string | null }).payment_terms ?? null,
+      delivery_time_amount: (estimate as { delivery_time_amount?: number | null }).delivery_time_amount ?? null,
+      delivery_time_unit: (estimate as { delivery_time_unit?: string | null }).delivery_time_unit ?? null,
+      discount_amount: (estimate as { discount_amount?: number | null }).discount_amount ?? null,
+      discount_type: (estimate as { discount_type?: string | null }).discount_type ?? null,
+      sales_tax_rate_id: (estimate as { sales_tax_rate_id?: string | null }).sales_tax_rate_id ?? null,
     })
     .select("id")
     .single();
@@ -640,27 +649,27 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Esti
     .eq("estimate_id", estimateId)
     .order("sort_order");
   if (estimateItems?.length) {
-    for (const it of estimateItems) {
-      await supabase.from("sales_invoice_items").insert({
-        sales_invoice_id: inv.id,
-        item_number: (it as { item_number?: string }).item_number ?? "",
-        product_description: it.product_description,
-        hs_code: it.hs_code,
-        rate_label: it.rate_label,
-        uom: it.uom,
-        quantity: it.quantity,
-        unit_price: it.unit_price,
-        value_sales_excluding_st: it.value_sales_excluding_st,
-        sales_tax_applicable: it.sales_tax_applicable,
-        sales_tax_withheld_at_source: it.sales_tax_withheld_at_source,
-        extra_tax: it.extra_tax,
-        further_tax: it.further_tax,
-        discount: it.discount,
-        total_values: it.total_values,
-        sale_type: it.sale_type,
-        sort_order: it.sort_order,
-      });
-    }
+    const itemRows = estimateItems.map((it, i) => ({
+      sales_invoice_id: inv.id,
+      item_number: (it as { item_number?: string }).item_number ?? "",
+      product_description: it.product_description,
+      hs_code: it.hs_code ?? "",
+      rate_label: it.rate_label ?? "",
+      uom: it.uom ?? "Nos",
+      quantity: it.quantity,
+      unit_price: it.unit_price,
+      value_sales_excluding_st: it.value_sales_excluding_st,
+      sales_tax_applicable: it.sales_tax_applicable ?? 0,
+      sales_tax_withheld_at_source: it.sales_tax_withheld_at_source ?? 0,
+      extra_tax: it.extra_tax ?? 0,
+      further_tax: it.further_tax ?? 0,
+      discount: it.discount ?? 0,
+      total_values: it.total_values,
+      sale_type: it.sale_type ?? "Goods at standard rate (default)",
+      sort_order: i,
+    }));
+    const { error: itemsErr } = await supabase.from("sales_invoice_items").insert(itemRows);
+    if (itemsErr) return { error: itemsErr.message };
   }
 
   await supabase.from("estimates").update({ status: "Converted", updated_at: new Date().toISOString() }).eq("id", estimateId);

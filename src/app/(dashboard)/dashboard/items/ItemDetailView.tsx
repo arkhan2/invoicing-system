@@ -90,9 +90,7 @@ export function ItemDetailView({
   const backPage = searchParams.get("page") ?? "1";
   const backPerPage = searchParams.get("perPage") ?? "100";
   const backQ = searchParams.get("q") ?? "";
-  const fromSpreadsheet = searchParams.get("from") === "spreadsheet";
   const backParams = new URLSearchParams();
-  if (fromSpreadsheet) backParams.set("view", "spreadsheet");
   backParams.set("highlight", item.id);
   backParams.set("page", backPage);
   backParams.set("perPage", backPerPage);
@@ -104,12 +102,10 @@ export function ItemDetailView({
   editParams.set("page", backPage);
   editParams.set("perPage", backPerPage);
   if (backQ.trim()) editParams.set("q", backQ.trim());
-  if (fromSpreadsheet) editParams.set("from", "spreadsheet");
   const editQs = editParams.toString();
   const editHref = editQs ? `/dashboard/items/${item.id}/edit?${editQs}` : `/dashboard/items/${item.id}/edit`;
 
   const addParams = new URLSearchParams();
-  if (fromSpreadsheet) addParams.set("view", "spreadsheet");
   addParams.set("page", backPage);
   addParams.set("perPage", backPerPage);
   if (backQ.trim()) addParams.set("q", backQ.trim());

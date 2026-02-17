@@ -68,23 +68,19 @@ export function VendorDetailView({
     );
   }
 
-  const fromSpreadsheet = searchParams.get("from") === "spreadsheet";
-
   const backPage = searchParams.get("page") ?? "1";
   const backPerPage = searchParams.get("perPage") ?? "100";
   const backQ = searchParams.get("q") ?? "";
 
   const backParams = new URLSearchParams();
-  if (fromSpreadsheet) backParams.set("view", "spreadsheet");
   backParams.set("highlight", vendor.id);
   backParams.set("page", backPage);
   backParams.set("perPage", backPerPage);
   if (backQ.trim()) backParams.set("q", backQ.trim());
   const backHref = `/dashboard/vendors?${backParams.toString()}`;
-  const backLabel = fromSpreadsheet ? "Back to spreadsheet" : "Back to list";
+  const backLabel = "Back to list";
 
   const addParams = new URLSearchParams();
-  if (fromSpreadsheet) addParams.set("view", "spreadsheet");
   addParams.set("page", backPage);
   addParams.set("perPage", backPerPage);
   if (backQ.trim()) addParams.set("q", backQ.trim());
@@ -153,7 +149,6 @@ export function VendorDetailView({
                   p.set("page", backPage);
                   p.set("perPage", backPerPage);
                   if (backQ.trim()) p.set("q", backQ.trim());
-                  if (fromSpreadsheet) p.set("from", "spreadsheet");
                   const qs = p.toString();
                   return qs ? `/dashboard/vendors/${vendor.id}/edit?${qs}` : `/dashboard/vendors/${vendor.id}/edit`;
                 })()}

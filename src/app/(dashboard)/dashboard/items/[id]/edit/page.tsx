@@ -11,13 +11,11 @@ export default async function EditItemPage({
   searchParams: Promise<{ from?: string; view?: string; q?: string; page?: string; perPage?: string }>;
 }) {
   const { id } = await params;
-  const { from, view, q, page = "1", perPage = "100" } = await searchParams;
-  const fromSpreadsheet = from === "spreadsheet" || view === "spreadsheet";
+  const { q, page = "1", perPage = "100" } = await searchParams;
   const listParams = new URLSearchParams();
   listParams.set("page", page);
   listParams.set("perPage", perPage);
   if (q?.trim()) listParams.set("q", q.trim());
-  if (fromSpreadsheet) listParams.set("view", "spreadsheet");
   const listQs = listParams.toString();
   const listHref = listQs ? `/dashboard/items?${listQs}` : "/dashboard/items";
 
@@ -25,7 +23,6 @@ export default async function EditItemPage({
   detailParams.set("page", page);
   detailParams.set("perPage", perPage);
   if (q?.trim()) detailParams.set("q", q.trim());
-  if (fromSpreadsheet) detailParams.set("from", "spreadsheet");
   const detailQs = detailParams.toString();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -69,7 +66,6 @@ export default async function EditItemPage({
           title="Edit item"
           backHref={detailQs ? `/dashboard/items/${id}?${detailQs}` : `/dashboard/items/${id}`}
           listHref={listHref}
-          returnToSpreadsheet={fromSpreadsheet}
         />
       </div>
     </div>

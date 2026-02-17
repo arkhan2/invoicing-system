@@ -1,6 +1,10 @@
-import { createClient, getUserSafe } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { InvoiceForm } from "../InvoiceForm";
+import { getCompanyTaxRates } from "@/app/(dashboard)/dashboard/company/actions";
+import { getUomList } from "@/app/(dashboard)/dashboard/items/actions";
+import { getCustomersList } from "@/app/(dashboard)/dashboard/customers/actions";
+import { getNextInvoiceNumberForDisplay } from "../actions";
 
 export default async function NewInvoicePage() {
   const supabase = await createClient();
@@ -14,29 +18,25 @@ export default async function NewInvoicePage() {
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name, contact_person_name, address, city, province, country, ntn_cnic, phone, email")
-    .eq("company_id", company.id)
-    .order("name");
+  const [nextInvoiceNumber, { salesTaxRates }, uomList, { list: customers }] = await Promise.all([
+    getNextInvoiceNumberForDisplay(company.id),
+    getCompanyTaxRates(company.id),
+    getUomList(),
+    getCustomersList(company.id, 1, 500),
+  ]);
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--color-card-bg)]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden w-full bg-surface">
         <div className="min-h-0 flex-1 overflow-y-auto pl-6 pr-8 pt-6 pb-6">
           <InvoiceForm
             invoiceId={null}
             companyId={company.id}
-            customers={customers ?? []}
-            company={{
-              name: company.name,
-              address: company.address ?? null,
-              city: company.city ?? null,
-              province: company.province ?? null,
-              phone: company.phone ?? null,
-              email: company.email ?? null,
-              logo_url: company.logo_url ?? null,
-            }}
+            company={{ name: company.name }}
+            customers={customers}
+            salesTaxRates={salesTaxRates}
+            uomList={uomList}
+            initialInvoiceNumber={nextInvoiceNumber ?? undefined}
           />
         </div>
       </div>

@@ -1,6 +1,10 @@
-import { createClient, getUserSafe } from "@/lib/supabase/server";
+import { Suspense } from "react";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { InvoicesSidebarWithParams } from "./InvoicesSidebarWithParams";
+import { InvoiceSidebarWithData } from "./InvoiceSidebarWithData";
+import { InvoicesTopBar } from "./InvoicesTopBar";
+import { InvoicesTopBarProvider } from "./InvoicesTopBarContext";
+import { SalesResponsiveLayout } from "./SalesResponsiveLayout";
 
 export default async function SalesLayout({
   children,
@@ -8,7 +12,7 @@ export default async function SalesLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await getUserSafe(supabase);
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const { data: company } = await supabase
@@ -18,43 +22,20 @@ export default async function SalesLayout({
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const { data: invoices } = await supabase
-    .from("sales_invoices")
-    .select(`
-      id,
-      invoice_number,
-      invoice_date,
-      status,
-      total_amount,
-      total_tax,
-      customer_id,
-      estimate_id,
-      customer:customers(id, name),
-      estimate:estimates(estimate_number)
-    `)
-    .eq("company_id", company.id)
-    .order("invoice_date", { ascending: false });
-
-  const list = (invoices ?? []).map((inv) => ({
-    id: inv.id,
-    invoice_number: inv.invoice_number,
-    invoice_date: inv.invoice_date,
-    status: inv.status,
-    total_amount: inv.total_amount,
-    total_tax: inv.total_tax,
-    customer_name: (inv.customer as { name?: string } | null)?.name ?? "",
-    customer_id: (inv.customer as { id?: string } | null)?.id ?? "",
-    estimate_number: (inv.estimate as { estimate_number?: string } | null)?.estimate_number ?? null,
-  }));
+  const sidebarContent = (
+    <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-[var(--color-on-surface-variant)]">Loading…</div>}>
+      <InvoiceSidebarWithData companyId={company.id} />
+    </Suspense>
+  );
 
   return (
-    <div className="-m-6 flex min-h-0 min-w-0 flex-1 flex-shrink-0 overflow-hidden border-r border-b border-[var(--color-outline)] bg-base">
-      <aside className="w-80 flex-shrink-0 overflow-hidden">
-        <InvoicesSidebarWithParams invoices={list} companyId={company.id} />
-      </aside>
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {children}
-      </main>
-    </div>
+    <SalesResponsiveLayout sidebarContent={sidebarContent}>
+      <InvoicesTopBarProvider>
+        <InvoicesTopBar />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {children}
+        </div>
+      </InvoicesTopBarProvider>
+    </SalesResponsiveLayout>
   );
 }

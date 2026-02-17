@@ -57,13 +57,12 @@ export const ItemList = forwardRef<ItemListRef, ItemListProps>(function ItemList
     if (!hideToolbar) return `/dashboard/items/${id}`;
     const p = new URLSearchParams();
     p.set("from", "spreadsheet");
-    const page = searchParams.get("page") ?? "1";
-    const perPage = searchParams.get("perPage") ?? "100";
+    p.set("page", searchParams.get("page") ?? "1");
+    p.set("perPage", searchParams.get("perPage") ?? "100");
     const q = searchParams.get("q") ?? "";
-    p.set("page", page);
-    p.set("perPage", perPage);
     if (q.trim()) p.set("q", q.trim());
-    return `/dashboard/items/${id}?${p.toString()}`;
+    const qs = p.toString();
+    return qs ? `/dashboard/items/${id}?${qs}` : `/dashboard/items/${id}`;
   };
 
   const filtered = useMemo(() => {

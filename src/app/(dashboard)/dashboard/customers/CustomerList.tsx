@@ -68,7 +68,8 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
     p.set("page", page);
     p.set("perPage", perPage);
     if (q.trim()) p.set("q", q.trim());
-    return `/dashboard/customers/${id}?${p.toString()}`;
+    const qs = p.toString();
+    return qs ? `/dashboard/customers/${id}?${qs}` : `/dashboard/customers/${id}`;
   };
 
   const filtered = useMemo(() => {

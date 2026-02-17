@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Copy, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { CustomersTopBar } from "./CustomersTopBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
@@ -41,6 +42,7 @@ export function CustomerDetailView({
   const searchParams = useSearchParams();
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const [copyLoading, setCopyLoading] = useState(false);
+  const isLg = useMediaQuery("(min-width: 1024px)");
 
   function handleCopy() {
     const lines = [
@@ -70,23 +72,19 @@ export function CustomerDetailView({
     );
   }
 
-  const fromSpreadsheet = searchParams.get("from") === "spreadsheet";
-
   const backPage = searchParams.get("page") ?? "1";
   const backPerPage = searchParams.get("perPage") ?? "100";
   const backQ = searchParams.get("q") ?? "";
 
   const backParams = new URLSearchParams();
-  if (fromSpreadsheet) backParams.set("view", "spreadsheet");
   backParams.set("highlight", customer.id);
   backParams.set("page", backPage);
   backParams.set("perPage", backPerPage);
   if (backQ.trim()) backParams.set("q", backQ.trim());
   const backHref = `/dashboard/customers?${backParams.toString()}`;
-  const backLabel = fromSpreadsheet ? "Back to spreadsheet" : "Back to list";
+  const backLabel = "Back to list";
 
   const addParams = new URLSearchParams();
-  if (fromSpreadsheet) addParams.set("view", "spreadsheet");
   addParams.set("page", backPage);
   addParams.set("perPage", backPerPage);
   if (backQ.trim()) addParams.set("q", backQ.trim());
@@ -155,7 +153,6 @@ export function CustomerDetailView({
                   p.set("page", backPage);
                   p.set("perPage", backPerPage);
                   if (backQ.trim()) p.set("q", backQ.trim());
-                  if (fromSpreadsheet) p.set("from", "spreadsheet");
                   const qs = p.toString();
                   return qs ? `/dashboard/customers/${customer.id}/edit?${qs}` : `/dashboard/customers/${customer.id}/edit`;
                 })()}
@@ -184,7 +181,7 @@ export function CustomerDetailView({
         />
 
         {/* Detail body — documents + all DB fields */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-base p-6">
+        <div className={`min-h-0 flex-1 overflow-y-auto bg-base p-4 lg:p-6 ${!isLg ? "pb-24" : ""}`}>
           <div className="card max-w-2xl p-6 space-y-6">
             {(estimatesCount > 0 || invoicesCount > 0) && (
               <div className="flex flex-wrap items-center gap-3 border-b border-[var(--color-outline)] pb-4">
@@ -222,6 +219,39 @@ export function CustomerDetailView({
             </dl>
           </div>
         </div>
+
+        {/* Sticky bottom action bar on mobile */}
+        {!isLg && (
+          <div className="sticky bottom-0 z-10 flex flex-shrink-0 items-center justify-end gap-2 border-t border-[var(--color-outline)] bg-base px-4 py-3 lg:hidden"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+            <Link
+              href={backHref}
+              className="btn btn-secondary btn-sm"
+            >
+              Back
+            </Link>
+            <Link
+              href={(() => {
+                const p = new URLSearchParams();
+                p.set("page", backPage);
+                p.set("perPage", backPerPage);
+                if (backQ.trim()) p.set("q", backQ.trim());
+                const qs = p.toString();
+                return qs ? `/dashboard/customers/${customer.id}/edit?${qs}` : `/dashboard/customers/${customer.id}/edit`;
+              })()}
+              className="btn btn-edit btn-sm"
+            >
+              Edit
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDeleteState({ loading: false })}
+              className="btn btn-danger btn-sm"
+            >
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog

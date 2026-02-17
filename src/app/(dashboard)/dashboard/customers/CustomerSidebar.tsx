@@ -4,10 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Plus, Trash2, X, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { Trash2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
+import { useGlobalSearch } from "@/components/global-search/useGlobalSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
+import { PerPageDropdown } from "@/components/PerPageDropdown";
 import { deleteCustomers } from "./actions";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 
@@ -41,12 +44,20 @@ export function CustomerSidebar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [searchInput, setSearchInput] = useState(searchQueryProp);
+  const globalSearch = useGlobalSearch();
+  const effectiveQuery = (globalSearch?.query ?? searchQueryProp ?? "").trim();
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
-  const [perPageOpen, setPerPageOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectionMode = selectedIds !== undefined && onSelectionChange !== undefined;
-  const filtered = customers;
+  const filtered = useMemo(() => {
+    if (!effectiveQuery) return customers;
+    const q = effectiveQuery.toLowerCase();
+    return customers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.ntn_cnic?.toLowerCase().includes(q) ?? false)
+    );
+  }, [customers, effectiveQuery]);
 
   const ROW_HEIGHT_ESTIMATE = 60;
   const CARD_GAP = 8; // pb-2, same as between customer cards
@@ -60,21 +71,16 @@ export function CustomerSidebar({
     overscan: 8,
   });
 
-  useEffect(() => {
-    if ((searchQueryProp ?? "").trim() !== "") setSearchInput(searchQueryProp);
-  }, [searchQueryProp]);
-
   const hasPagination = totalCount != null && page != null && perPage != null;
   const totalPages = perPage != null && perPage > 0 ? Math.max(1, Math.ceil((totalCount ?? 0) / perPage)) : 1;
   const startItem = (totalCount ?? 0) === 0 ? 0 : ((page ?? 1) - 1) * (perPage ?? 0) + 1;
   const endItem = (totalCount ?? 0) === 0 ? 0 : Math.min((page ?? 1) * (perPage ?? 0), totalCount ?? 0);
 
-  const fromSpreadsheet = searchParams.get("view") === "spreadsheet";
   const customerDetailQuery = () => {
     const p = new URLSearchParams();
     p.set("page", String(page ?? 1));
     p.set("perPage", String(perPage ?? 100));
-    if (searchQueryProp?.trim()) p.set("q", searchQueryProp.trim());
+    if (effectiveQuery) p.set("q", effectiveQuery);
     const s = p.toString();
     return s ? `?${s}` : "";
   };
@@ -82,9 +88,8 @@ export function CustomerSidebar({
     const p = new URLSearchParams();
     p.set("page", String(params.page ?? page ?? 1));
     p.set("perPage", String(params.perPage ?? perPage ?? 100));
-    const q = params.q !== undefined ? params.q : searchQueryProp;
-    if (q && q.trim()) p.set("q", q.trim());
-    if (fromSpreadsheet) p.set("view", "spreadsheet");
+    const q = params.q !== undefined ? params.q : effectiveQuery;
+    if (q) p.set("q", q);
     return `/dashboard/customers?${p.toString()}`;
   };
 
@@ -97,7 +102,7 @@ export function CustomerSidebar({
       ? pathname.replace("/dashboard/customers/", "").split("/")[0]
       : null;
   const highlightId = searchParams.get("highlight");
-  const searchHasQuery = (searchQueryProp ?? "").trim() !== "";
+  const searchHasQuery = effectiveQuery !== "";
   const scrollToId = activeId ?? highlightId ?? (searchHasQuery && filtered[0]?.id) ?? null;
 
   useEffect(() => {
@@ -117,9 +122,6 @@ export function CustomerSidebar({
       router.replace(qsClean ? `/dashboard/customers?${qsClean}` : "/dashboard/customers", { scroll: false });
     }
   }, [highlightId, filtered, searchParams, router]);
-
-  const inputClass =
-    "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
   const allFilteredSelected =
     selectionMode && filtered.length > 0 && filtered.every((c) => selectedIds?.has(c.id));
@@ -174,53 +176,7 @@ export function CustomerSidebar({
 
   return (
     <div className="flex h-full flex-col border-r border-[var(--color-outline)] bg-base">
-      <div className="flex flex-shrink-0 flex-col gap-2 px-3 pt-3 pb-2">
-        <div className="flex items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <input
-              type="search"
-              placeholder="Search customers… (press Enter to search)"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  const q = searchInput.trim();
-                  router.push(qs({ page: 1, perPage: perPage ?? 100, q: q || undefined }));
-                }
-              }}
-              className={inputClass + " input-no-search-cancel min-h-[2rem] pr-9"}
-              aria-label="Search customers"
-            />
-            {searchInput.trim() !== "" && (
-              <IconButton
-                variant="secondary"
-                icon={<X className="w-4 h-4" />}
-                label="Clear search"
-                onClick={() => {
-                  setSearchInput("");
-                  router.push(qs({ page: 1, q: "" }));
-                }}
-                className="absolute right-1 top-1/2 -translate-y-1/2 shrink-0 rounded-md p-1.5 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
-              />
-            )}
-          </div>
-          <Link
-            href={`/dashboard/customers/new?${new URLSearchParams({
-              page: String(page ?? 1),
-              perPage: String(perPage ?? 100),
-              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
-              ...(fromSpreadsheet && { view: "spreadsheet" }),
-            }).toString()}`}
-            className="btn btn-add btn-icon shrink-0"
-            aria-label="Add customer"
-            title="Add customer"
-          >
-            <Plus className="size-4" />
-          </Link>
-        </div>
-      </div>
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden pt-3">
         {selectionMode && selectedIds && selectedIds.size > 0 && (
           <div className="absolute left-3 right-3 top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)] px-3 py-2">
             <div className="flex items-center gap-2">
@@ -264,7 +220,7 @@ export function CustomerSidebar({
         >
         {filtered.length === 0 ? (
           <div className="py-6 text-center text-sm text-[var(--color-on-surface-variant)]">
-            {searchQueryProp?.trim() ? "No matches" : "No customers yet"}
+            {effectiveQuery ? "No matches" : "No customers yet"}
           </div>
         ) : (
           <div
@@ -373,45 +329,12 @@ export function CustomerSidebar({
           </p>
           <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-outline)] bg-surface px-2 py-1.5">
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => setPerPageOpen((o) => !o)}
-                className="flex items-center gap-1.5 text-sm text-[var(--color-on-surface)]"
-                aria-expanded={perPageOpen}
-                aria-haspopup="listbox"
+              <PerPageDropdown
+                perPage={perPage ?? 100}
+                perPageOptions={perPageOptions}
+                onSelect={(n) => router.push(qs({ page: 1, perPage: n }))}
                 aria-label="Items per page"
-              >
-                <Settings className="h-3.5 w-3.5 text-[var(--color-on-surface-variant)]" />
-                <span>{perPage} per page</span>
-              </button>
-              {perPageOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    aria-hidden
-                    onClick={() => setPerPageOpen(false)}
-                  />
-                  <ul
-                    role="listbox"
-                    className="absolute bottom-full left-0 z-20 mb-1 min-w-[8rem] rounded-lg border border-[var(--color-outline)] bg-elevated py-1 shadow-elevated"
-                  >
-                    {perPageOptions.map((n) => (
-                      <li key={n} role="option">
-                        <button
-                          type="button"
-                          className="w-full px-3 py-1.5 text-left text-sm text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
-                          onClick={() => {
-                            setPerPageOpen(false);
-                            router.push(qs({ page: 1, perPage: n }));
-                          }}
-                        >
-                          {n} per page
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
+              />
             </div>
             <div className="flex items-center gap-1">
               <button

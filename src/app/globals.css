@@ -619,3 +619,20 @@ input[type="time"]::placeholder {
 .line-items-table tbody tr.line-items-row-dragging-lift td:last-child {
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
+
+/* Touch targets and safe areas (mobile a11y) */
+@media (max-width: 1023px) {
+  .btn-icon {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}

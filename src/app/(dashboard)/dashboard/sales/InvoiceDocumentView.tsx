@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { Pencil } from "lucide-react";
+import { useMemo, useEffect } from "react";
+import { Pencil, Plus } from "lucide-react";
+import { useInvoicesTopBar } from "./InvoicesTopBarContext";
 
 const ROWS_PER_PAGE = 14;
 
@@ -50,6 +51,8 @@ export function InvoiceDocumentView({
   customer,
   items,
   estimateNumber,
+  poNumber,
+  notes,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -61,11 +64,46 @@ export function InvoiceDocumentView({
   customer: Customer;
   items: Item[];
   estimateNumber?: string | null;
+  poNumber?: string | null;
+  notes?: string | null;
 }) {
+  const { setBarState } = useInvoicesTopBar();
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
   const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const addressLine = [company.address, company.city, company.province].filter(Boolean).join(", ");
   const customerAddress = [customer.address, customer.city, customer.province, customer.country].filter(Boolean).join(", ");
+
+  useEffect(() => {
+    setBarState({
+      title: `Invoice ${invoiceNumber}`,
+      titleSuffix: (
+        <span className="ml-2 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
+          {status}
+        </span>
+      ),
+      rightSlot: (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Link
+            href={`/dashboard/sales/${invoiceId}/edit`}
+            className="btn btn-edit btn-icon shrink-0"
+            aria-label="Edit invoice"
+            title="Edit"
+          >
+            <Pencil className="w-4 h-4" />
+          </Link>
+          <Link
+            href="/dashboard/sales/new"
+            className="btn btn-add btn-icon shrink-0"
+            aria-label="New invoice"
+            title="New invoice"
+          >
+            <Plus className="w-4 h-4" />
+          </Link>
+        </div>
+      ),
+    });
+    return () => setBarState({ title: null, titleSuffix: null, rightSlot: null });
+  }, [invoiceId, invoiceNumber, status, setBarState]);
 
   const pageChunks = useMemo(() => {
     if (items.length === 0) return [[]];
@@ -131,25 +169,14 @@ export function InvoiceDocumentView({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
-      {/* Action bar */}
-      <div className="flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-[var(--color-divider)] bg-[var(--color-surface)] px-4 py-3">
-        <Link
-          href={`/dashboard/sales/${invoiceId}/edit`}
-          className="btn btn-edit btn-icon"
-          aria-label="Edit"
-          title="Edit"
-        >
-          <Pencil className="w-4 h-4" />
-        </Link>
-        <span className="ml-2 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
-          {status}
-        </span>
-        {estimateNumber && (
+      {/* Optional: show "From estimate" under the top bar when converted from estimate */}
+      {estimateNumber && (
+        <div className="flex flex-shrink-0 items-center gap-2 border-b border-[var(--color-divider)] bg-[var(--color-surface-variant)]/30 px-4 py-2">
           <span className="text-xs text-[var(--color-on-surface-variant)]">
-            From {estimateNumber}
+            From estimate {estimateNumber}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Document body: grey area + one or more A4 pages with shadow */}
       <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-outline)]/20 py-8 px-4">
@@ -195,6 +222,9 @@ export function InvoiceDocumentView({
                     <p className="text-3xl font-bold tracking-tight">INVOICE</p>
                     <p className="mt-1 text-lg font-semibold"># {invoiceNumber}</p>
                     <p className="mt-1 text-sm doc-muted">Invoice Date: {invoiceDate}</p>
+                    {poNumber && poNumber.trim() && (
+                      <p className="mt-0.5 text-sm doc-muted">P.O. number: {poNumber.trim()}</p>
+                    )}
                   </div>
                 </div>
 
@@ -219,6 +249,13 @@ export function InvoiceDocumentView({
                         {[customer.phone, customer.email].filter(Boolean).join(" · ")}
                       </p>
                     )}
+                  </div>
+                )}
+
+                {pageIndex === 0 && notes && notes.trim() && (
+                  <div className="mt-6 rounded-xl border doc-border doc-notes-bg p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider doc-muted mb-1">Notes</p>
+                    <p className="text-sm text-[var(--color-on-surface)] whitespace-pre-wrap">{notes.trim()}</p>
                   </div>
                 )}
 

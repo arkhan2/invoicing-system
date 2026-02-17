@@ -3,7 +3,8 @@
 import { useRef, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, FileSpreadsheet, LayoutList, Trash2, X, Download, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { Plus, FileSpreadsheet, Trash2, X, Download, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { useGlobalSearch } from "@/components/global-search/useGlobalSearch";
 import { IconButton } from "@/components/IconButton";
 import { ItemList, type ItemListRef } from "./ItemList";
 import { exportItemsCsv } from "./actions";
@@ -12,9 +13,6 @@ import type { Item } from "./ItemForm";
 
 const topBarClass =
   "flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3";
-
-const inputClass =
-  "w-full border border-[var(--color-input-border)] rounded-xl px-3 py-2 text-sm text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 
 export function ItemSpreadsheetView({
   items,
@@ -36,12 +34,9 @@ export function ItemSpreadsheetView({
   const listRef = useRef<ItemListRef>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const globalSearch = useGlobalSearch();
+  const effectiveQuery = (globalSearch?.query ?? searchQueryProp ?? "").trim();
   const highlightId = searchParams.get("highlight");
-  const [search, setSearch] = useState(searchQueryProp);
-
-  useEffect(() => {
-    if ((searchQueryProp ?? "").trim() !== "") setSearch(searchQueryProp ?? "");
-  }, [searchQueryProp]);
 
   useEffect(() => {
     if (!highlightId || !items.some((c) => c.id === highlightId)) return;
@@ -55,7 +50,7 @@ export function ItemSpreadsheetView({
   const [perPageOpen, setPerPageOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = effectiveQuery.toLowerCase();
     if (!q) return items;
     return items.filter(
       (c) =>
@@ -63,7 +58,7 @@ export function ItemSpreadsheetView({
         (c.description?.toLowerCase().includes(q) ?? false) ||
         (c.reference?.toLowerCase().includes(q) ?? false)
     );
-  }, [items, search]);
+  }, [items, effectiveQuery]);
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
   function toggleSelectAll() {
@@ -87,13 +82,12 @@ export function ItemSpreadsheetView({
   const startItem = (totalCount ?? 0) === 0 ? 0 : ((page ?? 1) - 1) * (perPage ?? 0) + 1;
   const endItem = (totalCount ?? 0) === 0 ? 0 : Math.min((page ?? 1) * (perPage ?? 0), totalCount ?? 0);
 
-  const spreadsheetQs = (params: { page?: number; perPage?: number; q?: string }) => {
+  const listQs = (params: { page?: number; perPage?: number; q?: string }) => {
     const p = new URLSearchParams();
-    p.set("view", "spreadsheet");
     p.set("page", String(params.page ?? page ?? 1));
     p.set("perPage", String(params.perPage ?? perPage ?? 100));
-    const q = params.q !== undefined ? params.q : searchQueryProp;
-    if (q && q.trim()) p.set("q", q.trim());
+    const q = params.q !== undefined ? params.q : effectiveQuery;
+    if (q) p.set("q", q);
     return `/dashboard/items?${p.toString()}`;
   };
 
@@ -131,34 +125,6 @@ export function ItemSpreadsheetView({
           <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)] shrink-0">
             Items
           </h2>
-          <div className="relative">
-            <input
-              type="search"
-              placeholder="Search items… (press Enter to search)"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  router.push(spreadsheetQs({ page: 1, q: search.trim() || undefined }));
-                }
-              }}
-              className={inputClass + " input-no-search-cancel max-w-[240px] min-w-0 pr-8"}
-              aria-label="Search items"
-            />
-            {search.trim() !== "" && (
-              <IconButton
-                variant="secondary"
-                icon={<X className="w-4 h-4" />}
-                label="Clear search"
-                onClick={() => {
-                  setSearch("");
-                  router.push(spreadsheetQs({ page: 1, q: "" }));
-                }}
-                className="absolute right-1 top-1/2 -translate-y-1/2 shrink-0 rounded-md p-1.5 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
-              />
-            )}
-          </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
@@ -175,24 +141,12 @@ export function ItemSpreadsheetView({
             href={`/dashboard/items/import?${new URLSearchParams({
               page: String(page ?? 1),
               perPage: String(perPage ?? 100),
-              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
+              ...(effectiveQuery && { q: effectiveQuery }),
             }).toString()}`}
             className="btn btn-secondary btn-sm inline-flex items-center gap-2"
           >
             <FileSpreadsheet className="w-4 h-4 shrink-0" />
             Import from CSV
-          </Link>
-          <Link
-            href={`/dashboard/items?${new URLSearchParams({
-              page: String(page ?? 1),
-              perPage: String(perPage ?? 100),
-              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
-            }).toString()}`}
-            className="btn btn-secondary btn-icon shrink-0"
-            aria-label="Sidebar view"
-            title="Sidebar view"
-          >
-            <LayoutList className="w-4 h-4" />
           </Link>
           {selectedIds.size > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)] px-3 py-2">
@@ -235,7 +189,7 @@ export function ItemSpreadsheetView({
             href={`/dashboard/items/new?${new URLSearchParams({
               page: String(page ?? 1),
               perPage: String(perPage ?? 100),
-              ...(searchQueryProp?.trim() && { q: searchQueryProp.trim() }),
+              ...(effectiveQuery && { q: effectiveQuery }),
             }).toString()}`}
             className="btn btn-add btn-icon shrink-0"
             aria-label="Add item"
@@ -252,11 +206,11 @@ export function ItemSpreadsheetView({
             items={items}
             companyId={companyId}
             hideToolbar
-            search={search}
-            onSearchChange={setSearch}
+            search={effectiveQuery}
+            onSearchChange={globalSearch?.setQuery ?? undefined}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
-            scrollToItemId={highlightId ?? ((searchQueryProp ?? "").trim() && items[0]?.id) ?? undefined}
+            scrollToItemId={highlightId ?? (effectiveQuery && items[0]?.id) ?? undefined}
           />
         </div>
       </div>
@@ -293,7 +247,7 @@ export function ItemSpreadsheetView({
                           className="w-full px-3 py-1.5 text-left text-sm text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
                           onClick={() => {
                             setPerPageOpen(false);
-                            router.push(spreadsheetQs({ page: 1, perPage: n }));
+                            router.push(listQs({ page: 1, perPage: n }));
                           }}
                         >
                           {n} per page
@@ -311,7 +265,7 @@ export function ItemSpreadsheetView({
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => page! > 1 && router.push(spreadsheetQs({ page: page! - 1 }))}
+                  onClick={() => page! > 1 && router.push(listQs({ page: page! - 1 }))}
                   disabled={page! <= 1}
                   className="rounded p-1 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)] disabled:opacity-40 disabled:hover:bg-transparent"
                   aria-label="Previous page"
@@ -320,7 +274,7 @@ export function ItemSpreadsheetView({
                 </button>
                 <button
                   type="button"
-                  onClick={() => page! < totalPages && router.push(spreadsheetQs({ page: page! + 1 }))}
+                  onClick={() => page! < totalPages && router.push(listQs({ page: page! + 1 }))}
                   disabled={page! >= totalPages}
                   className="rounded p-1 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)] disabled:opacity-40 disabled:hover:bg-transparent"
                   aria-label="Next page"

@@ -18,12 +18,11 @@ export default async function NewCustomerPage({
     .maybeSingle();
   if (!company) redirect("/dashboard/company");
 
-  const { q, page = "1", perPage = "100", view } = await searchParams;
+  const { q, page = "1", perPage = "100" } = await searchParams;
   const listParams = new URLSearchParams();
   listParams.set("page", page);
   listParams.set("perPage", perPage);
   if (q?.trim()) listParams.set("q", q.trim());
-  if (view === "spreadsheet") listParams.set("view", "spreadsheet");
   const listQs = listParams.toString();
   const listHref = listQs ? `/dashboard/customers?${listQs}` : "/dashboard/customers";
 

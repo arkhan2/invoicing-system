@@ -2,15 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, FileSpreadsheet, ChevronLeft } from "lucide-react";
+import { Plus, FileSpreadsheet, ChevronLeft, List } from "lucide-react";
 import { useEstimatesTopBar } from "./EstimatesTopBarContext";
+import { useEstimatesListDrawer } from "./EstimatesListDrawerContext";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const topBarClass =
-  "flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3";
+  "flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3 max-lg:sticky max-lg:top-0 max-lg:z-10";
 
 export function EstimatesTopBar() {
   const pathname = usePathname();
   const { barState } = useEstimatesTopBar();
+  const listDrawer = useEstimatesListDrawer();
+  const isLg = useMediaQuery("(min-width: 1024px)");
+  const showListButton = !isLg && listDrawer != null;
   const isList = pathname === "/dashboard/estimates";
   const isNew = pathname === "/dashboard/estimates/new";
   const isImport = pathname === "/dashboard/estimates/import";
@@ -39,6 +44,17 @@ export function EstimatesTopBar() {
   return (
     <div className={topBarClass}>
       <div className="flex min-w-0 items-center gap-3">
+        {showListButton && (
+          <button
+            type="button"
+            onClick={() => listDrawer.openListDrawer()}
+            className="btn btn-secondary btn-icon shrink-0 lg:hidden"
+            aria-label="Open list"
+            title="List"
+          >
+            <List className="size-4" />
+          </button>
+        )}
         {showBack && (
           <Link
             href={backHref}

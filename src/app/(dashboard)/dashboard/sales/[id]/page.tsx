@@ -21,7 +21,7 @@ export default async function InvoiceViewPage({
 
   const { data: invoice } = await supabase
     .from("sales_invoices")
-    .select("id, invoice_number, invoice_date, status, total_amount, total_tax, customer_id, estimate_id")
+    .select("id, invoice_number, invoice_date, status, total_amount, total_tax, customer_id, estimate_id, invoice_ref_no, notes, project_name, subject, payment_terms, delivery_time_amount, delivery_time_unit, discount_amount, discount_type, sales_tax_rate_id")
     .eq("id", id)
     .eq("company_id", company.id)
     .single();
@@ -79,15 +79,19 @@ export default async function InvoiceViewPage({
           }}
           customer={{
             name: customer?.name ?? "",
+            contact_person_name: customer?.contact_person_name ?? null,
             address: customer?.address ?? null,
             city: customer?.city ?? null,
             province: customer?.province ?? null,
+            country: customer?.country ?? null,
             ntn_cnic: customer?.ntn_cnic ?? null,
             phone: customer?.phone ?? null,
             email: customer?.email ?? null,
           }}
           items={items}
           estimateNumber={estimate?.estimate_number ?? null}
+          poNumber={invoice.invoice_ref_no ?? null}
+          notes={invoice.notes ?? null}
         />
       </div>
     </div>

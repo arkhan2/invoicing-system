@@ -10,12 +10,11 @@ export default async function EditCustomerPage({
   searchParams: Promise<{ from?: string; q?: string; page?: string; perPage?: string }>;
 }) {
   const { id } = await params;
-  const { from, q, page = "1", perPage = "100" } = await searchParams;
+  const { q, page = "1", perPage = "100" } = await searchParams;
   const listParams = new URLSearchParams();
   listParams.set("page", page);
   listParams.set("perPage", perPage);
   if (q?.trim()) listParams.set("q", q.trim());
-  if (from === "spreadsheet") listParams.set("view", "spreadsheet");
   const listQs = listParams.toString();
   const listHref = listQs ? `/dashboard/customers?${listQs}` : "/dashboard/customers";
 
@@ -23,7 +22,6 @@ export default async function EditCustomerPage({
   detailParams.set("page", page);
   detailParams.set("perPage", perPage);
   if (q?.trim()) detailParams.set("q", q.trim());
-  if (from === "spreadsheet") detailParams.set("from", "spreadsheet");
   const detailQs = detailParams.toString();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -66,7 +64,6 @@ export default async function EditCustomerPage({
           title="Edit customer"
           backHref={detailQs ? `/dashboard/customers/${id}?${detailQs}` : `/dashboard/customers/${id}`}
           listHref={listHref}
-          returnToSpreadsheet={from === "spreadsheet"}
         />
       </div>
     </div>
