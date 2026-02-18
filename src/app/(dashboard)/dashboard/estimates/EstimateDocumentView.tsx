@@ -759,7 +759,14 @@ export function EstimateDocumentView({
     <>
       <div className="flex h-full min-h-0 w-full flex-col">
         {/* Document body: grey area + one or more A4 pages, scaled to fit */}
-        <div ref={containerRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[var(--color-outline)]/20 py-8 px-4 flex justify-center">
+        <div
+          ref={containerRef}
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[var(--color-outline)]/20 pt-8 pb-20 flex justify-center lg:pb-8"
+          style={{
+            paddingLeft: "max(1rem, env(safe-area-inset-left))",
+            paddingRight: "max(1rem, env(safe-area-inset-right))",
+          }}
+        >
           <div
             style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
             className="shrink-0"
@@ -1003,6 +1010,19 @@ export function EstimateDocumentView({
             })()}
             </div>
           </div>
+        </div>
+
+        {/* Mobile action footer: Back + Edit with safe-area */}
+        <div
+          className="sticky bottom-0 z-10 flex flex-shrink-0 items-center justify-end gap-2 border-t border-[var(--color-outline)] bg-base px-4 py-3 lg:hidden"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          <Link href="/dashboard/estimates" className="btn btn-secondary btn-sm">
+            Back
+          </Link>
+          <Link href={`/dashboard/estimates/${estimateId}/edit`} className="btn btn-edit btn-sm">
+            Edit
+          </Link>
         </div>
       </div>
 

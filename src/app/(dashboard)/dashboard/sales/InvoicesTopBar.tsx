@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, ChevronLeft, List } from "lucide-react";
+import { Plus, ChevronLeft, List, FileSpreadsheet } from "lucide-react";
 import { useInvoicesTopBar } from "./InvoicesTopBarContext";
 import { useInvoicesListDrawer } from "./InvoicesListDrawerContext";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -18,11 +18,12 @@ export function InvoicesTopBar() {
   const showListButton = !isLg && listDrawer != null;
   const isList = pathname === "/dashboard/sales";
   const isNew = pathname === "/dashboard/sales/new";
+  const isImport = pathname === "/dashboard/sales/import";
   const editMatch = pathname.match(/^\/dashboard\/sales\/([^/]+)\/edit$/);
   const isEdit = !!editMatch;
   const invoiceIdFromEdit = editMatch?.[1] ?? null;
   const isView =
-    pathname.match(/^\/dashboard\/sales\/[^/]+$/) && !isNew;
+    pathname.match(/^\/dashboard\/sales\/[^/]+$/) && !isNew && !isImport;
 
   const showBack = !isList;
 
@@ -32,6 +33,7 @@ export function InvoicesTopBar() {
   const backLabel = isEdit ? "Back to invoice" : "Back to invoices";
 
   const defaultTitle =
+    isImport ? "Import from CSV" :
     isNew ? "New invoice" :
     isEdit ? "Edit invoice" :
     isView ? "Invoice" :
@@ -73,14 +75,25 @@ export function InvoicesTopBar() {
         {useCustomRight ? (
           barState.rightSlot
         ) : (
-          <Link
-            href="/dashboard/sales/new"
-            className="btn btn-add btn-icon shrink-0"
-            aria-label="New invoice"
-            title="New invoice"
-          >
-            <Plus className="size-4" />
-          </Link>
+          <>
+            <Link
+              href="/dashboard/sales/new"
+              className="btn btn-add btn-icon shrink-0"
+              aria-label="New invoice"
+              title="New invoice"
+            >
+              <Plus className="size-4" />
+            </Link>
+            <Link
+              href="/dashboard/sales/import"
+              className={`btn btn-sm inline-flex items-center gap-2 ${isImport ? "btn-primary" : "btn-secondary"}`}
+              aria-label="Import from CSV"
+              title="Import from CSV"
+            >
+              <FileSpreadsheet className="h-4 w-4 shrink-0" />
+              Import from CSV
+            </Link>
+          </>
         )}
       </div>
     </div>

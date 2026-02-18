@@ -203,6 +203,7 @@
   --color-on-surface-variant: #9c9a96;
   --color-placeholder: #6a6864;
   --color-card-bg: #1c1e22;
+  --color-card-text: #e2e0dd;
   --color-input-bg: #2a2c30;
   --color-input-border: #404348;
   --color-input-shadow: none;
@@ -235,8 +236,6 @@
   --color-error: #d49088;
   --color-error-bg: rgba(200, 130, 120, 0.32);
   --color-secondary-bg: rgba(106, 173, 166, 0.32);
-
-  --color-card-text: #e2e0dd;
 
   --color-btn-primary-bg: #5c9ce0;
   --color-btn-primary-bg-hover: #70ace8;
@@ -621,7 +620,14 @@ input[type="time"]::placeholder {
 }
 
 /* Touch targets and safe areas (mobile a11y) */
+/* Touch targets: minimum 44px on mobile */
 @media (max-width: 1023px) {
+  .btn {
+    min-height: 2.75rem;
+  }
+  .btn-sm {
+    min-height: 2.75rem;
+  }
   .btn-icon {
     min-width: 2.75rem;
     min-height: 2.75rem;

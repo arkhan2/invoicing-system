@@ -251,7 +251,7 @@ export const ItemList = forwardRef<ItemListRef, ItemListProps>(function ItemList
             </div>
           ) : (
             <div className={`overflow-auto rounded-xl border border-[var(--color-outline)] ${hideToolbar ? "min-h-0 flex-1" : "max-h-[70vh]"}`}>
-              <table className="w-full min-w-[600px] text-left text-sm">
+              <table className="w-full min-w-0 text-left text-sm lg:min-w-[600px]">
                 <thead className="sticky top-0 z-10 bg-[var(--color-surface-variant)] shadow-[0_1px_0_0_var(--color-divider)]">
                   <tr>
                     <th className="w-10 p-3">
@@ -269,8 +269,8 @@ export const ItemList = forwardRef<ItemListRef, ItemListProps>(function ItemList
                     </th>
                     <th className="p-3 font-medium text-[var(--color-on-surface)]">Item #</th>
                     <th className="p-3 font-medium text-[var(--color-on-surface)]">Description</th>
-                    <th className="p-3 font-medium text-[var(--color-on-surface)]">UOM</th>
-                    <th className="p-3 font-medium text-[var(--color-on-surface)]">Unit price</th>
+                    <th className="hidden p-3 font-medium text-[var(--color-on-surface)] lg:table-cell">UOM</th>
+                    <th className="hidden p-3 font-medium text-[var(--color-on-surface)] lg:table-cell">Unit price</th>
                     <th className="w-28 shrink-0 p-3 text-right" aria-label="Actions" />
                   </tr>
                 </thead>
@@ -317,10 +317,10 @@ export const ItemList = forwardRef<ItemListRef, ItemListProps>(function ItemList
                       <td className="max-w-[200px] truncate p-3 font-medium text-[var(--color-on-surface)]" title={c.name}>
                         {c.name}
                       </td>
-                      <td className="w-16 p-3 text-[var(--color-on-surface-variant)]">
+                      <td className="hidden w-16 p-3 text-[var(--color-on-surface-variant)] lg:table-cell">
                         {c.uom_code ?? "—"}
                       </td>
-                      <td className="p-3 tabular-nums text-[var(--color-on-surface)]">
+                      <td className="hidden p-3 tabular-nums text-[var(--color-on-surface)] lg:table-cell">
                         {c.unit_rate != null ? Number(c.unit_rate).toFixed(2) : "—"}
                       </td>
                       <td className="w-28 shrink-0 p-3 text-right" onClick={(e) => hideToolbar && e.stopPropagation()}>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Copy, Pencil, Plus, Trash2, X } from "lucide-react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ItemsTopBar } from "./ItemsTopBar";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
@@ -39,6 +40,7 @@ export function ItemDetailView({
   const searchParams = useSearchParams();
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const [copyLoading, setCopyLoading] = useState(false);
+  const isLg = useMediaQuery("(min-width: 1024px)");
 
   function handleCopy() {
     const lines = [
@@ -174,7 +176,7 @@ export function ItemDetailView({
           }
         />
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-base p-6">
+        <div className={`min-h-0 flex-1 overflow-y-auto bg-base p-4 lg:p-6 ${!isLg ? "pb-24" : ""}`}>
           <div className="card max-w-2xl p-6 space-y-6">
             {(estimatesCount > 0 || invoicesCount > 0) && (
               <div className="flex flex-wrap items-center gap-3 border-b border-[var(--color-outline)] pb-4">
@@ -213,6 +215,31 @@ export function ItemDetailView({
             </dl>
           </div>
         </div>
+
+        {/* Sticky bottom action bar on mobile */}
+        {!isLg && (
+          <div
+            className="sticky bottom-0 z-10 flex flex-shrink-0 items-center justify-end gap-2 border-t border-[var(--color-outline)] bg-base px-4 py-3 lg:hidden"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          >
+            <Link href={backHref} className="btn btn-secondary btn-sm">
+              Back
+            </Link>
+            <Link href={newItemHref} className="btn btn-add btn-sm">
+              Add
+            </Link>
+            <Link href={editHref} className="btn btn-edit btn-sm">
+              Edit
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDeleteState({ loading: false })}
+              className="btn btn-danger btn-sm"
+            >
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog

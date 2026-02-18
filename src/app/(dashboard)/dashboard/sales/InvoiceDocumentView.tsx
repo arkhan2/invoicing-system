@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useEffect } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useEffect, useState } from "react";
+import { Pencil, Plus, Trash2, X, FileSpreadsheet } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { IconButton } from "@/components/IconButton";
+import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { useInvoicesTopBar } from "./InvoicesTopBarContext";
+import { deleteInvoice } from "./actions";
 
 const ROWS_PER_PAGE = 14;
 
@@ -53,6 +58,8 @@ export function InvoiceDocumentView({
   estimateNumber,
   poNumber,
   notes,
+  termsType,
+  dueDate,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -66,9 +73,43 @@ export function InvoiceDocumentView({
   estimateNumber?: string | null;
   poNumber?: string | null;
   notes?: string | null;
+  termsType?: string | null;
+  dueDate?: string | null;
 }) {
+  const termsLabel =
+    termsType === "due_on_receipt"
+      ? "Due on receipt"
+      : termsType === "net_15"
+        ? "Net 15"
+        : termsType === "net_30"
+          ? "Net 30"
+          : termsType === "eom"
+            ? "End of month"
+            : termsType === "custom"
+              ? "Custom"
+              : null;
+  const router = useRouter();
   const { setBarState } = useInvoicesTopBar();
+  const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
+
+  async function handleDelete() {
+    setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteInvoice(invoiceId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice deleted." });
+      router.push("/dashboard/sales");
+      router.refresh();
+    } finally {
+      endGlobalProcessing();
+    }
+  }
   const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const addressLine = [company.address, company.city, company.province].filter(Boolean).join(", ");
   const customerAddress = [customer.address, customer.city, customer.province, customer.country].filter(Boolean).join(", ");
@@ -84,6 +125,15 @@ export function InvoiceDocumentView({
       rightSlot: (
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Link
+            href="/dashboard/sales/import"
+            className="btn btn-secondary btn-sm inline-flex items-center gap-2"
+            aria-label="Import from CSV"
+            title="Import from CSV"
+          >
+            <FileSpreadsheet className="h-4 w-4 shrink-0" />
+            Import from CSV
+          </Link>
+          <Link
             href={`/dashboard/sales/${invoiceId}/edit`}
             className="btn btn-edit btn-icon shrink-0"
             aria-label="Edit invoice"
@@ -98,6 +148,20 @@ export function InvoiceDocumentView({
             title="New invoice"
           >
             <Plus className="w-4 h-4" />
+          </Link>
+          <IconButton
+            variant="danger"
+            icon={<Trash2 className="w-4 h-4" />}
+            label="Delete"
+            onClick={() => setDeleteState({ loading: false })}
+          />
+          <Link
+            href="/dashboard/sales"
+            className="btn btn-secondary btn-icon shrink-0"
+            aria-label="Back to list"
+            title="Back to list"
+          >
+            <X className="w-4 h-4" />
           </Link>
         </div>
       ),
@@ -168,18 +232,26 @@ export function InvoiceDocumentView({
   );
 
   return (
+    <>
     <div className="flex h-full min-h-0 w-full flex-col">
-      {/* Optional: show "From estimate" under the top bar when converted from estimate */}
-      {estimateNumber && (
-        <div className="flex flex-shrink-0 items-center gap-2 border-b border-[var(--color-divider)] bg-[var(--color-surface-variant)]/30 px-4 py-2">
-          <span className="text-xs text-[var(--color-on-surface-variant)]">
-            From estimate {estimateNumber}
-          </span>
-        </div>
-      )}
-
-      {/* Document body: grey area + one or more A4 pages with shadow */}
-      <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--color-outline)]/20 py-8 px-4">
+      {/* Document body: grey area + badge (scrolls with content) + A4 pages */}
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[var(--color-outline)]/20 pt-8 pb-20 lg:pb-8"
+        style={{
+          paddingLeft: "max(1rem, env(safe-area-inset-left))",
+          paddingRight: "max(1rem, env(safe-area-inset-right))",
+        }}
+      >
+        {estimateNumber && (
+          <div className="flex justify-center pb-4">
+            <span
+              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]"
+              role="status"
+            >
+              From estimate {estimateNumber}
+            </span>
+          </div>
+        )}
         <div className="space-y-8">
           {pageChunks.map((chunk, pageIndex) => {
             const startIndex = pageIndex * ROWS_PER_PAGE;
@@ -222,6 +294,12 @@ export function InvoiceDocumentView({
                     <p className="text-3xl font-bold tracking-tight">INVOICE</p>
                     <p className="mt-1 text-lg font-semibold"># {invoiceNumber}</p>
                     <p className="mt-1 text-sm doc-muted">Invoice Date: {invoiceDate}</p>
+                    {termsLabel && (
+                      <p className="mt-0.5 text-sm doc-muted">Terms: {termsLabel}</p>
+                    )}
+                    {dueDate && (
+                      <p className="mt-0.5 text-sm doc-muted">Due date: {dueDate}</p>
+                    )}
                     {poNumber && poNumber.trim() && (
                       <p className="mt-0.5 text-sm doc-muted">P.O. number: {poNumber.trim()}</p>
                     )}
@@ -287,6 +365,30 @@ export function InvoiceDocumentView({
           })}
         </div>
       </div>
+
+      {/* Mobile action footer: Back + Edit with safe-area */}
+      <div
+        className="sticky bottom-0 z-10 flex flex-shrink-0 items-center justify-end gap-2 border-t border-[var(--color-outline)] bg-base px-4 py-3 lg:hidden"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
+        <Link href="/dashboard/sales" className="btn btn-secondary btn-sm">
+          Back
+        </Link>
+        <Link href={`/dashboard/sales/${invoiceId}/edit`} className="btn btn-edit btn-sm">
+          Edit
+        </Link>
+      </div>
     </div>
+    <ConfirmDialog
+      open={!!deleteState}
+      title="Delete invoice?"
+      message="This cannot be undone."
+      confirmLabel="Delete"
+      variant="danger"
+      loading={deleteState?.loading ?? false}
+      onConfirm={handleDelete}
+      onCancel={() => setDeleteState(null)}
+    />
+    </>
   );
 }

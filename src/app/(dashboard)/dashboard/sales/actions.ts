@@ -152,6 +152,9 @@ export async function createInvoice(
   const projectName = (formData.get("project_name") as string)?.trim() || null;
   const subject = (formData.get("subject") as string)?.trim() || null;
   const paymentTerms = (formData.get("payment_terms") as string)?.trim() || null;
+  const termsType = (formData.get("terms_type") as string)?.trim() || null;
+  const dueDateRaw = (formData.get("due_date") as string)?.trim() || null;
+  const dueDate = dueDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dueDateRaw) ? dueDateRaw : null;
   const deliveryTimeAmountRaw = formData.get("delivery_time_amount") as string;
   const deliveryTimeAmount = deliveryTimeAmountRaw != null && deliveryTimeAmountRaw !== "" ? parseInt(String(deliveryTimeAmountRaw), 10) : null;
   const deliveryTimeUnit = (formData.get("delivery_time_unit") as string)?.trim() || null;
@@ -187,6 +190,8 @@ export async function createInvoice(
       project_name: projectName,
       subject,
       payment_terms: paymentTerms,
+      terms_type: termsType,
+      due_date: dueDate,
       delivery_time_amount: Number.isInteger(deliveryTimeAmount) ? deliveryTimeAmount : null,
       delivery_time_unit: validUnit,
       total_amount: totalAmount,
@@ -246,6 +251,9 @@ export async function updateInvoice(
   const projectName = (formData.get("project_name") as string)?.trim() || null;
   const subject = (formData.get("subject") as string)?.trim() || null;
   const paymentTerms = (formData.get("payment_terms") as string)?.trim() || null;
+  const termsType = (formData.get("terms_type") as string)?.trim() || null;
+  const dueDateRaw = (formData.get("due_date") as string)?.trim() || null;
+  const dueDate = dueDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dueDateRaw) ? dueDateRaw : null;
   const deliveryTimeAmountRaw = formData.get("delivery_time_amount") as string;
   const deliveryTimeAmount = deliveryTimeAmountRaw != null && deliveryTimeAmountRaw !== "" ? parseInt(String(deliveryTimeAmountRaw), 10) : null;
   const deliveryTimeUnit = (formData.get("delivery_time_unit") as string)?.trim() || null;
@@ -262,6 +270,8 @@ export async function updateInvoice(
       project_name: projectName,
       subject,
       payment_terms: paymentTerms,
+      terms_type: termsType,
+      due_date: dueDate,
       delivery_time_amount: Number.isInteger(deliveryTimeAmount) ? deliveryTimeAmount : null,
       delivery_time_unit: validUnit,
       total_amount: totalAmount,
@@ -290,7 +300,7 @@ export async function getInvoiceWithItems(invoiceId: string) {
   if (!user) return null;
   const { data: invoice } = await supabase
     .from("sales_invoices")
-    .select("id, company_id, customer_id, estimate_id, invoice_number, invoice_date, status, invoice_ref_no, notes, project_name, subject, payment_terms, delivery_time_amount, delivery_time_unit, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id")
+    .select("id, company_id, customer_id, estimate_id, invoice_number, invoice_date, status, invoice_ref_no, notes, project_name, subject, payment_terms, terms_type, due_date, delivery_time_amount, delivery_time_unit, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id")
     .eq("id", invoiceId)
     .single();
   if (!invoice) return null;
@@ -485,4 +495,353 @@ export async function deleteInvoices(
   }
   revalidatePath("/dashboard/sales");
   return { deletedCount: deletedIds.length, deletedIds };
+}
+
+// -----------------------------------------------------------------------------
+// Invoice CSV import (match customer by name; optional link to estimate by number)
+// -----------------------------------------------------------------------------
+
+export type MappedInvoiceItem = {
+  product_description: string;
+  quantity: number;
+  unit_price: number;
+  value_sales_excluding_st: number;
+  sales_tax_applicable: number;
+  discount: number;
+  total_values: number;
+  uom: string;
+};
+
+export type MappedInvoice = {
+  customer_name: string;
+  customer_id?: string;
+  invoice_number: string;
+  invoice_date: string;
+  status: string;
+  notes: string | null;
+  payment_terms: string | null;
+  total_amount: number;
+  total_tax: number;
+  discount_amount: number;
+  discount_type: "amount" | "percentage";
+  estimate_number: string | null;
+  items: MappedInvoiceItem[];
+};
+
+export type ImportInvoicesResult = {
+  error?: string;
+  imported: number;
+  skipped: number;
+  skippedNoCustomer: string[];
+  skippedDuplicateNumber: string[];
+  errors: string[];
+};
+
+function normalizeInvoiceStatus(raw: string): "Draft" | "Final" | "Sent" {
+  const s = (raw || "").trim();
+  const lower = s.toLowerCase();
+  if (lower === "draft") return "Draft";
+  if (lower === "final" || lower === "sent" || lower === "closed") return "Final";
+  if (lower === "sent") return "Sent";
+  return "Draft";
+}
+
+async function getCustomerIdByName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  customerName: string
+): Promise<string | null> {
+  const name = customerName.trim();
+  if (!name) return null;
+  const { data } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("company_id", companyId)
+    .ilike("name", name)
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+async function getEstimateIdByNumber(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  estimateNumber: string
+): Promise<string | null> {
+  const num = estimateNumber.trim();
+  if (!num) return null;
+  const { data } = await supabase
+    .from("estimates")
+    .select("id")
+    .eq("company_id", companyId)
+    .ilike("estimate_number", num)
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+const INVOICE_IMPORT_BATCH = 50;
+const INVOICE_ITEMS_INSERT_BATCH = 400;
+
+export async function importInvoicesFromCsv(
+  companyId: string,
+  mappedInvoices: MappedInvoice[]
+): Promise<ImportInvoicesResult> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      error: "You must be signed in to import invoices.",
+      imported: 0,
+      skipped: 0,
+      skippedNoCustomer: [],
+      skippedDuplicateNumber: [],
+      errors: [],
+    };
+  }
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("id", companyId)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) {
+    return {
+      error: "Company not found.",
+      imported: 0,
+      skipped: 0,
+      skippedNoCustomer: [],
+      skippedDuplicateNumber: [],
+      errors: [],
+    };
+  }
+
+  const allHaveCustomerId = mappedInvoices.length > 0 && mappedInvoices.every((e) => e.customer_id?.trim());
+  if (allHaveCustomerId) {
+    return runBatchImportInvoices(supabase, companyId, mappedInvoices as (MappedInvoice & { customer_id: string })[]);
+  }
+
+  return runLegacyImportInvoices(supabase, companyId, mappedInvoices);
+}
+
+function runBatchImportInvoices(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  mappedInvoices: (MappedInvoice & { customer_id: string })[]
+): Promise<ImportInvoicesResult> {
+  let imported = 0;
+  const skippedDuplicateNumber: string[] = [];
+  const errors: string[] = [];
+  const estimateCache = new Map<string, string | null>();
+
+  return (async () => {
+    for (let i = 0; i < mappedInvoices.length; i += INVOICE_IMPORT_BATCH) {
+      const chunk = mappedInvoices.slice(i, i + INVOICE_IMPORT_BATCH);
+      const invoiceRows: {
+        company_id: string;
+        customer_id: string;
+        invoice_number: string;
+        invoice_date: string;
+        status: string;
+        notes: string | null;
+        payment_terms: string | null;
+        total_amount: number;
+        total_tax: number;
+        discount_amount: number;
+        discount_type: string;
+        estimate_id: string | null;
+      }[] = [];
+
+      for (const inv of chunk) {
+        let estimateId: string | null = null;
+        if (inv.estimate_number?.trim()) {
+          const key = inv.estimate_number.trim().toLowerCase();
+          if (!estimateCache.has(key)) {
+            estimateId = await getEstimateIdByNumber(supabase, companyId, inv.estimate_number);
+            estimateCache.set(key, estimateId);
+          } else {
+            estimateId = estimateCache.get(key) ?? null;
+          }
+        }
+        invoiceRows.push({
+          company_id: companyId,
+          customer_id: inv.customer_id,
+          invoice_number: inv.invoice_number.trim(),
+          invoice_date: inv.invoice_date,
+          status: normalizeInvoiceStatus(inv.status),
+          notes: inv.notes || null,
+          payment_terms: inv.payment_terms || null,
+          total_amount: inv.total_amount,
+          total_tax: inv.total_tax,
+          discount_amount: inv.discount_amount,
+          discount_type: inv.discount_type === "percentage" ? "percentage" : "amount",
+          estimate_id: estimateId,
+        });
+      }
+
+      const { data: insertedInvoices, error: invErr } = await supabase
+        .from("sales_invoices")
+        .insert(invoiceRows)
+        .select("id");
+
+      if (invErr) {
+        if (invErr.code === "23505") {
+          chunk.forEach((inv) => skippedDuplicateNumber.push(inv.invoice_number));
+        } else {
+          errors.push(chunk.map((e) => e.invoice_number).join(", ") + ": " + invErr.message);
+        }
+        continue;
+      }
+      if (!insertedInvoices || insertedInvoices.length === 0) continue;
+
+      const allItemRows: {
+        sales_invoice_id: string;
+        item_number: string;
+        product_description: string;
+        hs_code: string;
+        rate_label: string;
+        uom: string;
+        quantity: number;
+        unit_price: number;
+        value_sales_excluding_st: number;
+        sales_tax_applicable: number;
+        sales_tax_withheld_at_source: number;
+        extra_tax: number;
+        further_tax: number;
+        discount: number;
+        total_values: number;
+        sale_type: string;
+        sort_order: number;
+      }[] = [];
+      chunk.forEach((inv, idx) => {
+        const invoiceId = insertedInvoices[idx]?.id;
+        if (!invoiceId) return;
+        inv.items.forEach((it, sortOrder) => {
+          allItemRows.push({
+            sales_invoice_id: invoiceId,
+            item_number: "",
+            product_description: it.product_description || "—",
+            hs_code: "",
+            rate_label: "",
+            uom: it.uom || "Nos",
+            quantity: it.quantity,
+            unit_price: it.unit_price,
+            value_sales_excluding_st: it.value_sales_excluding_st,
+            sales_tax_applicable: it.sales_tax_applicable ?? 0,
+            sales_tax_withheld_at_source: 0,
+            extra_tax: 0,
+            further_tax: 0,
+            discount: it.discount ?? 0,
+            total_values: it.total_values,
+            sale_type: "Goods at standard rate (default)",
+            sort_order: sortOrder,
+          });
+        });
+      });
+
+      for (let j = 0; j < allItemRows.length; j += INVOICE_ITEMS_INSERT_BATCH) {
+        const itemChunk = allItemRows.slice(j, j + INVOICE_ITEMS_INSERT_BATCH);
+        const { error: itemErr } = await supabase.from("sales_invoice_items").insert(itemChunk);
+        if (itemErr) errors.push("Items: " + itemErr.message);
+      }
+      imported += chunk.length;
+    }
+
+    revalidatePath("/dashboard/sales");
+    return {
+      imported,
+      skipped: skippedDuplicateNumber.length,
+      skippedNoCustomer: [],
+      skippedDuplicateNumber,
+      errors,
+    };
+  })();
+}
+
+async function runLegacyImportInvoices(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  mappedInvoices: MappedInvoice[]
+): Promise<ImportInvoicesResult> {
+  let imported = 0;
+  const skippedNoCustomer: string[] = [];
+  const skippedDuplicateNumber: string[] = [];
+  const errors: string[] = [];
+  const customerCache = new Map<string, string | null>();
+
+  for (const inv of mappedInvoices) {
+    const nameKey = inv.customer_name.trim().toLowerCase();
+    let customerId = inv.customer_id?.trim() ?? customerCache.get(nameKey);
+    if (customerId === undefined) {
+      customerId = await getCustomerIdByName(supabase, companyId, inv.customer_name);
+      customerCache.set(nameKey, customerId);
+    }
+    if (!customerId) {
+      skippedNoCustomer.push(inv.customer_name || inv.invoice_number || "?");
+      continue;
+    }
+
+    const estimateId = inv.estimate_number?.trim()
+      ? await getEstimateIdByNumber(supabase, companyId, inv.estimate_number)
+      : null;
+
+    const { data: inserted, error: insErr } = await supabase
+      .from("sales_invoices")
+      .insert({
+        company_id: companyId,
+        customer_id: customerId,
+        invoice_number: inv.invoice_number.trim(),
+        invoice_date: inv.invoice_date,
+        status: normalizeInvoiceStatus(inv.status),
+        notes: inv.notes || null,
+        payment_terms: inv.payment_terms || null,
+        total_amount: inv.total_amount,
+        total_tax: inv.total_tax,
+        discount_amount: inv.discount_amount,
+        discount_type: inv.discount_type === "percentage" ? "percentage" : "amount",
+        estimate_id: estimateId,
+      })
+      .select("id")
+      .single();
+
+    if (insErr) {
+      if (insErr.code === "23505") skippedDuplicateNumber.push(inv.invoice_number);
+      else errors.push(inv.invoice_number + ": " + insErr.message);
+      continue;
+    }
+    if (!inserted?.id) continue;
+
+    const itemRows = inv.items.map((it, sortOrder) => ({
+      sales_invoice_id: inserted.id,
+      item_number: "",
+      product_description: it.product_description || "—",
+      hs_code: "",
+      rate_label: "",
+      uom: it.uom || "Nos",
+      quantity: it.quantity,
+      unit_price: it.unit_price,
+      value_sales_excluding_st: it.value_sales_excluding_st,
+      sales_tax_applicable: it.sales_tax_applicable ?? 0,
+      sales_tax_withheld_at_source: 0,
+      extra_tax: 0,
+      further_tax: 0,
+      discount: it.discount ?? 0,
+      total_values: it.total_values,
+      sale_type: "Goods at standard rate (default)",
+      sort_order: sortOrder,
+    }));
+    const { error: itemErr } = await supabase.from("sales_invoice_items").insert(itemRows);
+    if (itemErr) errors.push(inv.invoice_number + " items: " + itemErr.message);
+    else imported++;
+  }
+
+  revalidatePath("/dashboard/sales");
+  return {
+    imported,
+    skipped: skippedNoCustomer.length + skippedDuplicateNumber.length,
+    skippedNoCustomer,
+    skippedDuplicateNumber,
+    errors,
+  };
 }

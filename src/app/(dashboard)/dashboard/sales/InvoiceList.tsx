@@ -116,14 +116,14 @@ export function InvoiceList({
             </div>
           ) : (
             <div className="max-h-[70vh] overflow-auto rounded-xl border border-[var(--color-outline)]">
-              <table className="w-full min-w-[600px] text-left text-sm">
+              <table className="w-full min-w-0 text-left text-sm lg:min-w-[600px]">
                 <thead className="sticky top-0 z-10 bg-[var(--color-surface-variant)] shadow-[0_1px_0_0_var(--color-divider)]">
                   <tr>
                     <th className="p-3 font-medium text-[var(--color-on-surface)]">Number</th>
-                    <th className="p-3 font-medium text-[var(--color-on-surface)]">Date</th>
+                    <th className="hidden p-3 font-medium text-[var(--color-on-surface)] lg:table-cell">Date</th>
                     <th className="p-3 font-medium text-[var(--color-on-surface)]">Customer</th>
-                    <th className="p-3 font-medium text-[var(--color-on-surface)]">From estimate</th>
-                    <th className="p-3 font-medium text-[var(--color-on-surface)]">Status</th>
+                    <th className="hidden p-3 font-medium text-[var(--color-on-surface)] lg:table-cell">From estimate</th>
+                    <th className="hidden p-3 font-medium text-[var(--color-on-surface)] lg:table-cell">Status</th>
                     <th className="w-24 shrink-0 p-3 text-right font-medium text-[var(--color-on-surface)]">Total</th>
                     <th className="w-28 shrink-0 p-3 text-right" aria-label="Actions" />
                   </tr>
@@ -132,10 +132,10 @@ export function InvoiceList({
                   {filtered.map((inv) => (
                     <tr key={inv.id} className={`border-b border-[var(--color-divider)] last:border-b-0 even:bg-[var(--color-surface-variant)]/10 hover:bg-[var(--color-primary-container)]/20 transition-colors duration-150 ${createdId === inv.id ? "bg-[var(--color-primary-container)]/30" : ""}`}>
                       <td className="max-w-[120px] truncate p-3 font-medium text-[var(--color-on-surface)]" title={inv.invoice_number}>{inv.invoice_number}</td>
-                      <td className="whitespace-nowrap p-3 text-[var(--color-on-surface-variant)]">{inv.invoice_date}</td>
+                      <td className="hidden whitespace-nowrap p-3 text-[var(--color-on-surface-variant)] lg:table-cell">{inv.invoice_date}</td>
                       <td className="max-w-[180px] truncate p-3 text-[var(--color-on-surface)]" title={inv.customer_name || undefined}>{inv.customer_name || "—"}</td>
-                      <td className="max-w-[120px] truncate p-3 text-[var(--color-on-surface-variant)]" title={inv.estimate_number || undefined}>{inv.estimate_number ?? "—"}</td>
-                      <td className="p-3">
+                      <td className="hidden max-w-[120px] truncate p-3 text-[var(--color-on-surface-variant)] lg:table-cell" title={inv.estimate_number || undefined}>{inv.estimate_number ?? "—"}</td>
+                      <td className="hidden p-3 lg:table-cell">
                         <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${inv.status === "Final" || inv.status === "Sent" ? "bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]" : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"}`}>{inv.status}</span>
                       </td>
                       <td className="w-24 shrink-0 p-3 text-right font-medium tabular-nums text-[var(--color-on-surface)]">{inv.total_amount != null ? Number(inv.total_amount).toFixed(2) : "—"}</td>

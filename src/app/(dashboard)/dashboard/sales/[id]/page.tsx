@@ -21,7 +21,7 @@ export default async function InvoiceViewPage({
 
   const { data: invoice } = await supabase
     .from("sales_invoices")
-    .select("id, invoice_number, invoice_date, status, total_amount, total_tax, customer_id, estimate_id, invoice_ref_no, notes, project_name, subject, payment_terms, delivery_time_amount, delivery_time_unit, discount_amount, discount_type, sales_tax_rate_id")
+    .select("id, invoice_number, invoice_date, status, total_amount, total_tax, customer_id, estimate_id, invoice_ref_no, notes, project_name, subject, payment_terms, terms_type, due_date, delivery_time_amount, delivery_time_unit, discount_amount, discount_type, sales_tax_rate_id")
     .eq("id", id)
     .eq("company_id", company.id)
     .single();
@@ -92,6 +92,8 @@ export default async function InvoiceViewPage({
           estimateNumber={estimate?.estimate_number ?? null}
           poNumber={invoice.invoice_ref_no ?? null}
           notes={invoice.notes ?? null}
+          termsType={(invoice as { terms_type?: string | null }).terms_type ?? null}
+          dueDate={(invoice as { due_date?: string | null }).due_date ?? null}
         />
       </div>
     </div>

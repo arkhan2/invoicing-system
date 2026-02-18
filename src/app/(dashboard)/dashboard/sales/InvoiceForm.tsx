@@ -1,20 +1,23 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   createInvoice,
   updateInvoice,
+  deleteInvoice,
   getInvoiceWithItems,
   type InvoiceFormState,
 } from "./actions";
 import { searchItems } from "@/app/(dashboard)/dashboard/items/actions";
-import { Save, Loader2, ChevronLeft, X, PlusCircle } from "lucide-react";
+import { Save, Loader2, X, PlusCircle, Trash2 } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { AddItemsFromCatalogModal } from "@/app/(dashboard)/dashboard/estimates/AddItemsFromCatalogModal";
+import { useInvoicesTopBar } from "./InvoicesTopBarContext";
 
 const inputClass =
   "w-full min-h-[2.5rem] border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
@@ -22,6 +25,37 @@ const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-
 
 const STATUS_OPTIONS = ["Draft", "Final", "Sent"] as const;
 const DELIVERY_TIME_UNITS = ["days", "weeks", "months"] as const;
+
+export type TermsType = "" | "due_on_receipt" | "net_15" | "net_30" | "eom" | "custom";
+const TERMS_OPTIONS: { value: TermsType; label: string }[] = [
+  { value: "", label: "— Select terms —" },
+  { value: "due_on_receipt", label: "Due on receipt" },
+  { value: "net_15", label: "Net 15" },
+  { value: "net_30", label: "Net 30" },
+  { value: "eom", label: "End of month" },
+  { value: "custom", label: "Custom" },
+];
+
+function computeDueDateFromTerms(invoiceDateStr: string, termsType: TermsType): string {
+  if (!termsType || termsType === "custom") return invoiceDateStr;
+  if (termsType === "due_on_receipt") return invoiceDateStr;
+  const d = new Date(invoiceDateStr);
+  if (Number.isNaN(d.getTime())) return invoiceDateStr;
+  if (termsType === "net_15") {
+    d.setDate(d.getDate() + 15);
+    return d.toISOString().slice(0, 10);
+  }
+  if (termsType === "net_30") {
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  }
+  if (termsType === "eom") {
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(0);
+    return d.toISOString().slice(0, 10);
+  }
+  return invoiceDateStr;
+}
 
 function defaultItems(): LineItemRow[] {
   return [
@@ -89,6 +123,8 @@ export function InvoiceForm({
   initialProjectName,
   initialSubject,
   initialPaymentTerms,
+  initialTermsType,
+  initialDueDate,
   initialDeliveryTimeAmount,
   initialDeliveryTimeUnit,
   initialDiscountAmount,
@@ -122,6 +158,8 @@ export function InvoiceForm({
   initialProjectName?: string | null;
   initialSubject?: string | null;
   initialPaymentTerms?: string | null;
+  initialTermsType?: TermsType | null;
+  initialDueDate?: string | null;
   initialDeliveryTimeAmount?: number | null;
   initialDeliveryTimeUnit?: string | null;
   initialDiscountAmount?: string | null;
@@ -135,6 +173,8 @@ export function InvoiceForm({
   const router = useRouter();
   const isEdit = !!invoiceId;
   const hasInitialData = initialItems != null || initialCustomerId != null;
+  const { setBarState } = useInvoicesTopBar();
+  const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "done" | "error">(
@@ -153,6 +193,12 @@ export function InvoiceForm({
   const [projectName, setProjectName] = useState(initialProjectName ?? "");
   const [subject, setSubject] = useState(initialSubject ?? "");
   const [paymentTerms, setPaymentTerms] = useState(initialPaymentTerms ?? "");
+  const [termsType, setTermsType] = useState<TermsType>(
+    (initialTermsType && ["due_on_receipt", "net_15", "net_30", "eom", "custom"].includes(initialTermsType) ? initialTermsType : "") as TermsType
+  );
+  const [dueDate, setDueDate] = useState(
+    initialDueDate ?? ""
+  );
   const [deliveryTimeAmount, setDeliveryTimeAmount] = useState(
     initialDeliveryTimeAmount != null ? String(initialDeliveryTimeAmount) : ""
   );
@@ -174,12 +220,21 @@ export function InvoiceForm({
     [customers, customerId]
   );
 
+  // When terms type or invoice date changes, update due date (unless custom)
+  useEffect(() => {
+    if (!termsType || termsType === "custom") return;
+    const invDate = invoiceDate || new Date().toISOString().slice(0, 10);
+    setDueDate(computeDueDateFromTerms(invDate, termsType));
+  }, [termsType, invoiceDate]);
+
   useEffect(() => {
     if (hasInitialData && isEdit) {
       if (initialCustomerId) setCustomerId(initialCustomerId);
       if (initialInvoiceDate) setInvoiceDate(initialInvoiceDate);
       if (initialStatus && ["Draft", "Final", "Sent"].includes(initialStatus)) setStatus(initialStatus as "Draft" | "Final" | "Sent");
       if (initialItems && initialItems.length > 0) setItems(initialItems);
+      if (initialTermsType) setTermsType(initialTermsType as TermsType);
+      if (initialDueDate) setDueDate(initialDueDate);
       setLoadState("done");
       return;
     }
@@ -192,8 +247,10 @@ export function InvoiceForm({
         setLoadState("error");
         return;
       }
+      const inv = data.invoice as { terms_type?: string | null; due_date?: string | null; invoice_date?: string | null };
       setCustomerId(data.invoice.customer_id);
-      setInvoiceDate(data.invoice.invoice_date ?? new Date().toISOString().slice(0, 10));
+      const invDate = data.invoice.invoice_date ?? new Date().toISOString().slice(0, 10);
+      setInvoiceDate(invDate);
       setStatus(
         ["Draft", "Final", "Sent"].includes(data.invoice.status ?? "")
           ? (data.invoice.status as "Draft" | "Final" | "Sent")
@@ -204,6 +261,27 @@ export function InvoiceForm({
       setProjectName(data.invoice.project_name ?? "");
       setSubject(data.invoice.subject ?? "");
       setPaymentTerms(data.invoice.payment_terms ?? "");
+      const savedDue = inv.due_date ?? null;
+      const savedTerms = (inv.terms_type ?? "") as TermsType;
+      if (savedDue && savedTerms && savedTerms !== "custom") {
+        const computed = computeDueDateFromTerms(invDate, savedTerms);
+        if (computed === savedDue) {
+          setTermsType(savedTerms);
+          setDueDate(savedDue);
+        } else {
+          setTermsType("custom");
+          setDueDate(savedDue);
+        }
+      } else if (savedDue) {
+        setTermsType("custom");
+        setDueDate(savedDue);
+      } else if (savedTerms) {
+        setTermsType(savedTerms);
+        setDueDate(computeDueDateFromTerms(invDate, savedTerms));
+      } else {
+        setTermsType("");
+        setDueDate("");
+      }
       setDeliveryTimeAmount(data.invoice.delivery_time_amount != null ? String(data.invoice.delivery_time_amount) : "");
       setDeliveryTimeUnit(
         (data.invoice.delivery_time_unit === "days" || data.invoice.delivery_time_unit === "weeks" || data.invoice.delivery_time_unit === "months")
@@ -232,6 +310,8 @@ export function InvoiceForm({
     formData.set("project_name", projectName.trim());
     formData.set("subject", subject.trim());
     formData.set("payment_terms", paymentTerms.trim());
+    formData.set("terms_type", termsType);
+    formData.set("due_date", dueDate.trim());
     formData.set("delivery_time_amount", deliveryTimeAmount);
     formData.set("delivery_time_unit", deliveryTimeUnit);
     formData.set("discount_amount", discountAmount);
@@ -272,6 +352,82 @@ export function InvoiceForm({
     }
   }
 
+  async function handleDelete() {
+    if (!invoiceId) return;
+    setDeleteState((prev) => (prev ? { ...prev, loading: true } : null));
+    startGlobalProcessing("Deleting…");
+    try {
+      const result = await deleteInvoice(invoiceId);
+      setDeleteState(null);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice deleted." });
+      router.push("/dashboard/sales");
+      router.refresh();
+    } finally {
+      endGlobalProcessing();
+    }
+  }
+
+  const formBarRef = useRef<{
+    requestSave: () => void;
+    setDeleteState: (s: { loading: boolean } | null) => void;
+  } | null>(null);
+  formBarRef.current = {
+    requestSave: () => (document.getElementById("invoice-form") as HTMLFormElement | null)?.requestSubmit(),
+    setDeleteState: (s) => setDeleteState(s),
+  };
+
+  useEffect(() => {
+    if (onCancel) return;
+    const title = isEdit
+      ? (initialInvoiceNumber ? `Invoice ${initialInvoiceNumber}` : "Edit invoice")
+      : "New invoice";
+    const titleSuffix =
+      isEdit ? (
+        <span className="ml-2 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
+          {status}
+        </span>
+      ) : null;
+    const h = formBarRef.current;
+    setBarState({
+      title,
+      titleSuffix,
+      rightSlot: h ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <IconButton
+            type="button"
+            variant="primary"
+            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            label={loading ? "Saving…" : "Save"}
+            disabled={loading}
+            onClick={h.requestSave}
+          />
+          {isEdit && (
+            <IconButton
+              type="button"
+              variant="danger"
+              icon={<Trash2 className="w-4 h-4" />}
+              label="Delete"
+              onClick={() => h.setDeleteState({ loading: false })}
+            />
+          )}
+          <Link
+            href={invoiceId ? `/dashboard/sales/${invoiceId}` : "/dashboard/sales"}
+            className="btn btn-secondary btn-icon shrink-0"
+            aria-label="Cancel"
+            title="Cancel"
+          >
+            <X className="w-4 h-4" />
+          </Link>
+        </div>
+      ) : undefined,
+    });
+    return () => setBarState({ title: null, titleSuffix: null, rightSlot: null });
+  }, [isEdit, initialInvoiceNumber, invoiceId, status, loading, onCancel, setBarState]);
+
   if (isEdit && (loadState === "loading" || loadState === "error")) {
     return (
       <div className="py-4 text-center text-sm text-[var(--color-on-surface-variant)]">
@@ -307,18 +463,10 @@ export function InvoiceForm({
       }}
       className="flex h-full flex-col"
     >
-      <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          {isEdit ? (
-            <Link
-              href={`/dashboard/sales/${invoiceId}`}
-              className="btn btn-secondary btn-icon shrink-0"
-              aria-label="Back to invoice"
-              title="Back to invoice"
-            >
-              <ChevronLeft className="size-4" />
-            </Link>
-          ) : onCancel ? (
+      {/* When used with onCancel (e.g. modal), show own header; otherwise layout top bar is used */}
+      {onCancel && (
+        <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
             <IconButton
               type="button"
               variant="secondary"
@@ -326,29 +474,38 @@ export function InvoiceForm({
               label="Close"
               onClick={onCancel}
             />
-          ) : null}
-          <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
-            {isEdit ? (initialInvoiceNumber ? `Invoice ${initialInvoiceNumber}` : "Edit invoice") : "New invoice"}
-          </h2>
+            <h2 className="truncate text-lg font-semibold text-[var(--color-on-surface)]">
+              {isEdit ? (initialInvoiceNumber ? `Invoice ${initialInvoiceNumber}` : "Edit invoice") : "New invoice"}
+            </h2>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <IconButton
+              type="submit"
+              variant="primary"
+              icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              label={loading ? "Saving…" : "Save"}
+              disabled={loading}
+            />
+            {isEdit && (
+              <IconButton
+                type="button"
+                variant="danger"
+                icon={<Trash2 className="w-4 h-4" />}
+                label="Delete"
+                onClick={() => setDeleteState({ loading: false })}
+              />
+            )}
+            <Link
+              href={invoiceId ? `/dashboard/sales/${invoiceId}` : "/dashboard/sales"}
+              className="btn btn-secondary btn-icon"
+              aria-label="Cancel"
+              title="Cancel"
+            >
+              <X className="size-4" />
+            </Link>
+          </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <IconButton
-            type="submit"
-            variant="primary"
-            icon={loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            label={loading ? "Saving…" : "Save"}
-            disabled={loading}
-          />
-          <Link
-            href={invoiceId ? `/dashboard/sales/${invoiceId}` : "/dashboard/sales"}
-            className="btn btn-secondary btn-icon"
-            aria-label="Cancel"
-            title="Cancel"
-          >
-            <X className="size-4" />
-          </Link>
-        </div>
-      </div>
+      )}
 
       {state?.error && (
         <div
@@ -471,8 +628,36 @@ export function InvoiceForm({
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label htmlFor="invoice-terms" className={labelClass}>Terms</label>
+                  <select
+                    id="invoice-terms"
+                    name="terms_type"
+                    value={termsType}
+                    onChange={(e) => setTermsType(e.target.value as TermsType)}
+                    className={inputClass + " h-[2.5rem] min-h-0 cursor-pointer"}
+                  >
+                    {TERMS_OPTIONS.map((o) => (
+                      <option key={o.value || "none"} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="invoice-due-date" className={labelClass}>Due date</label>
+                  <input
+                    id="invoice-due-date"
+                    name="due_date"
+                    type="date"
+                    value={dueDate}
+                    onChange={(e) => {
+                      setDueDate(e.target.value);
+                      setTermsType("custom");
+                    }}
+                    className={inputClass + " h-[2.5rem] min-h-0"}
+                  />
+                </div>
                 <div className="sm:col-span-2">
-                  <label htmlFor="invoice-payment-terms" className={labelClass}>Payment terms</label>
+                  <label htmlFor="invoice-payment-terms" className={labelClass}>Payment terms (optional text)</label>
                   <input
                     id="invoice-payment-terms"
                     name="payment_terms"
@@ -480,7 +665,7 @@ export function InvoiceForm({
                     value={paymentTerms}
                     onChange={(e) => setPaymentTerms(e.target.value)}
                     className={inputClass + " h-[2.5rem] min-h-0"}
-                    placeholder="e.g. Net 30"
+                    placeholder="e.g. Due on receipt"
                   />
                 </div>
                 <div>
@@ -628,6 +813,16 @@ export function InvoiceForm({
         </p>
       </div>
     </form>
+    <ConfirmDialog
+      open={!!deleteState}
+      title="Delete invoice?"
+      message="This cannot be undone."
+      confirmLabel="Delete"
+      variant="danger"
+      loading={deleteState?.loading ?? false}
+      onConfirm={handleDelete}
+      onCancel={() => setDeleteState(null)}
+    />
     </>
   );
 }

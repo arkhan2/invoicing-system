@@ -268,7 +268,7 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
             </div>
           ) : (
             <div className={`overflow-auto rounded-xl border border-[var(--color-outline)] ${hideToolbar ? "min-h-0 flex-1" : "max-h-[70vh]"}`}>
-              <table className="w-full min-w-[600px] text-left text-sm">
+              <table className="w-full min-w-0 text-left text-sm lg:min-w-[600px]">
                 <thead className="sticky top-0 z-10 bg-[var(--color-surface-variant)] shadow-[0_1px_0_0_var(--color-divider)]">
                   <tr>
                     <th className="w-10 p-3">
@@ -290,13 +290,13 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                     <th className="p-3 font-medium text-[var(--color-on-surface)]">
                       Contact
                     </th>
-                    <th className="p-3 font-medium text-[var(--color-on-surface)]">
+                    <th className="hidden p-3 font-medium text-[var(--color-on-surface)] lg:table-cell">
                       Address / Province
                     </th>
-                    <th className="p-3 font-medium text-[var(--color-on-surface)]">
+                    <th className="hidden p-3 font-medium text-[var(--color-on-surface)] lg:table-cell">
                       NTN
                     </th>
-                    <th className="p-3 font-medium text-[var(--color-on-surface)]">
+                    <th className="hidden p-3 font-medium text-[var(--color-on-surface)] lg:table-cell">
                       Registration
                     </th>
                     <th className="w-28 shrink-0 p-3 text-right" aria-label="Actions" />
@@ -345,13 +345,13 @@ export const CustomerList = forwardRef<CustomerListRef, CustomerListProps>(funct
                       <td className="max-w-[180px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[c.contact_person_name, c.email, c.phone].filter(Boolean).join(" · ") || undefined}>
                         {[c.contact_person_name, c.email, c.phone].filter(Boolean).join(" · ") || "—"}
                       </td>
-                      <td className="max-w-[220px] truncate p-3 text-[var(--color-on-surface-variant)]" title={[c.address, c.city, c.province, c.country].filter(Boolean).join(", ") || undefined}>
+                      <td className="hidden max-w-[220px] truncate p-3 text-[var(--color-on-surface-variant)] lg:table-cell" title={[c.address, c.city, c.province, c.country].filter(Boolean).join(", ") || undefined}>
                         {[c.address, c.city, c.province, c.country].filter(Boolean).join(", ") || "—"}
                       </td>
-                      <td className="p-3 text-[var(--color-on-surface-variant)] whitespace-nowrap" title={c.ntn_cnic ?? undefined}>
+                      <td className="hidden p-3 text-[var(--color-on-surface-variant)] whitespace-nowrap lg:table-cell" title={c.ntn_cnic ?? undefined}>
                         {c.ntn_cnic ?? "—"}
                       </td>
-                      <td className="p-3 text-[var(--color-on-surface-variant)]">
+                      <td className="hidden p-3 text-[var(--color-on-surface-variant)] lg:table-cell">
                         {c.registration_type ?? "—"}
                       </td>
                       <td className="w-28 shrink-0 p-3 text-right" onClick={(e) => hideToolbar && e.stopPropagation()}>

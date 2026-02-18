@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
-import { InvoiceForm } from "../../InvoiceForm";
+import { InvoiceForm, type TermsType } from "../../InvoiceForm";
 import { getCompanyTaxRates } from "@/app/(dashboard)/dashboard/company/actions";
 import { getUomList } from "@/app/(dashboard)/dashboard/items/actions";
 import { getCustomersList } from "@/app/(dashboard)/dashboard/customers/actions";
@@ -93,6 +93,8 @@ export default async function InvoiceEditPage({
           initialProjectName={invoice.project_name ?? undefined}
           initialSubject={invoice.subject ?? undefined}
           initialPaymentTerms={invoice.payment_terms ?? undefined}
+          initialTermsType={((invoice as { terms_type?: string | null }).terms_type ?? undefined) as TermsType | undefined}
+          initialDueDate={(invoice as { due_date?: string | null }).due_date ?? undefined}
           initialDeliveryTimeAmount={invoice.delivery_time_amount != null ? Number(invoice.delivery_time_amount) : undefined}
           initialDeliveryTimeUnit={invoice.delivery_time_unit ?? undefined}
           initialDiscountAmount={invoice.discount_amount != null ? String(invoice.discount_amount) : undefined}

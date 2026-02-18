@@ -46,7 +46,7 @@ export function GlobalSearch() {
   const ariaLabel = scope ? scopeLabel[scope] ?? "Search" : "Search";
 
   return (
-    <div className="hidden min-w-0 max-w-[280px] flex-1 sm:block md:max-w-[320px]">
+    <div className="min-w-0 max-w-[140px] flex-1 sm:max-w-[200px] md:max-w-[280px] lg:max-w-[320px]">
       <div className="relative">
         <Search
           className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--color-on-surface-variant)]"
