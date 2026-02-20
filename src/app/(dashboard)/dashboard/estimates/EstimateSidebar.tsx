@@ -128,8 +128,7 @@ export function EstimateSidebar({
     }
   }
 
-  const canConvert = (status: string) =>
-    status !== "Converted" && status !== "Expired";
+  const canConvert = (status: string) => status !== "Converted";
 
   const ROW_HEIGHT_ESTIMATE = 92;
   const virtualizer = useVirtualizer({

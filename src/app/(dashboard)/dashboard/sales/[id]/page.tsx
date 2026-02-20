@@ -27,6 +27,21 @@ export default async function InvoiceViewPage({
     .single();
   if (!invoice) notFound();
 
+  let salesTaxLabel: string | null = null;
+  const salesTaxRateId = (invoice as { sales_tax_rate_id?: string | null }).sales_tax_rate_id;
+  if (salesTaxRateId) {
+    const { data: rate } = await supabase
+      .from("company_sales_tax_rates")
+      .select("name, rate")
+      .eq("id", salesTaxRateId)
+      .eq("company_id", company.id)
+      .maybeSingle();
+    if (rate?.name != null && rate?.rate != null) {
+      salesTaxLabel = `${rate.name} (${Number(rate.rate)}%)`;
+    }
+  }
+  if (!salesTaxLabel) salesTaxLabel = "Sales tax";
+
   const { data: customer } = await supabase
     .from("customers")
     .select("id, name, contact_person_name, address, city, province, country, ntn_cnic, phone, email")
@@ -89,11 +104,15 @@ export default async function InvoiceViewPage({
             email: customer?.email ?? null,
           }}
           items={items}
+          estimateId={invoice.estimate_id ?? undefined}
           estimateNumber={estimate?.estimate_number ?? null}
           poNumber={invoice.invoice_ref_no ?? null}
           notes={invoice.notes ?? null}
           termsType={(invoice as { terms_type?: string | null }).terms_type ?? null}
           dueDate={(invoice as { due_date?: string | null }).due_date ?? null}
+          discountAmount={(invoice as { discount_amount?: number | null }).discount_amount ?? null}
+          discountType={(invoice as { discount_type?: "amount" | "percentage" | null }).discount_type ?? null}
+          salesTaxLabel={salesTaxLabel}
         />
       </div>
     </div>

@@ -45,8 +45,7 @@ export function EstimateList({
     );
   }, [initialEstimates, search]);
 
-  const canConvert = (status: string) =>
-    status !== "Converted" && status !== "Expired";
+  const canConvert = (status: string) => status !== "Converted";
 
   function openAdd() {
     setEditingEstimateId(null);

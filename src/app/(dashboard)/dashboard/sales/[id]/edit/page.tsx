@@ -95,8 +95,6 @@ export default async function InvoiceEditPage({
           initialPaymentTerms={invoice.payment_terms ?? undefined}
           initialTermsType={((invoice as { terms_type?: string | null }).terms_type ?? undefined) as TermsType | undefined}
           initialDueDate={(invoice as { due_date?: string | null }).due_date ?? undefined}
-          initialDeliveryTimeAmount={invoice.delivery_time_amount != null ? Number(invoice.delivery_time_amount) : undefined}
-          initialDeliveryTimeUnit={invoice.delivery_time_unit ?? undefined}
           initialDiscountAmount={invoice.discount_amount != null ? String(invoice.discount_amount) : undefined}
           initialDiscountType={(invoice as { discount_type?: string }).discount_type === "percentage" ? "percentage" : "amount"}
           initialSalesTaxRateId={invoice.sales_tax_rate_id ?? undefined}

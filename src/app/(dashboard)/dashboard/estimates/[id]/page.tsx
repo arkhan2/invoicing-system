@@ -47,13 +47,24 @@ export default async function EstimateViewPage({
     .eq("id", estimate.customer_id)
     .single();
 
-  const { data: estimateItems } = await supabase
-    .from("estimate_items")
-    .select("item_number, product_description, quantity, unit_price, value_sales_excluding_st, total_values, uom")
-    .eq("estimate_id", id)
-    .order("sort_order");
+  const [estimateItemsRes, convertedInvoiceRes] = await Promise.all([
+    supabase
+      .from("estimate_items")
+      .select("item_number, product_description, quantity, unit_price, value_sales_excluding_st, total_values, uom")
+      .eq("estimate_id", id)
+      .order("sort_order"),
+    supabase
+      .from("sales_invoices")
+      .select("id, invoice_number")
+      .eq("estimate_id", id)
+      .eq("company_id", company.id)
+      .maybeSingle(),
+  ]);
 
-  const items = (estimateItems ?? []).map((it) => ({
+  const estimateItems = estimateItemsRes.data ?? [];
+  const convertedInvoice = convertedInvoiceRes.data ?? null;
+
+  const items = estimateItems.map((it) => ({
     item_number: it.item_number ?? undefined,
     product_description: it.product_description,
     quantity: Number(it.quantity),
@@ -70,6 +81,8 @@ export default async function EstimateViewPage({
           estimateNumber={estimate.estimate_number}
           estimateDate={estimate.estimate_date ?? ""}
           status={estimate.status ?? "Draft"}
+          invoiceId={convertedInvoice?.id ?? undefined}
+          invoiceNumber={convertedInvoice?.invoice_number ?? undefined}
           validUntil={estimate.valid_until ?? null}
           notes={estimate.notes ?? null}
           projectName={estimate.project_name ?? null}

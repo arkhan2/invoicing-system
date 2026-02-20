@@ -273,7 +273,24 @@ These are set in `.document-page` and related classes in `globals.css` with `!im
 
 ---
 
-## 9. Quick reference: “Where do I use what?”
+## 9. Calculation table (estimate / invoice forms)
+
+The discount & tax table (Total, Discount, Total after discount, Sales tax, G.Total) uses:
+
+| Element | Background | Text | Border |
+|--------|------------|------|--------|
+| Wrapper | (inherits card) | — | `--color-outline` |
+| Header row | `--color-surface-variant` | `--color-on-surface-variant` | `--color-outline` (bottom) |
+| Body rows | (inherits card) | Label: `--color-on-surface-variant`, Amount: `--color-on-surface` | `--color-divider` (bottom) |
+| Body row hover | `--color-surface-variant` at 20% | — | — |
+| G.Total row | `--color-surface-variant` | Label: `--color-on-surface`, Amount: `--color-primary` | `--color-outline` (top, 2px) |
+| Inputs/selects in table | `--color-input-bg` (via inputClass) | `--color-on-surface` | `--color-input-border` |
+
+G.Total label uses on-surface; the amount uses primary so the total is clearly visible and theme-stable in light and dark.
+
+---
+
+## 10. Quick reference: “Where do I use what?”
 
 | Need | Use |
 |------|-----|

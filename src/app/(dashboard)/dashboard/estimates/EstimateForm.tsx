@@ -272,7 +272,7 @@ export function EstimateForm({
   const today = new Date().toISOString().slice(0, 10);
   const displayStatus = status === "Sent" && validUntil && validUntil < today ? "Expired" : status;
   const canSend = isEdit && displayStatus === "Draft";
-  const canConvert = isEdit && displayStatus !== "Converted" && displayStatus !== "Expired";
+  const canConvert = isEdit && displayStatus !== "Converted";
 
   async function handleSend() {
     if (!estimateId) return;
@@ -893,9 +893,9 @@ export function EstimateForm({
                       {salesTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
-                  <tr className="border-t-2 border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30">
+                  <tr className="border-t-2 border-[var(--color-outline)] bg-[var(--color-surface-variant)]">
                     <td className="p-2.5 font-semibold text-[var(--color-on-surface)]">G.Total</td>
-                    <td className="p-2.5 text-right text-base font-semibold text-[var(--color-on-surface)]">
+                    <td className="p-2.5 text-right text-base font-semibold text-primary">
                       {finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                   </tr>

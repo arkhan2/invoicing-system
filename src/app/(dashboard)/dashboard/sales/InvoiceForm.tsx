@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,20 +11,28 @@ import {
   type InvoiceFormState,
 } from "./actions";
 import { searchItems } from "@/app/(dashboard)/dashboard/items/actions";
-import { Save, Loader2, X, PlusCircle, Trash2 } from "lucide-react";
+import { Save, Loader2, X, PlusCircle, Trash2, Search, Plus, Pencil } from "lucide-react";
 import { LineItemsEditor, type LineItemRow } from "@/components/LineItemsEditor";
 import { IconButton } from "@/components/IconButton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Modal } from "@/components/Modal";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { AddItemsFromCatalogModal } from "@/app/(dashboard)/dashboard/estimates/AddItemsFromCatalogModal";
 import { useInvoicesTopBar } from "./InvoicesTopBarContext";
+import { CustomerForm, type Customer } from "@/app/(dashboard)/dashboard/customers/CustomerForm";
+import {
+  searchCustomers,
+  getCustomerById,
+  type CustomerSearchResult,
+} from "@/app/(dashboard)/dashboard/customers/actions";
 
 const inputClass =
   "w-full min-h-[2.5rem] border border-[var(--color-input-border)] rounded-xl px-3 py-2.5 text-[var(--color-on-surface)] bg-[var(--color-input-bg)] placeholder:text-[var(--color-on-surface-variant)] transition-colors duration-200 focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]";
 const labelClass = "block text-sm font-medium text-[var(--color-on-surface)] mb-1.5";
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 const STATUS_OPTIONS = ["Draft", "Final", "Sent"] as const;
-const DELIVERY_TIME_UNITS = ["days", "weeks", "months"] as const;
 
 export type TermsType = "" | "due_on_receipt" | "net_15" | "net_30" | "eom" | "custom";
 const TERMS_OPTIONS: { value: TermsType; label: string }[] = [
@@ -110,7 +118,7 @@ export type UomOption = { id: string; code: string; description: string };
 export function InvoiceForm({
   invoiceId,
   companyId,
-  customers,
+  customers = [],
   company,
   salesTaxRates = [],
   uomList = [],
@@ -125,8 +133,6 @@ export function InvoiceForm({
   initialPaymentTerms,
   initialTermsType,
   initialDueDate,
-  initialDeliveryTimeAmount,
-  initialDeliveryTimeUnit,
   initialDiscountAmount,
   initialDiscountType,
   initialSalesTaxRateId,
@@ -137,7 +143,7 @@ export function InvoiceForm({
 }: {
   invoiceId: string | null;
   companyId: string;
-  customers: (CustomerOption | { id: string; name: string })[];
+  customers?: (CustomerOption | { id: string; name: string })[];
   company?: {
     name: string;
     address?: string | null;
@@ -152,7 +158,7 @@ export function InvoiceForm({
   initialInvoiceNumber?: string | null;
   initialInvoiceDate?: string | null;
   initialCustomerId?: string;
-  initialSelectedCustomer?: CustomerOption | null;
+  initialSelectedCustomer?: CustomerSearchResult | null;
   initialPoNumber?: string | null;
   initialNotes?: string | null;
   initialProjectName?: string | null;
@@ -160,8 +166,6 @@ export function InvoiceForm({
   initialPaymentTerms?: string | null;
   initialTermsType?: TermsType | null;
   initialDueDate?: string | null;
-  initialDeliveryTimeAmount?: number | null;
-  initialDeliveryTimeUnit?: string | null;
   initialDiscountAmount?: string | null;
   initialDiscountType?: "amount" | "percentage";
   initialSalesTaxRateId?: string | null;
@@ -182,6 +186,16 @@ export function InvoiceForm({
   );
   const [state, setState] = useState<InvoiceFormState>({});
   const [customerId, setCustomerId] = useState(initialCustomerId ?? "");
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(
+    initialSelectedCustomer ?? null
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<CustomerSearchResult[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [customerModal, setCustomerModal] = useState<"add" | "edit" | null>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [invoiceDate, setInvoiceDate] = useState(() =>
     initialInvoiceDate ?? new Date().toISOString().slice(0, 10)
   );
@@ -199,12 +213,6 @@ export function InvoiceForm({
   const [dueDate, setDueDate] = useState(
     initialDueDate ?? ""
   );
-  const [deliveryTimeAmount, setDeliveryTimeAmount] = useState(
-    initialDeliveryTimeAmount != null ? String(initialDeliveryTimeAmount) : ""
-  );
-  const [deliveryTimeUnit, setDeliveryTimeUnit] = useState<"days" | "weeks" | "months" | "">(
-    (initialDeliveryTimeUnit && ["days", "weeks", "months"].includes(initialDeliveryTimeUnit) ? initialDeliveryTimeUnit : "") as "days" | "weeks" | "months" | ""
-  );
   const [discountAmount, setDiscountAmount] = useState(initialDiscountAmount ?? "");
   const [discountType, setDiscountType] = useState<"amount" | "percentage">(
     initialDiscountType === "percentage" ? "percentage" : "amount"
@@ -215,10 +223,56 @@ export function InvoiceForm({
   );
   const [addItemsModalOpen, setAddItemsModalOpen] = useState(false);
 
-  const selectedCustomer = useMemo(
-    () => customers.find((c) => c.id === customerId) as CustomerOption | undefined,
-    [customers, customerId]
+
+  const runSearch = useCallback(
+    async (q: string) => {
+      if (!q.trim()) {
+        setSearchResults([]);
+        return;
+      }
+      setSearchLoading(true);
+      const list = await searchCustomers(companyId, q);
+      setSearchResults(list);
+      setSearchLoading(false);
+    },
+    [companyId]
   );
+
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => runSearch(searchQuery), SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchQuery, runSearch]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectCustomer = useCallback((c: CustomerSearchResult) => {
+    setCustomerId(c.id);
+    setSelectedCustomer(c);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchOpen(false);
+  }, []);
+
+  const handleClearCustomer = useCallback(() => {
+    setCustomerId("");
+    setSelectedCustomer(null);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchOpen(false);
+  }, []);
 
   // When terms type or invoice date changes, update due date (unless custom)
   useEffect(() => {
@@ -230,6 +284,7 @@ export function InvoiceForm({
   useEffect(() => {
     if (hasInitialData && isEdit) {
       if (initialCustomerId) setCustomerId(initialCustomerId);
+      if (initialSelectedCustomer) setSelectedCustomer(initialSelectedCustomer);
       if (initialInvoiceDate) setInvoiceDate(initialInvoiceDate);
       if (initialStatus && ["Draft", "Final", "Sent"].includes(initialStatus)) setStatus(initialStatus as "Draft" | "Final" | "Sent");
       if (initialItems && initialItems.length > 0) setItems(initialItems);
@@ -249,6 +304,10 @@ export function InvoiceForm({
       }
       const inv = data.invoice as { terms_type?: string | null; due_date?: string | null; invoice_date?: string | null };
       setCustomerId(data.invoice.customer_id);
+      if (data.invoice.customer_id) {
+        const customer = await getCustomerById(companyId, data.invoice.customer_id);
+        if (customer && !cancelled) setSelectedCustomer(customer);
+      }
       const invDate = data.invoice.invoice_date ?? new Date().toISOString().slice(0, 10);
       setInvoiceDate(invDate);
       setStatus(
@@ -282,12 +341,6 @@ export function InvoiceForm({
         setTermsType("");
         setDueDate("");
       }
-      setDeliveryTimeAmount(data.invoice.delivery_time_amount != null ? String(data.invoice.delivery_time_amount) : "");
-      setDeliveryTimeUnit(
-        (data.invoice.delivery_time_unit === "days" || data.invoice.delivery_time_unit === "weeks" || data.invoice.delivery_time_unit === "months")
-          ? data.invoice.delivery_time_unit
-          : ""
-      );
       setDiscountAmount(data.invoice.discount_amount != null ? String(data.invoice.discount_amount) : "");
       setDiscountType((data.invoice as { discount_type?: string }).discount_type === "percentage" ? "percentage" : "amount");
       setSalesTaxRateId(data.invoice.sales_tax_rate_id ?? "");
@@ -297,7 +350,7 @@ export function InvoiceForm({
     return () => {
       cancelled = true;
     };
-  }, [invoiceId, hasInitialData, initialCustomerId, initialInvoiceDate, initialStatus, initialItems]);
+  }, [invoiceId, companyId, hasInitialData, initialCustomerId, initialSelectedCustomer, initialInvoiceDate, initialStatus, initialItems]);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -312,8 +365,8 @@ export function InvoiceForm({
     formData.set("payment_terms", paymentTerms.trim());
     formData.set("terms_type", termsType);
     formData.set("due_date", dueDate.trim());
-    formData.set("delivery_time_amount", deliveryTimeAmount);
-    formData.set("delivery_time_unit", deliveryTimeUnit);
+    formData.set("delivery_time_amount", "");
+    formData.set("delivery_time_unit", "");
     formData.set("discount_amount", discountAmount);
     formData.set("discount_type", discountType);
     formData.set("sales_tax_rate_id", salesTaxRateId.trim());
@@ -524,24 +577,94 @@ export function InvoiceForm({
                 Customer
               </h3>
               <div className="space-y-3">
-                <label htmlFor="invoice-customer" className={labelClass}>
-                  Customer name <span className="text-[var(--color-error)]">*</span>
-                </label>
-                <select
-                  id="invoice-customer"
-                  name="customer_id"
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  required
-                  className={inputClass + " !min-h-[2.5rem] cursor-pointer"}
-                >
-                  <option value="">— Select customer —</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label htmlFor="invoice-customer" className={labelClass}>
+                    Customer name <span className="text-[var(--color-error)]">*</span>
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <IconButton
+                      variant="add"
+                      icon={<Plus className="w-4 h-4" />}
+                      label="Add customer"
+                      onClick={() => setCustomerModal("add")}
+                    />
+                    {selectedCustomer && (
+                      <IconButton
+                        variant="edit"
+                        icon={<Pencil className="w-4 h-4" />}
+                        label="Edit customer"
+                        onClick={() => setCustomerModal("edit")}
+                      />
+                    )}
+                  </div>
+                </div>
+                <input type="hidden" name="customer_id" value={customerId} />
+                {selectedCustomer ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-[var(--color-outline)] bg-[var(--color-input-bg)] px-3 py-2.5 min-h-[2.5rem]">
+                    <span className="flex-1 text-sm text-[var(--color-on-surface)]">{selectedCustomer.name}</span>
+                    <button
+                      type="button"
+                      onClick={handleClearCustomer}
+                      className="shrink-0 rounded p-1 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
+                      aria-label="Change customer"
+                      title="Change customer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div ref={searchRef} className="relative">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-[var(--color-on-surface-variant)]" aria-hidden />
+                      <input
+                        id="invoice-customer"
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setSearchOpen(true);
+                        }}
+                        onFocus={() => setSearchOpen(true)}
+                        placeholder="Search customers by name, email, or phone…"
+                        className={inputClass + " h-[2.5rem] min-h-0 pl-9"}
+                        autoComplete="off"
+                      />
+                    </div>
+                    {searchOpen && (
+                      <div className="absolute top-full left-0 right-0 z-10 mt-1 max-h-60 overflow-y-auto rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] shadow-lg">
+                        {searchLoading ? (
+                          <div className="flex items-center justify-center gap-2 px-3 py-4 text-sm text-[var(--color-on-surface-variant)]">
+                            <Loader2 className="w-4 h-4 animate-spin" /> Searching…
+                          </div>
+                        ) : searchResults.length === 0 ? (
+                          <div className="px-3 py-4 text-sm text-[var(--color-on-surface-variant)]">
+                            {searchQuery.trim() ? "No customers found. Add one with + above." : "Type to search customers."}
+                          </div>
+                        ) : (
+                          <ul className="py-1" role="listbox">
+                            {searchResults.map((c) => (
+                              <li key={c.id}>
+                                <button
+                                  type="button"
+                                  role="option"
+                                  className="w-full px-3 py-2.5 text-left text-sm text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
+                                  onClick={() => handleSelectCustomer(c)}
+                                >
+                                  <span className="font-medium">{c.name}</span>
+                                  {(c.email || c.phone) && (
+                                    <span className="ml-2 text-[var(--color-on-surface-variant)]">
+                                      {[c.email, c.phone].filter(Boolean).join(" · ")}
+                                    </span>
+                                  )}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {selectedCustomer && billingLines.length > 0 && (
                   <div className="rounded-xl border border-[var(--color-divider)] bg-[var(--color-surface-variant)]/20 p-3">
                     <p className="text-xs font-medium uppercase tracking-wider text-[var(--color-on-surface-variant)] mb-1">
@@ -668,32 +791,6 @@ export function InvoiceForm({
                     placeholder="e.g. Due on receipt"
                   />
                 </div>
-                <div>
-                  <label htmlFor="invoice-delivery-amount" className={labelClass}>Delivery time</label>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <input
-                      id="invoice-delivery-amount"
-                      name="delivery_time_amount"
-                      type="number"
-                      min={0}
-                      value={deliveryTimeAmount}
-                      onChange={(e) => setDeliveryTimeAmount(e.target.value)}
-                      className={inputClass + " h-[2.5rem] min-h-0 w-24"}
-                      placeholder="0"
-                    />
-                    <select
-                      name="delivery_time_unit"
-                      value={deliveryTimeUnit}
-                      onChange={(e) => setDeliveryTimeUnit(e.target.value as "days" | "weeks" | "months" | "")}
-                      className={inputClass + " h-[2.5rem] min-h-0 w-28 cursor-pointer"}
-                    >
-                      <option value="">—</option>
-                      {DELIVERY_TIME_UNITS.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
               </div>
             </section>
           </div>
@@ -731,11 +828,11 @@ export function InvoiceForm({
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-[var(--color-divider)]">
+                  <tr className="border-b border-[var(--color-divider)] hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150">
                     <td className="p-2.5 text-[var(--color-on-surface-variant)]">Total</td>
                     <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
-                  <tr className="border-b border-[var(--color-divider)] align-middle">
+                  <tr className="border-b border-[var(--color-divider)] hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150 align-middle">
                     <td className="p-2.5">
                       <div className="flex min-w-0 flex-nowrap items-center gap-2">
                         <span className="shrink-0 text-[var(--color-on-surface-variant)]">Discount</span>
@@ -761,11 +858,11 @@ export function InvoiceForm({
                     </td>
                     <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">-{discountValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
-                  <tr className="border-b border-[var(--color-divider)]">
+                  <tr className="border-b border-[var(--color-divider)] hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150">
                     <td className="p-2.5 text-[var(--color-on-surface-variant)]">Total after discount</td>
                     <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">{totalAfterDiscount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
-                  <tr className="border-b border-[var(--color-divider)] align-middle">
+                  <tr className="border-b border-[var(--color-divider)] hover:bg-[var(--color-surface-variant)]/20 transition-colors duration-150 align-middle">
                     <td className="p-2.5">
                       <div className="flex min-w-0 flex-nowrap items-center gap-2">
                         <span className="shrink-0 text-[var(--color-on-surface-variant)]">Sales tax</span>
@@ -784,9 +881,9 @@ export function InvoiceForm({
                     </td>
                     <td className="p-2.5 text-right font-medium text-[var(--color-on-surface)]">{salesTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
-                  <tr className="border-t-2 border-[var(--color-outline)] bg-[var(--color-surface-variant)]/30">
+                  <tr className="border-t-2 border-[var(--color-outline)] bg-[var(--color-surface-variant)]">
                     <td className="p-2.5 font-semibold text-[var(--color-on-surface)]">G.Total</td>
-                    <td className="p-2.5 text-right text-base font-semibold text-[var(--color-on-surface)]">{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                    <td className="p-2.5 text-right text-base font-semibold text-primary">{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                   </tr>
                 </tbody>
               </table>
@@ -823,6 +920,26 @@ export function InvoiceForm({
       onConfirm={handleDelete}
       onCancel={() => setDeleteState(null)}
     />
+    <Modal
+      open={customerModal !== null}
+      onClose={() => setCustomerModal(null)}
+      title={customerModal === "add" ? "Add customer" : "Edit customer"}
+    >
+      <CustomerForm
+        customer={customerModal === "edit" && selectedCustomer ? (selectedCustomer as Customer) : null}
+        companyId={companyId}
+        onSuccess={async (newId) => {
+          setCustomerModal(null);
+          if (newId) {
+            setCustomerId(newId);
+            const customer = await getCustomerById(companyId, newId);
+            if (customer) setSelectedCustomer(customer);
+          }
+          router.refresh();
+        }}
+        onCancel={() => setCustomerModal(null)}
+      />
+    </Modal>
     </>
   );
 }

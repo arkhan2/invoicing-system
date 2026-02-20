@@ -600,11 +600,6 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Esti
     .single();
   if (eErr || !estimate) return { error: "Estimate not found." };
   if (estimate.status === "Converted") return { error: "This estimate was already converted to an invoice." };
-  const validUntil = (estimate as { valid_until?: string | null }).valid_until;
-  const isExpiredByDate = validUntil && validUntil < new Date().toISOString().slice(0, 10);
-  if (estimate.status === "Expired" || isExpiredByDate) {
-    return { error: "Cannot convert an expired estimate." };
-  }
 
   const { data: company } = await supabase
     .from("companies")

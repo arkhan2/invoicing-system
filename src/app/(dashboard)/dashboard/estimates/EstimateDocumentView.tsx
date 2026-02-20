@@ -183,6 +183,8 @@ export function EstimateDocumentView({
   company,
   customer,
   items,
+  invoiceId = null,
+  invoiceNumber = null,
 }: {
   estimateId: string;
   estimateNumber: string;
@@ -203,6 +205,8 @@ export function EstimateDocumentView({
   company: Company;
   customer: Customer;
   items: Item[];
+  invoiceId?: string | null;
+  invoiceNumber?: string | null;
 }) {
   const router = useRouter();
   const [convertState, setConvertState] = useState<{ loading: boolean } | null>(null);
@@ -242,7 +246,7 @@ export function EstimateDocumentView({
   } | null>(null);
 
   const displayStatus = effectiveStatus(status, validUntil ?? null);
-  const canConvert = displayStatus !== "Converted" && displayStatus !== "Expired";
+  const canConvert = displayStatus !== "Converted";
   const canSend = displayStatus === "Draft";
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
   const totalQty = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
@@ -758,19 +762,40 @@ export function EstimateDocumentView({
   return (
     <>
       <div className="flex h-full min-h-0 w-full flex-col">
-        {/* Document body: grey area + one or more A4 pages, scaled to fit */}
+        {/* Document body: grey area + badge (scrolls with content) + A4 pages, same layout as invoice doc view */}
         <div
           ref={containerRef}
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[var(--color-outline)]/20 pt-8 pb-20 flex justify-center lg:pb-8"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[var(--color-outline)]/20 pt-8 pb-20 lg:pb-8"
           style={{
             paddingLeft: "max(1rem, env(safe-area-inset-left))",
             paddingRight: "max(1rem, env(safe-area-inset-right))",
           }}
         >
-          <div
-            style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
-            className="shrink-0"
-          >
+          <div className="flex flex-col items-center w-full">
+            {invoiceNumber && (
+              <div className="flex justify-end w-[210mm] max-w-full shrink-0">
+                {invoiceId ? (
+                  <Link
+                    href={`/dashboard/sales/${invoiceId}`}
+                    className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)] hover:opacity-90"
+                    role="status"
+                  >
+                    To invoice #{invoiceNumber}
+                  </Link>
+                ) : (
+                  <span
+                    className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-[var(--color-secondary-container)] text-[var(--color-on-secondary-container)]"
+                    role="status"
+                  >
+                    To invoice #{invoiceNumber}
+                  </span>
+                )}
+              </div>
+            )}
+            <div
+              style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
+              className="shrink-0 flex justify-center w-full"
+            >
             <div ref={documentRef} className="relative space-y-8">
             {/* Hidden probe: fixed + visibility:hidden ensures correct layout measurement */}
             <div
@@ -1009,6 +1034,7 @@ export function EstimateDocumentView({
               return pages;
             })()}
             </div>
+          </div>
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Plus, Trash2, Copy, GripVertical, Search } from "lucide-react";
+import { Plus, Trash2, Copy, GripVertical } from "lucide-react";
 import { IconButton } from "@/components/IconButton";
 import type { ItemSearchResult } from "@/app/(dashboard)/dashboard/items/actions";
 
@@ -338,61 +338,6 @@ export function LineItemsEditor({
                       className={inputClass + " min-h-[2.25rem] flex-1 resize-none overflow-hidden"}
                       placeholder="Product or service"
                     />
-                    {canPickItems && (
-                      <div ref={itemPickerRef} className="relative shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setItemPickerRow(itemPickerRow === dataIndex ? null : dataIndex)}
-                          className="shrink-0 rounded p-1.5 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-primary)] transition-colors"
-                          aria-label="Pick from catalog"
-                          title="Pick from catalog"
-                        >
-                          <Search className="w-4 h-4" />
-                        </button>
-                        {itemPickerRow === dataIndex && (
-                          <div className="absolute left-0 top-full z-20 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--color-outline)] bg-[var(--color-card-bg)] shadow-lg">
-                            <input
-                              type="text"
-                              value={itemSearchQuery}
-                              onChange={(e) => setItemSearchQuery(e.target.value)}
-                              placeholder="Search items…"
-                              className={inputClass + " m-2 w-[calc(100%-1rem)]"}
-                              autoFocus
-                            />
-                            <div className="max-h-48 overflow-y-auto py-1">
-                              {itemSearchLoading ? (
-                                <div className="px-3 py-4 text-center text-sm text-[var(--color-on-surface-variant)]">
-                                  Searching…
-                                </div>
-                              ) : itemSearchResults.length === 0 ? (
-                                <div className="px-3 py-4 text-sm text-[var(--color-on-surface-variant)]">
-                                  {itemSearchQuery.trim() ? "No items found." : "Type to search items."}
-                                </div>
-                              ) : (
-                                <ul className="py-1">
-                                  {itemSearchResults.map((item) => (
-                                    <li key={item.id}>
-                                      <button
-                                        type="button"
-                                        className="w-full px-3 py-2 text-left text-sm text-[var(--color-on-surface)] hover:bg-[var(--color-surface-variant)]"
-                                        onClick={() => applyItemToRow(dataIndex, item)}
-                                      >
-                                        <span className="font-medium">{item.name}</span>
-                                        {item.unit_rate != null && (
-                                          <span className="ml-2 text-[var(--color-on-surface-variant)]">
-                                            {item.unit_rate} {item.uom}
-                                          </span>
-                                        )}
-                                      </button>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </td>
                 <td className={`w-20 py-1.5 px-1 align-top text-right ${cellBg}`}>
