@@ -136,7 +136,7 @@ export function InvoiceList({
                       <td className="max-w-[180px] truncate p-3 text-[var(--color-on-surface)]" title={inv.customer_name || undefined}>{inv.customer_name || "—"}</td>
                       <td className="hidden max-w-[120px] truncate p-3 text-[var(--color-on-surface-variant)] lg:table-cell" title={inv.estimate_number || undefined}>{inv.estimate_number ?? "—"}</td>
                       <td className="hidden p-3 lg:table-cell">
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${inv.status === "Final" || inv.status === "Sent" ? "bg-[var(--color-badge-success-bg)] text-[var(--color-badge-success-text)]" : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"}`}>{inv.status}</span>
+                        <span className="invoice-status-badge whitespace-nowrap" data-status={inv.status?.toLowerCase() ?? "draft"}>{inv.status}</span>
                       </td>
                       <td className="w-24 shrink-0 p-3 text-right font-medium tabular-nums text-[var(--color-on-surface)]">{inv.total_amount != null ? Number(inv.total_amount).toFixed(2) : "—"}</td>
                       <td className="w-28 shrink-0 p-3 text-right">

@@ -7,9 +7,12 @@ Use this file when opening a new chat in the **invoicing-system** workspace so t
 ## 1. Product overview
 
 - **Sales & purchase invoicing** with optional **FBR (Pakistan Federal Board of Revenue) Digital Invoicing** integration.
-- **Users** sign in, create **one company** (per user), then manage **customers** (for sales), **items**, **tax**, and **invoices**.
+- **Users** sign in, create **one company** (per user), then manage **customers**, **vendors**, **items**, **tax**, **estimates**, and **sales invoices**.
+- **Estimates** – create/send/expire; convert to **sales invoice**; document view with PDF export; status Draft/Sent/Expired/Converted. Linked invoice shown as “To invoice #…” badge (clickable).
+- **Sales invoices** – create/edit; optional link to estimate (`estimate_id`); document view with PDF export; “From estimate #…” badge when from estimate (clickable). Terms/due date; no delivery-time field. Customer search (same as estimate), add/edit customer modal.
+- **Purchase invoices** – not yet implemented.
 - **Sales invoices** can be submitted to FBR via a **separate middleware** (Phase 6). **Purchase invoices** are **not** sent to FBR.
-- **Payments** on both sales and purchase invoices: amount, **deducted tax** (yes/no + amount), **mode of payment**, **reference payment ID**, date, notes.
+- **Payments** on both sales and purchase invoices: amount, deducted tax, mode of payment, reference payment ID, date, notes (Phase 3/4).
 
 ---
 
@@ -18,7 +21,7 @@ Use this file when opening a new chat in the **invoicing-system** workspace so t
 | Layer | Choice | Reason |
 |-------|--------|--------|
 | **Database** | **Supabase (PostgreSQL)** | Auth, RLS, one place for app + optional middleware audit log. |
-| **Main app** | **Next.js 14 (App Router)** on **Vercel** | SSR, API routes, good Supabase fit. |
+| **Main app** | **Next.js 16 (App Router)** on **Vercel** | SSR, API routes, good Supabase fit. |
 | **FBR integration** | **Separate middleware** (own Vercel project) | Keeps FBR token and logic out of main app; single place for validate/post, idempotency, retries. |
 | **Auth** | **Supabase Auth** (Email/Password) | `auth.users`; `companies.user_id` → `auth.users(id)`. |
 
@@ -28,20 +31,21 @@ Flow: **App** → (HTTPS + API key) → **Middleware** → (Bearer token) → **
 
 ## 3. Data model (Supabase)
 
-- **companies** – one per user; `user_id` → `auth.users(id)`; holds seller details for FBR, invoice number prefixes/sequences.
-- **customers** – per company; buyer for sales invoices (NTN/CNIC, province, registration type, etc.).
-- **tax_rates** – per company (e.g. 0%, 5%, 18%); one can be default.
-- **uom** – system-wide (KG, Nos, Ltr, etc.); seeded in schema.
-- **items** – per company; name, description, reference, HS code, unit_rate (pre-fills line item price), default tax, UOM, sale type.
-- **sales_invoices** – company + customer; status Draft/Final/Sent; optional `fbr_irn`, `fbr_status`, `fbr_sent_at`.
-- **sales_invoice_items** – line items (FBR-shaped: hs_code, rate_label, uom, value_sales_excluding_st, sales_tax_applicable, etc.).
-- **sales_invoice_payments** – amount, deducted_tax, deducted_tax_amount, mode_of_payment, reference_payment_id, payment_date.
-- **purchase_invoices** – company; no FBR.
-- **purchase_invoice_items** – line items (simpler: quantity, unit_price, tax_amount, total_amount).
-- **purchase_invoice_payments** – same payment fields as sales.
-- **fbr_submission_log** – optional audit table for middleware (company_id, sales_invoice_id, action, request/response, status_code).
+- **companies** – one per user; `user_id` → `auth.users(id)`; seller details, logo, invoice/estimate prefixes, tax rates config.
+- **customers** – per company; buyer for sales/estimates (NTN/CNIC, address, contact, etc.); CSV import.
+- **vendors** – per company; structure mirrors customers; CSV import.
+- **company_sales_tax_rates** – per company (name, rate %); used on estimates and sales invoices.
+- **uom** – system-wide (KG, Nos, Ltr, etc.); seeded.
+- **items** – per company; item_number, description, HS code, unit_rate, UOM, sale type; CSV import; catalog for line items.
+- **estimates** – company + customer; estimate_number, date, status (Draft/Sent/Expired/Converted), valid_until, notes, project_name, subject, payment_terms, delivery_time, discount, sales_tax_rate_id, total_amount, total_tax.
+- **estimate_items** – line items per estimate.
+- **sales_invoices** – company + customer; optional **estimate_id** (converted from estimate); invoice_number, date, status (Draft/Final/Sent), terms_type, due_date, discount, sales_tax_rate_id, total_amount, total_tax; no delivery_time on invoice.
+- **sales_invoice_items** – line items (FBR-shaped: hs_code, rate_label, uom, value_sales_excluding_st, etc.).
+- **sales_invoice_payments** – amount, deducted_tax, mode_of_payment, reference_payment_id, payment_date (for future use).
+- **purchase_invoices**, **purchase_invoice_items**, **purchase_invoice_payments** – not yet used.
+- **fbr_submission_log** – optional audit table for middleware.
 
-RLS: all company-scoped tables are restricted so `auth.uid()` only sees rows for their company (via `companies.user_id`).
+Schema is applied via **supabase/migrations/** (run in order); **supabase/schema.sql** is the legacy single-file reference. RLS: company-scoped tables restricted by `companies.user_id = auth.uid()`.
 
 ---
 
@@ -68,25 +72,26 @@ RLS: all company-scoped tables are restricted so `auth.uid()` only sees rows for
 | Phase | Status | Description |
 |-------|--------|-------------|
 | **1** | **Done** | DB schema in Supabase; Next.js app with auth (login/signup); dashboard layout and placeholder pages (Company, Customers, Items, Sales, Purchases); Supabase client/server + middleware for cookies. |
-| **2** | Pending | Company CRUD + onboarding (create company if none); Customers, Tax rates, Items CRUD. |
-| **3** | Pending | Sales invoices: create/edit, line items, totals, payments; finalize; list/detail. |
+| **2** | **Done** | Company CRUD + onboarding; Customers, Vendors, Tax rates (company_sales_tax_rates), Items CRUD; CSV import for customers, vendors, items, estimates. |
+| **3** | **Done** | **Estimates:** create/edit, line items, discount, sales tax, document view, PDF export, send, convert to invoice, status badges; list/detail/edit. **Sales invoices:** create/edit, line items, discount, sales tax, terms/due date, document view, PDF export, link from estimate; customer search (like estimate); list/detail/edit. Estimate ↔ invoice badges (clickable) on document views. |
 | **4** | Pending | Purchase invoices: same flow; payments. |
-| **5** | Pending | Polish, navigation, dashboard content. |
+| **5** | **Done** (ongoing) | Polish: responsive layout, list/detail/sidebar patterns, design system (VISUAL-DESIGN-AND-COLORS.md, UI-DESIGN.md), calculation table colors, G.Total styling. |
 | **6** | Pending | FBR middleware project; “Submit to FBR” in app for finalized sales invoices. |
 
 ---
 
 ## 7. Tech stack (current)
 
-- **Next.js 14** (App Router), **TypeScript**, **Tailwind CSS**.
+- **Next.js 16** (App Router), **TypeScript**, **Tailwind CSS**.
 - **Supabase:** `@supabase/supabase-js`, `@supabase/ssr` (client, server, middleware).
-- **Key paths:** `src/app/` (routes), `src/lib/supabase/` (createClient), `src/middleware.ts`, `supabase/schema.sql`.
+- **UI:** Radix (dialog, dropdown, popover, select), Lucide icons, html2canvas + jspdf for PDF export.
+- **Key paths:** `src/app/(dashboard)/dashboard/` (company, customers, vendors, items, estimates, sales), `src/lib/supabase/`, `src/components/`, `supabase/migrations/`, `docs/` (VISUAL-DESIGN-AND-COLORS.md, UI-DESIGN.md, PRAL spec).
 
 ---
 
 ## 8. Env vars
 
-- **App (`.env.local`):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Optional later: `SUPABASE_SERVICE_ROLE_KEY`, `FBR_MIDDLEWARE_URL`, `FBR_MIDDLEWARE_API_KEY`.
+- **App (`.env.local`):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Optional: `SUPABASE_SERVICE_ROLE_KEY`, `FBR_MIDDLEWARE_URL`, `FBR_MIDDLEWARE_API_KEY` (Phase 6).
 - **Middleware (Phase 6):** `FBR_BEARER_TOKEN`, `FBR_BASE_URL`, `MIDDLEWARE_API_KEY`, optionally `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` for `fbr_submission_log`.
 
 ---
@@ -100,7 +105,8 @@ RLS: all company-scoped tables are restricted so `auth.uid()` only sees rows for
 
 ## 10. Quick reference for next chat
 
-- **Goal:** Continue from **Phase 2** (Company CRUD, then Customers, Tax rates, Items).
-- **DB:** All tables and RLS are in `supabase/schema.sql`; already run in Supabase.
-- **Auth:** Supabase Auth; `createClient()` from `@/lib/supabase/client` (browser) or `@/lib/supabase/server` (RSC/API). Dashboard routes are protected in `(dashboard)/layout.tsx` via `getUser()` and redirect to `/login` if not authenticated.
-- **Company:** One company per user; dashboard home prompts “Create company” if none exists and links to `/dashboard/company`.
+- **Done:** Company, customers, vendors, items (CRUD + import); estimates (full flow + PDF + convert); sales invoices (full flow + PDF + estimate link + customer search). Document view badges link estimate ↔ invoice.
+- **Next:** Phase 4 (purchase invoices) or Phase 6 (FBR middleware + submit to FBR).
+- **DB:** Schema applied via `supabase/migrations/`; `supabase/schema.sql` is legacy reference. RLS on all company-scoped tables.
+- **Auth:** Supabase Auth; `createClient()` from `@/lib/supabase/client` (browser) or `@/lib/supabase/server` (RSC/API). Dashboard protected in `(dashboard)/layout.tsx`; redirect to `/login` if not authenticated.
+- **Design:** Semantic colors in `src/app/globals.css`; components use `var(--color-*)`. See `docs/VISUAL-DESIGN-AND-COLORS.md` and `docs/UI-DESIGN.md`.

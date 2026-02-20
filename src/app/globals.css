@@ -349,6 +349,29 @@
   color: var(--color-estimate-converted-text);
 }
 
+/* Invoice status badge — use data-status="draft"|"final"|"sent" */
+.invoice-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill, 9999px);
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.invoice-status-badge[data-status="draft"] {
+  background-color: var(--color-estimate-draft-bg);
+  color: var(--color-estimate-draft-text);
+}
+.invoice-status-badge[data-status="final"] {
+  background-color: var(--color-badge-success-bg);
+  color: var(--color-badge-success-text);
+}
+.invoice-status-badge[data-status="sent"] {
+  background-color: var(--color-estimate-sent-bg);
+  color: var(--color-estimate-sent-text);
+}
+
 /* =============================================================================
    ELEMENT TOKENS (use palette variables so they respect light/dark)
    ============================================================================= */

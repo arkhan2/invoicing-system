@@ -461,6 +461,23 @@ export async function deleteInvoice(invoiceId: string): Promise<InvoiceFormState
   return {};
 }
 
+export async function setInvoiceStatus(
+  invoiceId: string,
+  status: "Draft" | "Final" | "Sent"
+): Promise<InvoiceFormState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+  const { error } = await supabase
+    .from("sales_invoices")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", invoiceId);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/sales");
+  revalidatePath(`/dashboard/sales/${invoiceId}`);
+  return {};
+}
+
 const DELETE_INVOICES_CHUNK_SIZE = 80;
 
 export type DeleteInvoicesResult = {
@@ -525,6 +542,10 @@ export type MappedInvoice = {
   discount_amount: number;
   discount_type: "amount" | "percentage";
   estimate_number: string | null;
+  /** Sales tax percentage (0–100) from CSV; used to resolve company_sales_tax_rates. */
+  tax_percent?: number | null;
+  /** Optional tax name from CSV (e.g. "GST") when creating a new rate. */
+  tax_name?: string | null;
   items: MappedInvoiceItem[];
 };
 
@@ -578,6 +599,42 @@ async function getEstimateIdByNumber(
     .limit(1)
     .maybeSingle();
   return data?.id ?? null;
+}
+
+/** Parse and clamp sales tax percentage from CSV (0–100). Returns null if invalid. */
+function parseTaxPercent(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const s = String(value).replace(/,/g, "").trim();
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  if (n < 0 || n > 100) return null;
+  return Math.round(n * 100) / 100;
+}
+
+/** Get existing company_sales_tax_rates id by percentage, or create one. Cached by (companyId, percent). */
+async function getOrCreateSalesTaxRateByPercent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  companyId: string,
+  percent: number,
+  name?: string | null
+): Promise<string | null> {
+  const rate = Math.round(percent * 100) / 100;
+  const { data: existing } = await supabase
+    .from("company_sales_tax_rates")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("rate", rate)
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id;
+  const displayName = (name && name.trim()) ? name.trim().slice(0, 100) : `${rate}%`;
+  const { data: inserted, error } = await supabase
+    .from("company_sales_tax_rates")
+    .insert({ company_id: companyId, name: displayName, rate })
+    .select("id")
+    .single();
+  if (error || !inserted?.id) return null;
+  return inserted.id;
 }
 
 const INVOICE_IMPORT_BATCH = 50;
@@ -634,6 +691,7 @@ function runBatchImportInvoices(
   const skippedDuplicateNumber: string[] = [];
   const errors: string[] = [];
   const estimateCache = new Map<string, string | null>();
+  const taxRateCache = new Map<string, string | null>(); // key: "companyId:percent"
 
   return (async () => {
     for (let i = 0; i < mappedInvoices.length; i += INVOICE_IMPORT_BATCH) {
@@ -651,6 +709,7 @@ function runBatchImportInvoices(
         discount_amount: number;
         discount_type: string;
         estimate_id: string | null;
+        sales_tax_rate_id: string | null;
       }[] = [];
 
       for (const inv of chunk) {
@@ -663,6 +722,18 @@ function runBatchImportInvoices(
           } else {
             estimateId = estimateCache.get(key) ?? null;
           }
+        }
+        let salesTaxRateId: string | null = null;
+        const taxPercent = parseTaxPercent(inv.tax_percent);
+        if (taxPercent !== null) {
+          const cacheKey = `${companyId}:${taxPercent}`;
+          if (!taxRateCache.has(cacheKey)) {
+            taxRateCache.set(
+              cacheKey,
+              await getOrCreateSalesTaxRateByPercent(supabase, companyId, taxPercent, inv.tax_name)
+            );
+          }
+          salesTaxRateId = taxRateCache.get(cacheKey) ?? null;
         }
         invoiceRows.push({
           company_id: companyId,
@@ -677,6 +748,7 @@ function runBatchImportInvoices(
           discount_amount: inv.discount_amount,
           discount_type: inv.discount_type === "percentage" ? "percentage" : "amount",
           estimate_id: estimateId,
+          sales_tax_rate_id: salesTaxRateId,
         });
       }
 
@@ -786,6 +858,17 @@ async function runLegacyImportInvoices(
       ? await getEstimateIdByNumber(supabase, companyId, inv.estimate_number)
       : null;
 
+    let salesTaxRateId: string | null = null;
+    const taxPercent = parseTaxPercent(inv.tax_percent);
+    if (taxPercent !== null) {
+      salesTaxRateId = await getOrCreateSalesTaxRateByPercent(
+        supabase,
+        companyId,
+        taxPercent,
+        inv.tax_name
+      );
+    }
+
     const { data: inserted, error: insErr } = await supabase
       .from("sales_invoices")
       .insert({
@@ -801,6 +884,7 @@ async function runLegacyImportInvoices(
         discount_amount: inv.discount_amount,
         discount_type: inv.discount_type === "percentage" ? "percentage" : "amount",
         estimate_id: estimateId,
+        sales_tax_rate_id: salesTaxRateId,
       })
       .select("id")
       .single();

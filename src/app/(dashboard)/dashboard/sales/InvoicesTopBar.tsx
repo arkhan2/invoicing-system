@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus, ChevronLeft, List, FileSpreadsheet } from "lucide-react";
@@ -15,7 +16,9 @@ export function InvoicesTopBar() {
   const { barState } = useInvoicesTopBar();
   const listDrawer = useInvoicesListDrawer();
   const isLg = useMediaQuery("(min-width: 1024px)");
-  const showListButton = !isLg && listDrawer != null;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const showListButton = mounted && !isLg && listDrawer != null;
   const isList = pathname === "/dashboard/sales";
   const isNew = pathname === "/dashboard/sales/new";
   const isImport = pathname === "/dashboard/sales/import";

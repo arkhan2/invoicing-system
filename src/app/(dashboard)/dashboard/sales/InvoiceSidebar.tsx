@@ -51,7 +51,7 @@ export function InvoiceSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const globalSearch = useGlobalSearch();
-  const effectiveQuery = (globalSearch?.query ?? searchQueryProp ?? "").trim();
+  const effectiveQuery = (globalSearch?.searchQuery ?? searchQueryProp ?? "").trim();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteState, setDeleteState] = useState<SingleDeleteState | BulkDeleteState | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -326,7 +326,7 @@ export function InvoiceSidebar({
                           </span>
                         </div>
                         <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${isActive ? "bg-[var(--color-on-primary-container)]/20 text-[var(--color-on-primary-container)]" : "bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]"}`}>
+                          <span className={`invoice-status-badge text-[10px] px-2 py-0.5 ${isActive ? "!bg-[var(--color-on-primary-container)]/20 !text-[var(--color-on-primary-container)]" : ""}`} data-status={inv.status?.toLowerCase() ?? "draft"}>
                             {inv.status}
                           </span>
                           <span className="flex items-center gap-1">

@@ -11,7 +11,8 @@ export type GlobalSearchScope =
   | null;
 
 export type GlobalSearchContextValue = {
-  query: string;
+  /** Debounced search term; use this for filtering lists to avoid lag on every keystroke. */
+  searchQuery: string;
   setQuery: (value: string) => void;
   scope: GlobalSearchScope;
   isSearchableRoute: boolean;

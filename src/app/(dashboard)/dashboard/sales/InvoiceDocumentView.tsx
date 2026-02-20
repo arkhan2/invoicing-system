@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Pencil, Plus, Trash2, X, FileSpreadsheet, FileDown, Loader2 } from "lucide-react";
+import { Pencil, Plus, Trash2, X, FileSpreadsheet, FileDown, Loader2, Send } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { useInvoicesTopBar } from "./InvoicesTopBarContext";
-import { deleteInvoice } from "./actions";
+import { deleteInvoice, setInvoiceStatus } from "./actions";
 
 /** Fallback if measurement fails */
 const ROWS_FIRST_PAGE_FALLBACK = 14;
@@ -106,6 +106,7 @@ export function InvoiceDocumentView({
   const { setBarState } = useInvoicesTopBar();
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [sentLoading, setSentLoading] = useState(false);
   const [rowsFirstPage, setRowsFirstPage] = useState(ROWS_FIRST_PAGE_FALLBACK);
   const [rowsPerPage, setRowsPerPage] = useState(ROWS_PER_PAGE_FALLBACK);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -195,16 +196,45 @@ export function InvoiceDocumentView({
   const addressLine = [company.address, company.city, company.province].filter(Boolean).join(", ");
   const customerAddress = [customer.address, customer.city, customer.province, customer.country].filter(Boolean).join(", ");
 
+  async function handleMarkAsSent() {
+    setSentLoading(true);
+    startGlobalProcessing("Marking as sent…");
+    try {
+      const result = await setInvoiceStatus(invoiceId, "Sent");
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+      } else {
+        endGlobalProcessing({ success: "Invoice marked as sent." });
+        router.refresh();
+      }
+    } finally {
+      setSentLoading(false);
+    }
+  }
+
   useEffect(() => {
     setBarState({
       title: `Invoice ${invoiceNumber}`,
       titleSuffix: (
-        <span className="ml-2 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--color-surface-variant)] text-[var(--color-on-surface-variant)]">
+        <span className="invoice-status-badge ml-2 shrink-0" data-status={status.toLowerCase()}>
           {status}
         </span>
       ),
       rightSlot: (
         <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {status === "Draft" && (
+            <button
+              type="button"
+              onClick={handleMarkAsSent}
+              disabled={sentLoading}
+              className="btn btn-primary btn-sm inline-flex items-center gap-2 shrink-0"
+              aria-label="Mark as sent"
+              title="Mark as sent"
+            >
+              {sentLoading ? <Loader2 className="w-4 h-4 animate-spin shrink-0" /> : <Send className="w-4 h-4 shrink-0" />}
+              Sent
+            </button>
+          )}
           <button
             type="button"
             onClick={handleExportPdf}
@@ -258,7 +288,7 @@ export function InvoiceDocumentView({
       ),
     });
     return () => setBarState({ title: null, titleSuffix: null, rightSlot: null });
-  }, [invoiceId, invoiceNumber, status, pdfLoading, setBarState]);
+  }, [invoiceId, invoiceNumber, status, pdfLoading, sentLoading, setBarState]);
 
   const pageChunks = useMemo(() => {
     if (items.length === 0) return [[]];

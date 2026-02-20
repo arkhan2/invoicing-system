@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useGlobalSearch } from "./useGlobalSearch";
 import { IconButton } from "@/components/IconButton";
@@ -41,9 +42,24 @@ export function GlobalSearch() {
 
   if (!ctx) return null;
 
-  const { query, setQuery, scope, isSearchableRoute } = ctx;
+  const { setQuery, scope, isSearchableRoute } = ctx;
+  const searchParams = useSearchParams();
+  const urlQ = searchParams.get("q") ?? "";
   const placeholder = scope ? scopePlaceholder[scope] ?? "Search…" : "Search…";
   const ariaLabel = scope ? scopeLabel[scope] ?? "Search" : "Search";
+
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Search bar is the only source of truth. URL never updates the search bar; only search bar updates the URL (via setQuery debounced in the provider).
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  };
+
+  const handleClear = () => {
+    if (inputRef.current) inputRef.current.value = "";
+    setQuery("");
+    inputRef.current?.focus();
+  };
 
   return (
     <div className="min-w-0 max-w-[140px] flex-1 sm:max-w-[200px] md:max-w-[280px] lg:max-w-[320px]">
@@ -55,8 +71,10 @@ export function GlobalSearch() {
         <input
           ref={inputRef}
           type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          defaultValue={urlQ}
+          onChange={handleChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               (e.target as HTMLInputElement).blur();
@@ -67,12 +85,12 @@ export function GlobalSearch() {
           disabled={!isSearchableRoute}
           className={inputClass + " input-no-search-cancel disabled:opacity-60 disabled:cursor-not-allowed"}
         />
-        {query.trim() !== "" && (
+        {isFocused && (
           <IconButton
             variant="secondary"
             icon={<X className="size-4" />}
             label="Clear search"
-            onClick={() => setQuery("")}
+            onClick={handleClear}
             className="absolute right-1 top-1/2 -translate-y-1/2 shrink-0 rounded-md p-1.5 text-[var(--color-on-surface-variant)] hover:bg-[var(--color-surface-variant)] hover:text-[var(--color-on-surface)]"
           />
         )}

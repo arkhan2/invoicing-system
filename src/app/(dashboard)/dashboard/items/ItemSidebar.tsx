@@ -40,7 +40,7 @@ export function ItemSidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const globalSearch = useGlobalSearch();
-  const effectiveQuery = (globalSearch?.query ?? searchQueryProp ?? "").trim();
+  const effectiveQuery = (globalSearch?.searchQuery ?? searchQueryProp ?? "").trim();
   const [deleteState, setDeleteState] = useState<{ loading: boolean } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectionMode = selectedIds !== undefined && onSelectionChange !== undefined;

@@ -34,6 +34,8 @@ type InvoiceMappingKey =
   | "unit_price"
   | "total_values"
   | "sales_tax_applicable"
+  | "tax_percent"
+  | "tax_name"
   | "discount"
   | "uom";
 
@@ -59,6 +61,8 @@ const ITEM_FIELDS: { key: InvoiceMappingKey; label: string; level: "Line item" }
   { key: "unit_price", label: "Item Price", level: "Line item" },
   { key: "total_values", label: "Item Total", level: "Line item" },
   { key: "sales_tax_applicable", label: "Item Tax Amount", level: "Line item" },
+  { key: "tax_percent", label: "Item Tax % (invoice rate)", level: "Line item" },
+  { key: "tax_name", label: "Item Tax (name, e.g. GST)", level: "Line item" },
   { key: "discount", label: "Discount Amount", level: "Line item" },
   { key: "uom", label: "Usage unit", level: "Line item" },
 ];
@@ -93,7 +97,9 @@ function buildDefaultMapping(headers: string[]): InvoiceColumnMapping {
     quantity: pick("Quantity", "Qty"),
     unit_price: pick("Item Price", "Item Price", "Price", "Rate"),
     total_values: pick("Item Total", "Item Total", "Amount"),
-    sales_tax_applicable: pick("Item Tax", "Item Tax Amount", "Tax Amount"),
+    sales_tax_applicable: pick("Item Tax Amount", "Item Tax", "Tax Amount"),
+    tax_percent: pick("Item Tax %", "Tax %", "Tax Rate"),
+    tax_name: pick("Item Tax", "Tax Name", "Tax"),
     discount: pick("Discount Amount", "Item Discount", "Discount"),
     uom: pick("Usage unit", "UOM", "Unit"),
   };
@@ -105,6 +111,15 @@ const inputClass =
 function parseNum(v: string): number {
   const n = Number(String(v).replace(/,/g, "").trim());
   return Number.isFinite(n) ? n : 0;
+}
+
+/** Parse tax % from CSV (0–100). Returns null if missing or invalid. */
+function parseTaxPercentFromCsv(v: string): number | null {
+  const s = String(v).replace(/,/g, "").trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null;
+  return Math.round(n * 100) / 100;
 }
 
 function parseDate(v: string): string {
@@ -264,6 +279,8 @@ export function InvoiceImportPage({
         })
         .filter((x): x is MappedInvoiceItem => x !== null);
       if (items.length === 0) continue;
+      const taxPercent = parseTaxPercentFromCsv(g(first, "tax_percent"));
+      const taxName = g(first, "tax_name") || null;
       out.push({
         customer_name: g(first, "customer_name"),
         invoice_number: g(first, "invoice_number") || invoiceKey,
@@ -276,6 +293,8 @@ export function InvoiceImportPage({
         discount_amount: parseNum(g(first, "discount_amount")),
         discount_type: discountType,
         estimate_number: g(first, "estimate_number") || null,
+        tax_percent: taxPercent ?? undefined,
+        tax_name: taxName || undefined,
         items,
       });
     }

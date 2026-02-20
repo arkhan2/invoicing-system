@@ -35,7 +35,7 @@ export function ItemSpreadsheetView({
   const router = useRouter();
   const searchParams = useSearchParams();
   const globalSearch = useGlobalSearch();
-  const effectiveQuery = (globalSearch?.query ?? searchQueryProp ?? "").trim();
+  const effectiveQuery = (globalSearch?.searchQuery ?? searchQueryProp ?? "").trim();
   const highlightId = searchParams.get("highlight");
 
   useEffect(() => {

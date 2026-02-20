@@ -45,7 +45,7 @@ export function EstimateSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const globalSearch = useGlobalSearch();
-  const effectiveQuery = (globalSearch?.query ?? searchQueryProp ?? "").trim();
+  const effectiveQuery = (globalSearch?.searchQuery ?? searchQueryProp ?? "").trim();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteState, setDeleteState] = useState<SingleDeleteState | BulkDeleteState | null>(null);
   const [convertState, setConvertState] = useState<{ estimateId: string; loading: boolean } | null>(null);

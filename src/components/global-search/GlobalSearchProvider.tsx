@@ -26,33 +26,43 @@ export function GlobalSearchProvider({ children }: { children: React.ReactNode }
   const scope = useMemo(() => getScopeFromPathname(pathname), [pathname]);
 
   const urlQ = searchParams.get("q") ?? "";
-  const [query, setQueryState] = useState(urlQ);
+  const [searchQuery, setSearchQueryState] = useState(urlQ);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setQueryState(urlQ);
+    setSearchQueryState(urlQ);
   }, [pathname, urlQ]);
 
   const setQuery = useCallback(
     (value: string) => {
-      setQueryState(value);
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
       }
-      if (scope === null) return;
-      debounceRef.current = setTimeout(() => {
-        debounceRef.current = null;
+      if (scope === null) {
+        setSearchQueryState(value);
+        return;
+      }
+      // When clearing (empty or only whitespace), update immediately.
+      if (value.trim() === "") {
+        setSearchQueryState("");
         const p = new URLSearchParams(searchParams);
         p.set("page", "1");
-        if (value.trim()) {
-          p.set("q", value.trim());
-        } else {
-          p.delete("q");
-        }
+        p.delete("q");
         const qs = p.toString();
         router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+        return;
+      }
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        // Store raw value so the input keeps spaces and stays responsive.
+        setSearchQueryState(value);
+        const p = new URLSearchParams(searchParams);
+        p.set("page", "1");
+        p.set("q", value);
+        const qs = p.toString();
+        router.replace(`${pathname}?${qs}`, { scroll: false });
       }, DEBOUNCE_MS);
     },
     [scope, pathname, searchParams, router]
@@ -66,12 +76,12 @@ export function GlobalSearchProvider({ children }: { children: React.ReactNode }
 
   const value: GlobalSearchContextValue = useMemo(
     () => ({
-      query,
+      searchQuery,
       setQuery,
       scope,
       isSearchableRoute: scope !== null,
     }),
-    [query, setQuery, scope]
+    [searchQuery, setQuery, scope]
   );
 
   return (
