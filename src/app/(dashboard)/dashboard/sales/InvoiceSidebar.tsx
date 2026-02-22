@@ -3,14 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Trash2, Pencil, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash2, Copy, Pencil, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useGlobalSearch } from "@/components/global-search/useGlobalSearch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { IconButton } from "@/components/IconButton";
 import { PerPageDropdown } from "@/components/PerPageDropdown";
-import { deleteInvoice, deleteInvoices } from "./actions";
+import { deleteInvoice, deleteInvoices, cloneInvoice } from "./actions";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { formatEstimateDate } from "@/lib/formatDate";
 
@@ -38,6 +38,7 @@ export function InvoiceSidebar({
   perPageOptions = [50, 100, 200],
   searchQuery: searchQueryProp = "",
   filterCustomerId,
+  serverFiltered = false,
 }: {
   invoices: InvoiceListItem[];
   companyId: string;
@@ -47,6 +48,8 @@ export function InvoiceSidebar({
   perPageOptions?: readonly number[];
   searchQuery?: string;
   filterCustomerId?: string;
+  /** When true, list was already filtered by the server (including line items); skip client-side filter so line-item matches are shown. */
+  serverFiltered?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -54,6 +57,7 @@ export function InvoiceSidebar({
   const effectiveQuery = (globalSearch?.searchQuery ?? searchQueryProp ?? "").trim();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteState, setDeleteState] = useState<SingleDeleteState | BulkDeleteState | null>(null);
+  const [cloneLoadingId, setCloneLoadingId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const showFooter = totalCount != null && page != null && perPage != null;
@@ -62,7 +66,7 @@ export function InvoiceSidebar({
   const endItem = (totalCount ?? 0) === 0 ? 0 : Math.min((page ?? 1) * (perPage ?? 0), totalCount ?? 0);
 
   const filtered = useMemo(() => {
-    if (!effectiveQuery) return invoices;
+    if (serverFiltered || !effectiveQuery) return invoices;
     const q = effectiveQuery.toLowerCase();
     return invoices.filter(
       (inv) =>
@@ -71,7 +75,7 @@ export function InvoiceSidebar({
         (inv.status?.toLowerCase().includes(q) ?? false) ||
         (inv.estimate_number?.toLowerCase().includes(q) ?? false)
     );
-  }, [invoices, effectiveQuery]);
+  }, [invoices, effectiveQuery, serverFiltered]);
 
   const qs = (params: { page?: number; perPage?: number; q?: string; customerId?: string | null }) => {
     const p = new URLSearchParams();
@@ -142,6 +146,26 @@ export function InvoiceSidebar({
     estimateSize: () => ROW_HEIGHT_ESTIMATE,
     overscan: 8,
   });
+
+  async function handleClone(e: React.MouseEvent, invoiceId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    setCloneLoadingId(invoiceId);
+    startGlobalProcessing("Cloning invoice…");
+    try {
+      const result = await cloneInvoice(invoiceId);
+      if (result?.error) {
+        endGlobalProcessing({ error: result.error });
+        return;
+      }
+      endGlobalProcessing({ success: "Invoice cloned." });
+      router.refresh();
+      if (result.invoiceId) router.push(invoiceEditHref(result.invoiceId));
+    } finally {
+      setCloneLoadingId(null);
+      endGlobalProcessing();
+    }
+  }
 
   function openDelete(e: React.MouseEvent, invoiceId: string) {
     e.preventDefault();
@@ -342,6 +366,16 @@ export function InvoiceSidebar({
                               title="Edit"
                             >
                               <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(ev) => handleClone(ev, inv.id)}
+                              disabled={cloneLoadingId === inv.id}
+                              className={`shrink-0 rounded p-0.5 transition-colors ${isActive ? "text-[var(--color-on-primary-container)] hover:bg-[var(--color-on-primary-container)]/10 hover:text-[var(--color-on-primary-container)]" : "text-[var(--color-on-surface-variant)] hover:bg-[var(--color-secondary-bg)] hover:text-[var(--color-secondary)]"} ${cloneLoadingId === inv.id ? "opacity-50" : ""}`}
+                              aria-label="Clone invoice"
+                              title="Clone to next invoice number"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
                             </button>
                             <button
                               type="button"

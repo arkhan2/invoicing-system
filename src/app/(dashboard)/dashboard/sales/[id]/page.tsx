@@ -1,6 +1,7 @@
-import { createClient, getUserSafe } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { InvoiceDocumentView } from "../InvoiceDocumentView";
+import { getInvoicePaymentSummary } from "@/app/(dashboard)/dashboard/payments/actions";
 
 export default async function InvoiceViewPage({
   params,
@@ -71,10 +72,19 @@ export default async function InvoiceViewPage({
     uom: it.uom ?? undefined,
   }));
 
+  const paymentSummary =
+    invoice.status === "Final" || invoice.status === "Sent"
+      ? await getInvoicePaymentSummary(company.id, id)
+      : null;
+  const hasPaymentError = paymentSummary && "error" in paymentSummary && paymentSummary.error;
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--color-card-bg)]">
         <InvoiceDocumentView
+          companyId={company.id}
+          customerId={invoice.customer_id}
+          paymentSummary={hasPaymentError ? null : paymentSummary ?? undefined}
           invoiceId={id}
           invoiceNumber={invoice.invoice_number}
           invoiceDate={invoice.invoice_date ?? ""}

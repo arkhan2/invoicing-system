@@ -458,6 +458,34 @@
     color: var(--color-badge-success-text);
   }
 
+  /* Invoice payment bar amounts — explicit light/dark so they always contrast */
+  .invoice-payment-amount-paid {
+    color: #1a3830 !important;
+  }
+  .invoice-payment-amount-outstanding {
+    color: #a85a50 !important;
+  }
+  [data-theme="light"] .invoice-payment-amount-paid {
+    color: #1a3830 !important;
+  }
+  [data-theme="light"] .invoice-payment-amount-outstanding {
+    color: #a85a50 !important;
+  }
+  [data-theme="dark"] .invoice-payment-amount-paid {
+    color: #e8f6f2 !important;
+  }
+  [data-theme="dark"] .invoice-payment-amount-outstanding {
+    color: #d49088 !important;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .invoice-payment-amount-paid {
+      color: #e8f6f2 !important;
+    }
+    :root:not([data-theme="light"]) .invoice-payment-amount-outstanding {
+      color: #d49088 !important;
+    }
+  }
+
   /* A4 document view: white paper — fixed height, content area between header and footer */
   .document-page {
     width: 210mm;
@@ -642,8 +670,34 @@ input[type="time"]::placeholder {
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
+/* Top bar: consistent height and vertical center of icons/buttons on all viewports (mobile + desktop) */
+.dashboard-top-bar {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 2.75rem;
+}
+.dashboard-top-bar > div {
+  display: flex !important;
+  align-items: center !important;
+}
+.dashboard-top-bar h1,
+.dashboard-top-bar h2,
+.dashboard-top-bar h3 {
+  margin: 0;
+  line-height: 1.25;
+}
+.dashboard-top-bar .btn,
+.dashboard-top-bar .btn-icon,
+.dashboard-top-bar a[class*="btn"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
 /* Touch targets and safe areas (mobile a11y) */
-/* Touch targets: minimum 44px on mobile */
+/* Text buttons: minimum 44px height on mobile for touch targets. */
+/* Icon-only buttons: keep 2rem in all viewports so circular icons don't grow on mobile. */
+/* Top bar: keep all button sizes same as desktop (dashboard-top-bar). */
 @media (max-width: 1023px) {
   .btn {
     min-height: 2.75rem;
@@ -652,10 +706,23 @@ input[type="time"]::placeholder {
     min-height: 2.75rem;
   }
   .btn-icon {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    width: 2.75rem;
-    height: 2.75rem;
+    min-width: 2rem;
+    min-height: 2rem;
+    width: 2rem;
+    height: 2rem;
+  }
+  .dashboard-top-bar .btn {
+    min-height: 2.25rem;
+  }
+  .dashboard-top-bar .btn-sm {
+    min-height: 2rem;
+  }
+  /* Keep circular icon buttons exactly 2rem so they stay round (override .btn min-height) */
+  .dashboard-top-bar .btn-icon {
+    min-width: 2rem;
+    min-height: 2rem;
+    width: 2rem;
+    height: 2rem;
   }
 }
 

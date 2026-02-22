@@ -44,6 +44,7 @@ invoicing-system/
 
 ## Documentation
 
+- **[FEATURES.md](FEATURES.md)** — Implemented features, app structure, and full database schema reference.
 - **[CONTEXT.md](CONTEXT.md)** — Project context, phases, data model, quick reference (for AI and developers).
 - **[docs/VISUAL-DESIGN-AND-COLORS.md](docs/VISUAL-DESIGN-AND-COLORS.md)** — Semantic color system, light/dark themes, calculation table and G.Total styling.
 - **[docs/UI-DESIGN.md](docs/UI-DESIGN.md)** — UI and layout patterns.

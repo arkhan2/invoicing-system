@@ -22,7 +22,7 @@ export default async function CustomersLayout({
 
   return (
     <CustomersTopBarProvider>
-      <Suspense fallback={<div className="-m-6 flex min-h-0 flex-1 overflow-hidden" />}>
+      <Suspense fallback={<div className="-m-4 flex min-h-0 flex-1 overflow-hidden lg:-m-6" />}>
         <CustomersDataLoader companyId={company.id}>
           {children}
         </CustomersDataLoader>

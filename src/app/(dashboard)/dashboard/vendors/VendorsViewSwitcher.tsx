@@ -48,12 +48,12 @@ export function VendorsViewSwitcher({
 
   return (
     <VendorsListDrawerProvider openListDrawer={() => setListDrawerOpen(true)}>
-      <div className="-m-6 flex min-h-0 min-w-0 flex-1 flex-shrink-0 overflow-hidden border-r border-b border-[var(--color-outline)] bg-base">
+      <div className="-m-4 flex min-h-0 min-w-0 flex-1 flex-shrink-0 overflow-hidden border-r border-b border-[var(--color-outline)] bg-base lg:-m-6">
         {!isIndex && isLg && (
           <aside className="w-80 flex-shrink-0 overflow-hidden">{sidebar}</aside>
         )}
         {!isIndex && !isLg && (
-          <Drawer open={listDrawerOpen} onClose={() => setListDrawerOpen(false)} width="w-80">
+          <Drawer open={listDrawerOpen} onClose={() => setListDrawerOpen(false)} width="w-80" keepMounted>
             {sidebar}
           </Drawer>
         )}

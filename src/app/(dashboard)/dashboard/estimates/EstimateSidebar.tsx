@@ -32,6 +32,7 @@ export function EstimateSidebar({
   perPageOptions = [50, 100, 200],
   searchQuery: searchQueryProp = "",
   filterCustomerId,
+  serverFiltered = false,
 }: {
   estimates: EstimateListItem[];
   companyId: string;
@@ -41,6 +42,8 @@ export function EstimateSidebar({
   perPageOptions?: readonly number[];
   searchQuery?: string;
   filterCustomerId?: string;
+  /** When true, list was already filtered by the server (including line items); skip client-side filter so line-item matches are shown. */
+  serverFiltered?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -58,7 +61,7 @@ export function EstimateSidebar({
   const endItem = (totalCount ?? 0) === 0 ? 0 : Math.min((page ?? 1) * (perPage ?? 0), totalCount ?? 0);
 
   const filtered = useMemo(() => {
-    if (!effectiveQuery) return estimates;
+    if (serverFiltered || !effectiveQuery) return estimates;
     const q = effectiveQuery.toLowerCase();
     return estimates.filter(
       (e) =>
@@ -66,7 +69,7 @@ export function EstimateSidebar({
         e.customer_name?.toLowerCase().includes(q) ||
         (e.status?.toLowerCase().includes(q) ?? false)
     );
-  }, [estimates, effectiveQuery]);
+  }, [estimates, effectiveQuery, serverFiltered]);
 
   const qs = (params: { page?: number; perPage?: number; q?: string; customerId?: string | null }) => {
     const p = new URLSearchParams();

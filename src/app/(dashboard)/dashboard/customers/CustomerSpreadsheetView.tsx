@@ -12,7 +12,7 @@ import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalP
 import type { Customer } from "./CustomerForm";
 
 const topBarClass =
-  "flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3";
+  "dashboard-top-bar flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3";
 
 export function CustomerSpreadsheetView({
   customers,

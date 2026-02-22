@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type NavItem = { href: string; label: string; icon: "dashboard" | "company" | "customers" | "vendors" | "items" | "estimates" | "sales" | "purchases" };
+export type NavItem = { href: string; label: string; icon: "dashboard" | "company" | "customers" | "vendors" | "items" | "estimates" | "sales" | "payments" | "purchases" };
 
 const icons: Record<NavItem["icon"], React.ReactNode> = {
   dashboard: (
@@ -42,6 +42,11 @@ const icons: Record<NavItem["icon"], React.ReactNode> = {
   sales: (
     <svg className="size-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
+  payments: (
+    <svg className="size-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v2m4 0h6m-6 4v2m0 6V7m0 2a2 2 0 002 2h2a2 2 0 002-2V9a2 2 0 00-2-2h-2a2 2 0 00-2 2v6m4 0h-6" />
     </svg>
   ),
   purchases: (

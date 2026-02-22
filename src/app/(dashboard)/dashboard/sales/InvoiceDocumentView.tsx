@@ -9,6 +9,8 @@ import { IconButton } from "@/components/IconButton";
 import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalProcessing";
 import { useInvoicesTopBar } from "./InvoicesTopBarContext";
 import { deleteInvoice, setInvoiceStatus } from "./actions";
+import { InvoicePaymentSection } from "./InvoicePaymentSection";
+import type { InvoicePaymentSummary } from "@/app/(dashboard)/dashboard/payments/actions";
 
 /** Fallback if measurement fails */
 const ROWS_FIRST_PAGE_FALLBACK = 14;
@@ -70,6 +72,9 @@ export function InvoiceDocumentView({
   discountAmount,
   discountType,
   salesTaxLabel,
+  companyId,
+  customerId,
+  paymentSummary,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -89,6 +94,9 @@ export function InvoiceDocumentView({
   discountAmount?: number | null;
   discountType?: "amount" | "percentage" | null;
   salesTaxLabel?: string | null;
+  companyId?: string;
+  customerId?: string;
+  paymentSummary?: InvoicePaymentSummary | null;
 }) {
   const termsLabel =
     termsType === "due_on_receipt"
@@ -221,7 +229,7 @@ export function InvoiceDocumentView({
         </span>
       ),
       rightSlot: (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center content-center gap-2">
           {status === "Draft" && (
             <button
               type="button"
@@ -444,7 +452,7 @@ export function InvoiceDocumentView({
       {/* Document body: grey area + badge (scrolls with content) + A4 pages, same layout/scale as estimate */}
       <div
         ref={containerRef}
-        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[var(--color-outline)]/20 pt-8 pb-20 lg:pb-8"
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-[var(--color-outline)]/20 pt-8 pb-20 lg:pb-8"
         style={{
           paddingLeft: "max(1rem, env(safe-area-inset-left))",
           paddingRight: "max(1rem, env(safe-area-inset-right))",
@@ -484,9 +492,9 @@ export function InvoiceDocumentView({
               aria-hidden
             >
               <div className="document-page document-page-spaced flex flex-col p-8 pl-10">
-                <div className="document-page-header flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="document-page-header flex flex-row gap-5 border-b doc-border pb-5 items-start justify-between">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)]">AB</div>
-                  <div className="text-left sm:text-right">
+                  <div className="text-right">
                     <p className="text-3xl font-bold tracking-tight">INVOICE</p>
                     <p className="mt-1 text-lg font-semibold"># 00000</p>
                   </div>
@@ -526,7 +534,7 @@ export function InvoiceDocumentView({
               return (
                 <div key={pageIndex} className="document-page document-page-spaced mx-auto flex flex-col p-8 pl-10">
                   {/* Header on every page — same structure as estimate */}
-                  <div className="document-page-header flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="document-page-header flex flex-row gap-5 border-b doc-border pb-5 items-start justify-between">
                   <div className="flex items-start gap-4">
                     {company.logo_url ? (
                       <img
@@ -557,7 +565,7 @@ export function InvoiceDocumentView({
                       )}
                     </div>
                   </div>
-                  <div className="text-left sm:text-right">
+                  <div className="text-right">
                     <p className="text-3xl font-bold tracking-tight">INVOICE</p>
                     <p className="mt-1 text-lg font-semibold"># {invoiceNumber}</p>
                     <p className="mt-1 text-sm doc-muted">Invoice Date: {invoiceDate}</p>
@@ -567,7 +575,7 @@ export function InvoiceDocumentView({
                 <div className="document-page-content mt-3 flex flex-col flex-1 min-h-0">
                   {pageIndex === 0 && (
                     /* Bill To + Invoice detail section — same two-card layout as estimate */
-                    <div ref={billToBlockRef} className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
+                    <div ref={billToBlockRef} className="flex flex-row gap-3 items-stretch justify-between">
                     <div className="min-w-0 flex-[1.2] rounded-xl border doc-border doc-notes-bg p-3">
                       <h2 className="text-xs font-semibold uppercase tracking-wider doc-muted mb-2">Bill To</h2>
                       <p className="font-semibold m-0">{customer.name}</p>
@@ -589,7 +597,7 @@ export function InvoiceDocumentView({
                         <p className="mt-0.5 text-sm doc-muted m-0"><span className="font-semibold">P.O. #</span> {poNumber.trim()}</p>
                       )}
                     </div>
-                    <div className="min-w-0 flex-1 rounded-xl border doc-border doc-notes-bg sm:max-w-[17rem] p-3">
+                    <div className="min-w-0 flex-1 max-w-[17rem] rounded-xl border doc-border doc-notes-bg p-3">
                       <table className="w-full border-collapse text-sm" style={{ border: "none", width: "100%" }}>
                         <tbody>
                           {termsLabel && (
@@ -664,6 +672,17 @@ export function InvoiceDocumentView({
           Edit
         </Link>
       </div>
+
+      {paymentSummary && companyId && customerId && (
+        <InvoicePaymentSection
+          companyId={companyId}
+          customerId={customerId}
+          invoiceId={invoiceId}
+          invoiceNumber={invoiceNumber}
+          initialSummary={paymentSummary}
+          onRefresh={() => router.refresh()}
+        />
+      )}
     </div>
     <ConfirmDialog
       open={!!deleteState}

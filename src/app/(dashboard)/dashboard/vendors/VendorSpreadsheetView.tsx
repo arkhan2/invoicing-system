@@ -12,7 +12,7 @@ import { startGlobalProcessing, endGlobalProcessing } from "@/components/GlobalP
 import type { Vendor } from "./VendorForm";
 
 const topBarClass =
-  "flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3";
+  "dashboard-top-bar flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3";
 
 export function VendorSpreadsheetView({
   vendors,

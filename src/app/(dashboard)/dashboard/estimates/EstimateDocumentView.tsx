@@ -682,7 +682,7 @@ export function EstimateDocumentView({
       title,
       titleSuffix: h ? <EstimateStatusBadge status={displayStatus} className="shrink-0" /> : null,
       rightSlot: h ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center content-center gap-2">
           <button
             type="button"
             onClick={handleExportPdf}
@@ -765,7 +765,7 @@ export function EstimateDocumentView({
         {/* Document body: grey area + badge (scrolls with content) + A4 pages, same layout as invoice doc view */}
         <div
           ref={containerRef}
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[var(--color-outline)]/20 pt-8 pb-20 lg:pb-8"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-auto bg-[var(--color-outline)]/20 pt-8 pb-20 lg:pb-8"
           style={{
             paddingLeft: "max(1rem, env(safe-area-inset-left))",
             paddingRight: "max(1rem, env(safe-area-inset-right))",
@@ -805,9 +805,9 @@ export function EstimateDocumentView({
               aria-hidden
             >
               <div className="document-page document-page-spaced flex flex-col p-8 pl-10">
-                <div className="document-page-header flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="document-page-header flex flex-row gap-5 border-b doc-border pb-5 items-start justify-between">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)]">AB</div>
-                  <div className="text-left sm:text-right">
+                  <div className="text-right">
                     <p className="text-3xl font-bold tracking-tight">ESTIMATE</p>
                     <p className="mt-1 text-lg font-semibold"># 00000</p>
                   </div>
@@ -842,9 +842,9 @@ export function EstimateDocumentView({
               </div>
               {/* Terms-only page probe — matches continuation page layout exactly */}
               <div className="document-page document-page-spaced flex flex-col p-8 pl-10">
-                <div className="document-page-header flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="document-page-header flex flex-row gap-5 border-b doc-border pb-5 items-start justify-between">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary-container)]">AB</div>
-                  <div className="text-left sm:text-right">
+                  <div className="text-right">
                     <p className="text-3xl font-bold tracking-tight">ESTIMATE</p>
                     <p className="mt-1 text-lg font-semibold"># 00000</p>
                   </div>
@@ -860,8 +860,8 @@ export function EstimateDocumentView({
             </div>
             {(() => {
               const renderHeader = () => (
-                <div className="document-page-header flex flex-col gap-5 border-b doc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-start gap-4">
+<div className="document-page-header flex flex-row gap-5 border-b doc-border pb-5 items-start justify-between">
+                <div className="flex items-start gap-4">
                     {company.logo_url ? (
                       <img
                         src={company.logo_url}
@@ -891,7 +891,7 @@ export function EstimateDocumentView({
                       )}
                     </div>
                   </div>
-                  <div className="text-left sm:text-right">
+                  <div className="text-right">
                     <p className="text-3xl font-bold tracking-tight">ESTIMATE</p>
                     <p className="mt-1 text-lg font-semibold"># {estimateNumber}</p>
                     <p className="mt-1 text-sm doc-muted">Estimate Date: {formatEstimateDate(estimateDate)}</p>
@@ -915,7 +915,7 @@ export function EstimateDocumentView({
                 const content = (
                   <div className="flex flex-col gap-2">
                     {pageIndex === 0 && (
-                      <div ref={billToBlockRef} className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
+                      <div ref={billToBlockRef} className="flex flex-row gap-3 items-stretch justify-between">
                         <div className="min-w-0 flex-[1.2] rounded-xl border doc-border doc-notes-bg" style={{ padding: "12px", boxSizing: "border-box" }}>
                           <h2 className="text-xs font-semibold uppercase tracking-wider doc-muted" style={{ marginBottom: "8px" }}>Bill To</h2>
                           <p className="font-semibold" style={{ margin: 0 }}>{customer.name}</p>
@@ -932,7 +932,7 @@ export function EstimateDocumentView({
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0 flex-1 rounded-xl border doc-border doc-notes-bg sm:max-w-[17rem]" style={{ padding: "12px", boxSizing: "border-box" }}>
+                        <div className="min-w-0 flex-1 max-w-[17rem] rounded-xl border doc-border doc-notes-bg" style={{ padding: "12px", boxSizing: "border-box" }}>
                           <table className="w-full border-collapse text-sm" style={{ border: "none", width: "100%" }}>
                             <tbody>
                               {validUntil && (

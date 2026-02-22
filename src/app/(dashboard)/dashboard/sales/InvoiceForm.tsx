@@ -34,12 +34,14 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 const STATUS_OPTIONS = ["Draft", "Final", "Sent"] as const;
 
-export type TermsType = "" | "due_on_receipt" | "net_15" | "net_30" | "eom" | "custom";
+export type TermsType = "" | "due_on_receipt" | "net_15" | "net_30" | "net_45" | "net_60" | "eom" | "custom";
 const TERMS_OPTIONS: { value: TermsType; label: string }[] = [
   { value: "", label: "— Select terms —" },
   { value: "due_on_receipt", label: "Due on receipt" },
   { value: "net_15", label: "Net 15" },
   { value: "net_30", label: "Net 30" },
+  { value: "net_45", label: "Net 45" },
+  { value: "net_60", label: "Net 60" },
   { value: "eom", label: "End of month" },
   { value: "custom", label: "Custom" },
 ];
@@ -55,6 +57,14 @@ function computeDueDateFromTerms(invoiceDateStr: string, termsType: TermsType): 
   }
   if (termsType === "net_30") {
     d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  }
+  if (termsType === "net_45") {
+    d.setDate(d.getDate() + 45);
+    return d.toISOString().slice(0, 10);
+  }
+  if (termsType === "net_60") {
+    d.setDate(d.getDate() + 60);
     return d.toISOString().slice(0, 10);
   }
   if (termsType === "eom") {
@@ -208,7 +218,7 @@ export function InvoiceForm({
   const [subject, setSubject] = useState(initialSubject ?? "");
   const [paymentTerms, setPaymentTerms] = useState(initialPaymentTerms ?? "");
   const [termsType, setTermsType] = useState<TermsType>(
-    (initialTermsType && ["due_on_receipt", "net_15", "net_30", "eom", "custom"].includes(initialTermsType) ? initialTermsType : "") as TermsType
+    (initialTermsType && ["due_on_receipt", "net_15", "net_30", "net_45", "net_60", "eom", "custom"].includes(initialTermsType) ? initialTermsType : "") as TermsType
   );
   const [dueDate, setDueDate] = useState(
     initialDueDate ?? ""

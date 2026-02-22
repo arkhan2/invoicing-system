@@ -60,7 +60,7 @@ export function CustomersDataLoader({
 
   if (!data) {
     return (
-      <div className="-m-6 flex min-h-0 flex-1 overflow-hidden">
+      <div className="-m-4 flex min-h-0 flex-1 overflow-hidden lg:-m-6">
         <aside className="w-80 flex-shrink-0 overflow-hidden border-r border-[var(--color-outline)] bg-base">
           <div className="flex flex-1 items-center justify-center p-4 text-sm text-[var(--color-on-surface-variant)]">
             Loading…

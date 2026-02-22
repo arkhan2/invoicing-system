@@ -356,6 +356,8 @@ export async function getInvoicesList(
   customer_name: string;
   customer_id: string;
   estimate_number: string | null;
+  paid_amount: number;
+  outstanding_balance: number;
 }> }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -436,19 +438,126 @@ export async function getInvoicesList(
     }
   }
 
-  const list = (invoices ?? []).map((inv) => ({
-    id: inv.id,
-    invoice_number: inv.invoice_number,
-    invoice_date: inv.invoice_date,
-    status: inv.status,
-    total_amount: inv.total_amount,
-    total_tax: inv.total_tax,
-    customer_name: (inv.customer as { name?: string } | null)?.name ?? "",
-    customer_id: (inv.customer as { id?: string } | null)?.id ?? "",
-    estimate_number: inv.estimate_id ? (estimateNumberById[inv.estimate_id] ?? null) : null,
-  }));
+  const invoiceIds = (invoices ?? []).map((inv) => inv.id);
+  let paidByInvoice: Record<string, number> = {};
+  if (invoiceIds.length > 0) {
+    const { data: summaryRows } = await supabase
+      .from("sales_invoice_allocations_summary")
+      .select("sales_invoice_id, paid_amount")
+      .in("sales_invoice_id", invoiceIds);
+    for (const row of summaryRows ?? []) {
+      paidByInvoice[row.sales_invoice_id] = Number(row.paid_amount);
+    }
+  }
+
+  const list = (invoices ?? []).map((inv) => {
+    const total = Number(inv.total_amount) ?? 0;
+    const paid = paidByInvoice[inv.id] ?? 0;
+    const outstanding_balance = Math.max(0, total - paid);
+    return {
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      invoice_date: inv.invoice_date,
+      status: inv.status,
+      total_amount: inv.total_amount,
+      total_tax: inv.total_tax,
+      customer_name: (inv.customer as { name?: string } | null)?.name ?? "",
+      customer_id: (inv.customer as { id?: string } | null)?.id ?? "",
+      estimate_number: inv.estimate_id ? (estimateNumberById[inv.estimate_id] ?? null) : null,
+      paid_amount: paid,
+      outstanding_balance,
+    };
+  });
 
   return { totalCount: count ?? 0, list };
+}
+
+export async function cloneInvoice(invoiceId: string): Promise<InvoiceFormState & { invoiceId?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be signed in." };
+
+  const { data: invoice, error: invErr } = await supabase
+    .from("sales_invoices")
+    .select("id, company_id, customer_id, invoice_date, notes, project_name, subject, payment_terms, terms_type, due_date, delivery_time_amount, delivery_time_unit, total_amount, total_tax, discount_amount, discount_type, sales_tax_rate_id, invoice_ref_no")
+    .eq("id", invoiceId)
+    .single();
+  if (invErr || !invoice) return { error: "Invoice not found." };
+
+  const { data: company } = await supabase
+    .from("companies")
+    .select("id, sales_invoice_prefix")
+    .eq("id", invoice.company_id)
+    .eq("user_id", user.id)
+    .single();
+  if (!company) return { error: "Company not found." };
+
+  const prefix = company.sales_invoice_prefix ?? "INV";
+  const nextNum = await getNextInvoiceNumber(supabase, invoice.company_id, prefix);
+  const invoiceNumber = `${prefix}-${String(nextNum).padStart(INVOICE_NUMBER_DIGITS, "0")}`;
+  const invoiceDate = new Date().toISOString().slice(0, 10);
+
+  const { data: invoiceItems } = await supabase
+    .from("sales_invoice_items")
+    .select("*")
+    .eq("sales_invoice_id", invoiceId)
+    .order("sort_order");
+  const items = invoiceItems ?? [];
+
+  const { data: newInvoice, error: insErr } = await supabase
+    .from("sales_invoices")
+    .insert({
+      company_id: invoice.company_id,
+      customer_id: invoice.customer_id,
+      invoice_number: invoiceNumber,
+      invoice_date: invoiceDate,
+      status: "Draft",
+      invoice_ref_no: invoice.invoice_ref_no ?? null,
+      notes: invoice.notes,
+      project_name: invoice.project_name,
+      subject: invoice.subject,
+      payment_terms: invoice.payment_terms ?? null,
+      terms_type: invoice.terms_type ?? null,
+      due_date: invoice.due_date ?? null,
+      delivery_time_amount: invoice.delivery_time_amount ?? null,
+      delivery_time_unit: invoice.delivery_time_unit ?? null,
+      total_amount: invoice.total_amount,
+      total_tax: invoice.total_tax,
+      discount_amount: invoice.discount_amount,
+      discount_type: invoice.discount_type,
+      sales_tax_rate_id: invoice.sales_tax_rate_id,
+    })
+    .select("id")
+    .single();
+  if (insErr) return { error: insErr.message };
+  if (!newInvoice) return { error: "Failed to create invoice." };
+
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i] as Record<string, unknown>;
+    await supabase.from("sales_invoice_items").insert({
+      sales_invoice_id: newInvoice.id,
+      item_number: it.item_number ?? "",
+      product_description: it.product_description,
+      hs_code: it.hs_code ?? "",
+      rate_label: it.rate_label ?? "",
+      uom: it.uom ?? "Nos",
+      quantity: Number(it.quantity),
+      unit_price: Number(it.unit_price),
+      value_sales_excluding_st: Number(it.value_sales_excluding_st),
+      sales_tax_applicable: Number(it.sales_tax_applicable) ?? 0,
+      sales_tax_withheld_at_source: Number(it.sales_tax_withheld_at_source) ?? 0,
+      extra_tax: Number(it.extra_tax) ?? 0,
+      further_tax: Number(it.further_tax) ?? 0,
+      discount: Number(it.discount) ?? 0,
+      total_values: Number(it.total_values),
+      sale_type: it.sale_type ?? "Goods at standard rate (default)",
+      sort_order: i,
+    });
+  }
+
+  await supabase.from("companies").update({ sales_invoice_next_number: nextNum + 1 }).eq("id", invoice.company_id).eq("user_id", user.id);
+  revalidatePath("/dashboard/sales");
+  return { invoiceId: newInvoice.id };
 }
 
 export async function deleteInvoice(invoiceId: string): Promise<InvoiceFormState> {

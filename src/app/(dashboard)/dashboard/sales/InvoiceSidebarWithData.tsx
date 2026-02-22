@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getInvoicesList } from "./actions";
 import { InvoiceSidebar } from "./InvoiceSidebar";
@@ -9,7 +9,6 @@ import type { InvoiceListItem } from "./InvoiceSidebar";
 const PER_PAGE_OPTIONS = [50, 100, 200] as const;
 
 export function InvoiceSidebarWithData({ companyId }: { companyId: string }) {
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const perPage = (() => {
@@ -35,7 +34,7 @@ export function InvoiceSidebarWithData({ companyId }: { companyId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [companyId, page, perPage, searchQuery, customerId, pathname]);
+  }, [companyId, page, perPage, searchQuery, customerId]);
 
   if (!data) {
     return (
@@ -57,6 +56,7 @@ export function InvoiceSidebarWithData({ companyId }: { companyId: string }) {
       perPageOptions={PER_PAGE_OPTIONS}
       searchQuery={searchQuery}
       filterCustomerId={customerId || undefined}
+      serverFiltered
     />
   );
 }

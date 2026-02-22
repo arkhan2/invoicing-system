@@ -9,7 +9,7 @@ import { useInvoicesListDrawer } from "./InvoicesListDrawerContext";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 const topBarClass =
-  "flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3 max-lg:sticky max-lg:top-0 max-lg:z-10";
+  "dashboard-top-bar flex flex-shrink-0 items-center justify-between gap-4 border-b border-[var(--color-divider)] bg-base px-4 py-3 max-lg:sticky max-lg:top-0 max-lg:z-10";
 
 export function InvoicesTopBar() {
   const pathname = usePathname();
@@ -74,7 +74,7 @@ export function InvoicesTopBar() {
         </h2>
         {barState.titleSuffix != null ? barState.titleSuffix : null}
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center content-center gap-2">
         {useCustomRight ? (
           barState.rightSlot
         ) : (

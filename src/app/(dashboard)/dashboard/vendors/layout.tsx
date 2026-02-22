@@ -22,7 +22,7 @@ export default async function VendorsLayout({
 
   return (
     <VendorsTopBarProvider>
-      <Suspense fallback={<div className="-m-6 flex min-h-0 flex-1 overflow-hidden" />}>
+      <Suspense fallback={<div className="-m-4 flex min-h-0 flex-1 overflow-hidden lg:-m-6" />}>
         <VendorsDataLoader companyId={company.id}>
           {children}
         </VendorsDataLoader>

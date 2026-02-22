@@ -38,6 +38,7 @@ export default async function DashboardLayout({
     { href: "/dashboard/customers", label: "Customers", icon: "customers" },
     { href: "/dashboard/estimates", label: "Estimates", icon: "estimates" },
     { href: "/dashboard/sales", label: "Sales Invoices", icon: "sales" },
+    { href: "/dashboard/payments", label: "Payments", icon: "payments" },
     { href: "/dashboard/items", label: "Items", icon: "items" },
     { href: "/dashboard/vendors", label: "Vendors", icon: "vendors" },
     { href: "/dashboard/purchases", label: "Purchase Invoices", icon: "purchases" },
